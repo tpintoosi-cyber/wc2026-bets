@@ -288,9 +288,13 @@ export default function Predict() {
 
                           {p.prediction1X2 && (
                             <div className="max-pts-bar">
-                              <span className="max-pts-label">מקסימום:</span>
-                              <span className="max-pts-value">{maxPts} נק׳</span>
-                              <span className="max-pts-breakdown">{breakdown.join(' | ')}</span>
+                              <div className="max-pts-bar-top">
+                                <span className="max-pts-label">מקסימום אפשרי:</span>
+                                <span className="max-pts-value">{maxPts} נק׳</span>
+                              </div>
+                              <div className="max-pts-breakdown">
+                                {breakdown.map((b, i) => <span key={i} className="max-pts-item">{b}</span>)}
+                              </div>
                             </div>
                           )}
                         </div>
