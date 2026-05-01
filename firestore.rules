@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // App settings — read by all logged-in users, write only by admin
+    match /settings/{doc} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // User profiles — read by all, write only own
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == uid;
+    }
+
+    // Predictions — read by all logged-in users, write only own
+    match /predictions/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth.uid == uid;
+    }
+
+    // Scores — read by all logged-in, write only by admin / Cloud Function
+    match /scores/{uid} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Admin results — read/write only by admin
+    match /admin/{doc} {
+      allow read, write: if isAdmin();
+    }
+
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/settings/app) &&
+        request.auth.uid in get(/databases/$(database)/documents/settings/app).data.adminUids;
+    }
+  }
+}
