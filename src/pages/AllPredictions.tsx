@@ -191,7 +191,14 @@ export default function AllPredictions() {
                               <span style={{ color: '#aaa', margin: '0 8px' }}>—</span>
                               <span className="team-name">{match.teamB} {FLAGS[match.teamB]}</span>
                               <span style={{ color: '#ccc', fontSize: 12, marginRight: 'auto' }}>לא מולא</span>
-                              {played && <PtsBadge pts={0} played={played} />}
+                              {played && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ fontSize: 12, color: '#555', fontWeight: 600, background: '#f5f5f5', padding: '2px 8px', borderRadius: 6 }}>
+                                    {match.teamA} {result.resultA ?? 0} – {result.resultB ?? 0} {match.teamB}
+                                  </span>
+                                  <PtsBadge pts={0} played={played} />
+                                </div>
+                              )}
                             </div>
                           )
 
@@ -209,9 +216,9 @@ export default function AllPredictions() {
                               </span>
                               {p.redCard && <span title="ניחש כרטיס אדום">🟥</span>}
                               {played && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span style={{ fontSize: 12, color: '#666' }}>
-                                    {result.resultA}-{result.resultB}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 12, color: '#555', fontWeight: 600, background: '#f5f5f5', padding: '2px 8px', borderRadius: 6 }}>
+                                    {match.teamA} {result.resultA ?? 0} – {result.resultB ?? 0} {match.teamB}
                                     {result.hadRedCard ? ' 🟥' : ''}
                                   </span>
                                   <PtsBadge pts={pts} played={played} />
