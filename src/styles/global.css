@@ -293,6 +293,14 @@ select { cursor: pointer; }
 /* ── Utilities ───────────────────────────────────── */
 .hint { font-size: 13px; color: #888; margin-bottom: 8px; }
 .text-muted { color: #888; }
+.lang-toggle {
+  background: none; border: 1px solid #ccc; border-radius: 6px;
+  padding: 3px 8px; cursor: pointer; font-size: 12px; font-weight: 700;
+  color: #555; transition: all 0.15s; letter-spacing: 0.5px;
+}
+.lang-toggle:hover { border-color: #1a1a2e; color: #1a1a2e; background: #f5f5f5; }
+body.dark .lang-toggle { border-color: #475569; color: #94a3b8; }
+body.dark .lang-toggle:hover { border-color: #94a3b8; color: #f1f5f9; background: #1e293b; }
 
 /* ── Ranking gap ─────────────────────────────────── */
 .ranking-gap {

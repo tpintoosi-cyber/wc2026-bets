@@ -5,6 +5,7 @@ import { useAuth, isAppOpen } from '../hooks/useAuth'
 import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category } from '../types'
 import { calc1X2Points, calcOverUnder } from '../scoring'
+import { T, Lang, BONUS_QUESTIONS_EN } from '../i18n'
 
 const MAX_RED_CARDS = 6
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
@@ -15,7 +16,8 @@ function calcMaxPoints(
   pred: MatchPrediction,
   category: Category,
   fifaPointsA: number,
-  fifaPointsB: number
+  fifaPointsB: number,
+  t: typeof T['he']
 ): { total: number; breakdown: string[] } {
   if (!pred.prediction1X2) return { total: 0, breakdown: [] }
   const breakdown: string[] = []
@@ -31,7 +33,7 @@ function calcMaxPoints(
       (pred.prediction1X2 === '2' && !aIsFav)
     pts1x2 = predFavWins ? 1 : [1, 2, 3, 4][catIdx]
   }
-  breakdown.push(`1X2: ${pts1x2}`)
+  breakdown.push(`${t.score1x2}: ${pts1x2}`)
 
   let ptsScore = 0
   if (pred.scoreA !== null && pred.scoreA !== undefined &&
@@ -39,19 +41,20 @@ function calcMaxPoints(
     const total = (pred.scoreA ?? 0) + (pred.scoreB ?? 0)
     const isOverUnder = calcOverUnder(total, category)
     if (isOverUnder) {
-      const ouLabel = total <= (category === 'A' || category === 'B' ? 1 : 2) ? 'אנדר: 1' : 'אובר: 1'
+      const ouLabel = total <= (category === 'A' || category === 'B' ? 1 : 2)
+        ? `${t.under}: 1` : `${t.over}: 1`
       ptsScore = 4
-      breakdown.push(`תוצאה מדויקת: 2 (הפרש: 1) | ${ouLabel}`)
+      breakdown.push(`${t.exactScore}: 2 (${t.margin}: 1) | ${ouLabel}`)
     } else {
       ptsScore = 3
-      breakdown.push('תוצאה מדויקת: 2 (הפרש: 1)')
+      breakdown.push(`${t.exactScore}: 2 (${t.margin}: 1)`)
     }
   }
 
   let ptsRed = 0
   if (pred.redCard) {
     ptsRed = 1
-    breakdown.push('כרטיס אדום: 1')
+    breakdown.push(`${t.redCard}: 1`)
   }
 
   return { total: pts1x2 + ptsScore + ptsRed, breakdown }
@@ -68,40 +71,46 @@ ALL_FIFA.sort((a, b) => b.pts - a.pts)
 const FIFA_RANK: Record<string, number> = {}
 ALL_FIFA.forEach((t, i) => { FIFA_RANK[t.team] = i + 1 })
 
-const CAT_INFO: Record<string, { label: string; color: string; bg: string; desc: string; overUnder: string }> = {
-  A: { label: 'קטגוריה A — מאוזן',         color: '#0a6640', bg: '#e1f5ee', desc: 'כל תוצאה = 1 נק׳',       overUnder: 'אנדר: 0–1 | אובר: 4+ שערים' },
-  B: { label: 'קטגוריה B — יתרון קל',      color: '#0c447c', bg: '#e6f1fb', desc: 'הפתעה = 2 נק׳',          overUnder: 'אנדר: 0–1 | אובר: 4+ שערים' },
-  C: { label: 'קטגוריה C — מועדפת ברורה', color: '#633806', bg: '#faeeda', desc: 'תיקו=2 | הפתעה=3 נק׳',   overUnder: 'אנדר: 0–2 | אובר: 5+ שערים' },
-  D: { label: 'קטגוריה D — פער גדול',      color: '#4a1b0c', bg: '#faece7', desc: 'תיקו=3 | הפתעה=4 נק׳',   overUnder: 'אנדר: 0–2 | אובר: 5+ שערים' },
+const CAT_COLORS = {
+  A: { color: '#0a6640', bg: '#e1f5ee' },
+  B: { color: '#0c447c', bg: '#e6f1fb' },
+  C: { color: '#633806', bg: '#faeeda' },
+  D: { color: '#4a1b0c', bg: '#faece7' },
 }
 
-function RankingGap({ teamA, teamB, fifaA, fifaB, category }: {
+function RankingGap({ teamA, teamB, fifaA, fifaB, category, t }: {
   teamA: string; teamB: string; fifaA: number; fifaB: number; category: Category
+  t: typeof T['he']
 }) {
-  const info = CAT_INFO[category]
+  const { color, bg } = CAT_COLORS[category]
   const rankA = FIFA_RANK[teamA] ?? '?'
   const rankB = FIFA_RANK[teamB] ?? '?'
   const favTeam = fifaA >= fifaB ? teamA : teamB
   const favRank = fifaA >= fifaB ? rankA : rankB
+  const label = t[`cat${category}` as keyof typeof t] as string
+  const desc = t[`catDesc${category}` as keyof typeof t] as string
+  const ou = (category === 'A' || category === 'B') ? t.ouAB : t.ouCD
 
   return (
-    <div className="ranking-gap" style={{ background: info.bg, borderColor: info.color + '33' }}>
+    <div className="ranking-gap" style={{ background: bg, borderColor: color + '33' }}>
       <div className="ranking-gap-top">
-        <span className="ranking-gap-label" style={{ color: info.color }}>{info.label}</span>
-        <span className="ranking-gap-desc" style={{ color: info.color }}>{info.desc}</span>
+        <span className="ranking-gap-label" style={{ color }}>{label}</span>
+        <span className="ranking-gap-desc" style={{ color }}>{desc}</span>
       </div>
       <div className="ranking-gap-bottom">
-        <span className="ranking-fifa" style={{ color: info.color }}>{FLAGS[teamA]} {teamA} <strong>#{rankA}</strong></span>
-        <span className="ranking-arrow" style={{ color: info.color }}>מועדפת: {FLAGS[favTeam]} {favTeam} (#{favRank})</span>
-        <span className="ranking-fifa" style={{ color: info.color }}>{FLAGS[teamB]} {teamB} <strong>#{rankB}</strong></span>
+        <span className="ranking-fifa" style={{ color }}>{FLAGS[teamA]} {teamA} <strong>#{rankA}</strong></span>
+        <span className="ranking-arrow" style={{ color }}>{t.favoriteLabel}: {FLAGS[favTeam]} {favTeam} (#{favRank})</span>
+        <span className="ranking-fifa" style={{ color }}>{FLAGS[teamB]} {teamB} <strong>#{rankB}</strong></span>
       </div>
-      <div className="ranking-gap-ou" style={{ color: info.color }}>{info.overUnder}</div>
+      <div className="ranking-gap-ou" style={{ color }}>{ou}</div>
     </div>
   )
 }
 
 export default function Predict() {
   const { user } = useAuth()
+  const [lang, setLang] = useState<Lang>(() => (localStorage.getItem('lang') as Lang) || 'he')
+  const t = T[lang]
   const [tab, setTab] = useState<Tab>('matches')
   const [isOpen, setIsOpen] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -110,6 +119,12 @@ export default function Predict() {
   const [groupPreds, setGroupPreds] = useState<Record<Group, GroupPrediction>>({} as any)
   const [bonus, setBonus] = useState<Partial<BonusPredictions>>({})
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const toggleLang = () => {
+    const next: Lang = lang === 'he' ? 'en' : 'he'
+    setLang(next)
+    localStorage.setItem('lang', next)
+  }
 
   const redCardCount = Object.values(matchPreds).filter(p => p.redCard).length
 
@@ -190,21 +205,28 @@ export default function Predict() {
   return (
     <div className="page">
       <div className="status-bar">
-        {!isOpen && <span className="badge badge-red">ההגשות נסגרו</span>}
-        {isOpen && saving && <span className="text-muted">שומר...</span>}
-        {isOpen && !saving && lastSaved && <span className="text-muted">נשמר {lastSaved.toLocaleTimeString('he-IL')}</span>}
-        <span className="text-muted">משחקים: {matchProgress}/72 • כרטיסים אדומים: {redCardCount}/{MAX_RED_CARDS}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {!isOpen && <span className="badge badge-red">{t.closed}</span>}
+          {isOpen && saving && <span className="text-muted">{t.saving}</span>}
+          {isOpen && !saving && lastSaved && <span className="text-muted">{t.saved} {lastSaved.toLocaleTimeString('he-IL')}</span>}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span className="text-muted">{t.matches}: {matchProgress}/72 • {t.redCards}: {redCardCount}/{MAX_RED_CARDS}</span>
+          <button className="lang-toggle" onClick={toggleLang} title="Change language">
+            {lang === 'he' ? 'EN' : 'עב'}
+          </button>
+        </div>
       </div>
 
       <div className="tabs">
         <button className={tab === 'matches' ? 'tab active' : 'tab'} onClick={() => setTab('matches')}>
-          משחקים <span className="badge">{matchProgress}/72</span>
+          {t.tabMatches} <span className="badge">{matchProgress}/72</span>
         </button>
         <button className={tab === 'groups' ? 'tab active' : 'tab'} onClick={() => setTab('groups')}>
-          עולים מהבית
+          {t.tabGroups}
         </button>
         <button className={tab === 'bonus' ? 'tab active' : 'tab'} onClick={() => setTab('bonus')}>
-          בונוס
+          {t.tabBonus}
         </button>
       </div>
 
@@ -212,16 +234,16 @@ export default function Predict() {
         <div className="matches-section">
           {[1, 2, 3].map(round => (
             <div key={round}>
-              <h2 className="round-title">סיבוב {round}</h2>
+              <h2 className="round-title">{t.round} {round}</h2>
               {GROUPS.map(group => {
                 const ms = MATCHES.filter(m => m.round === round && m.group === group)
                 if (!ms.length) return null
                 return (
                   <div key={group} className="group-block">
-                    <div className="group-label">בית {group}</div>
+                    <div className="group-label">{t.group} {group}</div>
                     {ms.map(match => {
                       const p: MatchPrediction = matchPreds[match.id] ?? { matchId: match.id, prediction1X2: '1' as const, scoreA: null, scoreB: null, redCard: false }
-                      const { total: maxPts, breakdown } = calcMaxPoints(p, match.category, match.fifaPointsA, match.fifaPointsB)
+                      const { total: maxPts, breakdown } = calcMaxPoints(p, match.category, match.fifaPointsA, match.fifaPointsB, t)
                       return (
                         <div key={match.id} className="match-row">
                           <div className="match-header">
@@ -234,7 +256,7 @@ export default function Predict() {
                           <RankingGap
                             teamA={match.teamA} teamB={match.teamB}
                             fifaA={match.fifaPointsA} fifaB={match.fifaPointsB}
-                            category={match.category}
+                            category={match.category} t={t}
                           />
 
                           <div className="match-body">
@@ -273,7 +295,7 @@ export default function Predict() {
                                     ? `${FLAGS[match.teamA] ?? ''} ${match.teamA.slice(0,4)}`
                                     : opt === '2'
                                     ? `${match.teamB.slice(0,4)} ${FLAGS[match.teamB] ?? ''}`
-                                    : '✖ תיקו'}
+                                    : t.draw}
                                 </button>
                               ))}
                             </div>
@@ -282,15 +304,15 @@ export default function Predict() {
                                 disabled={!isOpen || (!p.redCard && redCardCount >= MAX_RED_CARDS)}
                                 onChange={e => updateMatch(match.id, 'redCard', e.target.checked)}
                               />
-                              🟥 כרטיס אדום
+                              {t.redCard}
                             </label>
                           </div>
 
                           {p.prediction1X2 && (
                             <div className="max-pts-bar">
                               <div className="max-pts-bar-top">
-                                <span className="max-pts-label">מקסימום אפשרי:</span>
-                                <span className="max-pts-value">{maxPts} נק׳</span>
+                                <span className="max-pts-label">{t.maxPts}:</span>
+                                <span className="max-pts-value">{maxPts} {t.pts}</span>
                               </div>
                               <div className="max-pts-breakdown">
                                 {breakdown.map((b, i) => <span key={i} className="max-pts-item">{b}</span>)}
@@ -310,22 +332,22 @@ export default function Predict() {
 
       {tab === 'groups' && (
         <div className="groups-section">
-          <p className="hint">בחר 3 נבחרות עולות מכל בית לפי הסדר (1=ראשון, 2=שני, 3=שלישי)</p>
-          <p className="hint">מקום מדויק = 2 נק׳ | נבחרת נכונה מקום שגוי = 1 נק׳</p>
+          <p className="hint">{t.groupsHint1}</p>
+          <p className="hint">{t.groupsHint2}</p>
           <div className="groups-grid">
             {GROUPS.map(group => {
               const teams = GROUPS_TEAMS[group]
               const gp = groupPreds[group] ?? { group, advancing: ['', '', ''] }
               return (
                 <div key={group} className="group-card">
-                  <div className="group-card-title">בית {group}</div>
+                  <div className="group-card-title">{t.group} {group}</div>
                   {[0, 1, 2].map(idx => (
                     <div key={idx} className="group-slot">
                       <span className="slot-num">{idx + 1}.</span>
                       <select value={gp.advancing[idx] ?? ''} disabled={!isOpen}
                         onChange={e => updateGroup(group, idx, e.target.value)}>
-                        <option value="">— בחר —</option>
-                        {teams.map(t => <option key={t} value={t}>{FLAGS[t] ?? ''} {t}</option>)}
+                        <option value="">{t.selectPlaceholder}</option>
+                        {teams.map(tm => <option key={tm} value={tm}>{FLAGS[tm] ?? ''} {tm}</option>)}
                       </select>
                     </div>
                   ))}
@@ -338,15 +360,15 @@ export default function Predict() {
 
       {tab === 'bonus' && (
         <div className="bonus-section">
-          <p className="hint">שאלות בונוס — ממלאים פעם אחת לפני הטורניר</p>
+          <p className="hint">{t.bonusHint}</p>
           {BONUS_QUESTIONS.map(q => (
             <div key={q.id} className="bonus-row">
               <div className="bonus-label">
-                {q.label}
-                <span className="pts-badge">{q.points} נק׳</span>
-                {q.note && <span className="bonus-note">{q.note}</span>}
+                {lang === 'en' ? (BONUS_QUESTIONS_EN[q.id] ?? q.label) : q.label}
+                <span className="pts-badge">{q.points} {t.pts}</span>
+                {q.note && lang === 'he' && <span className="bonus-note">{q.note}</span>}
               </div>
-              <BonusInput q={q} value={(bonus as any)[q.id] ?? ''} disabled={!isOpen}
+              <BonusInput q={q} value={(bonus as any)[q.id] ?? ''} disabled={!isOpen} t={t}
                 onChange={val => updateBonus(q.id as keyof BonusPredictions, val)} />
             </div>
           ))}
@@ -356,28 +378,29 @@ export default function Predict() {
   )
 }
 
-function BonusInput({ q, value, disabled, onChange }: {
-  q: typeof BONUS_QUESTIONS[number]; value: string; disabled: boolean; onChange: (v: string) => void
+function BonusInput({ q, value, disabled, onChange, t }: {
+  q: typeof BONUS_QUESTIONS[number]; value: string; disabled: boolean
+  onChange: (v: string) => void; t: typeof T['he']
 }) {
   const allTeams = Object.values(GROUPS_TEAMS).flat()
   if (q.type === 'team') return (
     <select value={value} disabled={disabled} onChange={e => onChange(e.target.value)}>
-      <option value="">— בחר נבחרת —</option>
-      {[...allTeams].sort().map(t => <option key={t} value={t}>{FLAGS[t] ?? ''} {t}</option>)}
+      <option value="">{t.selectTeam}</option>
+      {[...allTeams].sort().map(tm => <option key={tm} value={tm}>{FLAGS[tm] ?? ''} {tm}</option>)}
     </select>
   )
   if (q.type === 'group') return (
     <select value={value} disabled={disabled} onChange={e => onChange(e.target.value)}>
-      <option value="">— בחר בית —</option>
-      {'ABCDEFGHIJKL'.split('').map(g => <option key={g} value={g}>בית {g}</option>)}
+      <option value="">{t.selectGroup}</option>
+      {'ABCDEFGHIJKL'.split('').map(g => <option key={g} value={g}>{t.group} {g}</option>)}
     </select>
   )
   if (q.type === 'number') return (
-    <input type="number" min="0" max="200" value={value} placeholder="הכנס מספר..."
+    <input type="number" min="0" max="200" value={value} placeholder={t.enterNumber}
       disabled={disabled} onFocus={e => e.target.select()} onChange={e => onChange(e.target.value)} />
   )
   return (
-    <input type="text" placeholder="שם שחקן..." value={value}
+    <input type="text" placeholder={t.playerName} value={value}
       disabled={disabled} onChange={e => onChange(e.target.value)} />
   )
 }
