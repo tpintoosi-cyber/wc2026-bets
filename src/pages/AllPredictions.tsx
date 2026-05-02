@@ -183,47 +183,86 @@ export default function AllPredictions() {
                           const played = result?.isPlayed ?? false
                           const pts = matchPts(match.id, p)
 
+                          // Determine result tag
+                          const getResultTag = () => {
+                            if (!played || !p) return null
+                            const rA = result.resultA ?? 0, rB = result.resultB ?? 0
+                            const actual1x2 = rA > rB ? '1' : rA < rB ? '2' : 'X'
+                            const exact = p.scoreA === rA && p.scoreB === rB
+                            const marginOk = p.scoreA !== null && p.scoreB !== null && ((p.scoreA - p.scoreB) === (rA - rB))
+                            if (pts >= 4 && exact) return { label: '✓ מדויק', bg: '#EAF3DE', color: '#3B6D11' }
+                            if (pts > 0 && p.prediction1X2 === actual1x2 && marginOk) return { label: 'הפרש נכון', bg: '#E6F1FB', color: '#185FA5' }
+                            if (pts > 0 && p.prediction1X2 === actual1x2) return { label: '✓ 1X2 נכון', bg: '#EAF3DE', color: '#3B6D11' }
+                            if (pts > 0 && marginOk) return { label: 'הפרש נכון', bg: '#E6F1FB', color: '#185FA5' }
+                            return { label: '✗ שגוי', bg: '#FCEBEB', color: '#A32D2D' }
+                          }
+                          const tag = getResultTag()
+                          const borderColor = !played ? 'transparent' : pts > 0 ? '#3B6D11' : '#ddd'
+                          const predWinner = p?.prediction1X2 === '1' ? match.teamA : p?.prediction1X2 === '2' ? match.teamB : 'תיקו'
+
                           if (!p) return (
-                            <div key={match.id} className="match-row view-row empty-pred">
-                              <span className="match-num">#{match.id}</span>
-                              <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                              <span className="team-name">{FLAGS[match.teamA]} {match.teamA}</span>
-                              <span style={{ color: '#aaa', margin: '0 8px' }}>—</span>
-                              <span className="team-name">{match.teamB} {FLAGS[match.teamB]}</span>
-                              <span style={{ color: '#ccc', fontSize: 12, marginRight: 'auto' }}>לא מולא</span>
+                            <div key={match.id} className="match-row" style={{ borderRight: `3px solid ${played ? '#ddd' : 'transparent'}` }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: played ? 8 : 0 }}>
+                                <span className="match-num">#{match.id}</span>
+                                <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
+                                <span style={{ fontSize: 13 }}>{FLAGS[match.teamA]} {match.teamA}</span>
+                                <span style={{ color: 'var(--color-text-muted, #aaa)', fontSize: 13 }}>נגד</span>
+                                <span style={{ fontSize: 13 }}>{match.teamB} {FLAGS[match.teamB]}</span>
+                                <span style={{ marginRight: 'auto', fontSize: 12, color: '#bbb' }}>לא מולא</span>
+                                {played && <PtsBadge pts={0} played={true} />}
+                              </div>
                               {played && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span style={{ fontSize: 12, color: '#555', fontWeight: 600, background: '#f5f5f5', padding: '2px 8px', borderRadius: 6 }}>
-                                    {match.teamA} {result.resultA ?? 0} – {result.resultB ?? 0} {match.teamB}
-                                  </span>
-                                  <PtsBadge pts={0} played={played} />
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: '#888', paddingTop: 6, borderTop: '1px solid #f0f0f0' }}>
+                                  <span style={{ fontWeight: 600, minWidth: 52, color: '#aaa' }}>בפועל</span>
+                                  <span style={{ fontWeight: 600, color: '#555' }}>{result.resultA ?? 0} – {result.resultB ?? 0}</span>
+                                  {result.hadRedCard && <span style={{ fontSize: 12, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥 כרטיס</span>}
                                 </div>
                               )}
                             </div>
                           )
 
                           return (
-                            <div key={match.id} className="match-row view-row" style={played ? { borderRight: `3px solid ${pts > 0 ? '#1a7a44' : '#ddd'}` } : {}}>
-                              <span className="match-num">#{match.id}</span>
-                              <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                              <span className="team-name">{FLAGS[match.teamA]} {match.teamA}</span>
-                              <span className="view-score">
-                                {p.scoreA ?? '?'} – {p.scoreB ?? '?'}
-                              </span>
-                              <span className="team-name">{match.teamB} {FLAGS[match.teamB]}</span>
-                              <span className={`pred-1x2`} style={{ marginRight: 'auto' }}>
-                                {p.prediction1X2 === '1' ? match.teamA.slice(0,3) : p.prediction1X2 === '2' ? match.teamB.slice(0,3) : 'X'}
-                              </span>
-                              {p.redCard && <span title="ניחש כרטיס אדום">🟥</span>}
-                              {played && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                  <span style={{ fontSize: 12, color: '#555', fontWeight: 600, background: '#f5f5f5', padding: '2px 8px', borderRadius: 6 }}>
-                                    {match.teamA} {result.resultA ?? 0} – {result.resultB ?? 0} {match.teamB}
-                                    {result.hadRedCard ? ' 🟥' : ''}
+                            <div key={match.id} className="match-row" style={{ borderRight: `3px solid ${borderColor}` }}>
+                              {/* Header row */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                <span className="match-num">#{match.id}</span>
+                                <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
+                                <span style={{ fontSize: 13, fontWeight: 500 }}>{FLAGS[match.teamA]} {match.teamA}</span>
+                                <span style={{ color: 'var(--color-text-muted,#aaa)', fontSize: 12 }}>נגד</span>
+                                <span style={{ fontSize: 13, fontWeight: 500 }}>{match.teamB} {FLAGS[match.teamB]}</span>
+                                <span style={{ marginRight: 'auto' }} />
+                                {played && <PtsBadge pts={pts} played={true} />}
+                              </div>
+
+                              {/* Pred vs Actual */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 0, borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                                {/* MY PRED */}
+                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 11, color: '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', minWidth: 52 }}>ניחוש שלי</span>
+                                  <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e' }}>
+                                    {p.scoreA ?? '?'} – {p.scoreB ?? '?'}
                                   </span>
-                                  <PtsBadge pts={pts} played={played} />
+                                  <span style={{ fontSize: 12, background: '#f0f0f0', color: '#555', padding: '2px 8px', borderRadius: 20 }}>
+                                    {predWinner}
+                                  </span>
+                                  {p.redCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥</span>}
                                 </div>
-                              )}
+
+                                {/* Divider */}
+                                {played && <div style={{ width: 1, height: 28, background: '#e5e5e5', margin: '0 12px', flexShrink: 0 }} />}
+
+                                {/* ACTUAL RESULT */}
+                                {played && (
+                                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ fontSize: 11, color: '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', minWidth: 40 }}>בפועל</span>
+                                    <span style={{ fontSize: 14, fontWeight: 600, color: '#555' }}>
+                                      {result.resultA ?? 0} – {result.resultB ?? 0}
+                                    </span>
+                                    {result.hadRedCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥</span>}
+                                    {tag && <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: tag.bg, color: tag.color }}>{tag.label}</span>}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           )
                         })}
