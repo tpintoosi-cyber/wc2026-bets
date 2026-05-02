@@ -27,9 +27,17 @@ export default function Leaderboard() {
     </div>
   )
 
+  const tournamentStarted = scores.some(s => s.total > 0)
+
   return (
     <div className="page">
       <h1>טבלת ניקוד</h1>
+
+      {!tournamentStarted && (
+        <div className="lb-pre-tournament">
+          ⏳ הטורניר טרם התחיל — הטבלה תתעדכן אוטומטית לאחר המשחק הראשון ב-12/6/2026
+        </div>
+      )}
       <div className="leaderboard">
         <div className="lb-header">
           <span className="lb-rank">#</span>
