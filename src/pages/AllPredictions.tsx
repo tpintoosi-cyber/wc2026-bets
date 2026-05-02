@@ -185,7 +185,7 @@ export default function AllPredictions() {
                           const played = result?.isPlayed ?? false
                           const pts = matchPts(match.id, p)
 
-                          // Determine result tag
+                          // Determine result tag — uses same logic as matchPts
                           const getResultTag = () => {
                             if (!played || !p) return null
                             const rA = Number(result.resultA ?? 0)
@@ -197,11 +197,13 @@ export default function AllPredictions() {
                             const exact = pA !== null && pB !== null && pA === rA && pB === rB
                             const marginOk = pA !== null && pB !== null && (pA - pB) === (rA - rB)
 
+                            // Tag based on what actually happened, pts badge shows real score
+                            if (pts === 0) return { label: '✗ שגוי', bg: '#FCEBEB', color: '#A32D2D' }
                             if (exact && correct1x2) return { label: '✓ מדויק', bg: '#EAF3DE', color: '#3B6D11' }
                             if (correct1x2 && marginOk) return { label: '1X2 + הפרש', bg: '#EAF3DE', color: '#3B6D11' }
                             if (correct1x2) return { label: '✓ 1X2 נכון', bg: '#EAF3DE', color: '#3B6D11' }
                             if (marginOk) return { label: 'הפרש נכון', bg: '#E6F1FB', color: '#185FA5' }
-                            return { label: '✗ שגוי', bg: '#FCEBEB', color: '#A32D2D' }
+                            return { label: `+${pts}`, bg: '#EAF3DE', color: '#3B6D11' }
                           }
                           const tag = getResultTag()
                           const borderColor = !played ? 'transparent' : pts > 0 ? '#3B6D11' : '#ddd'
