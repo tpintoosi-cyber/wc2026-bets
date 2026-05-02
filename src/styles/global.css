@@ -167,8 +167,8 @@ select { cursor: pointer; }
   display: grid; grid-template-columns: 1fr auto 1fr;
   align-items: center; gap: 8px; margin-bottom: 8px;
 }
-.team-name { font-size: 16px; font-weight: 600; }
-.team-name-b { text-align: left; }
+.team-name { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+.team-name-b { justify-content: flex-end; }
 .score-inputs { display: flex; align-items: center; gap: 6px; justify-content: center; }
 .score-input {
   width: 46px; height: 38px; text-align: center;
@@ -188,8 +188,9 @@ select { cursor: pointer; }
   background: none; cursor: pointer; font-size: 13px; font-weight: 600;
   color: #666; transition: all 0.1s;
 }
-.btn-1x2:hover:not(:disabled) { border-color: #1a1a2e; color: #1a1a2e; }
+.btn-1x2:hover:not(:disabled):not(.selected) { border-color: #1a1a2e; color: #1a1a2e; }
 .btn-1x2.selected { background: #1a1a2e; border-color: #1a1a2e; color: #fff; }
+.btn-1x2.selected:hover { background: #2d2d4e; color: #fff; }
 .btn-1x2:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Red card */

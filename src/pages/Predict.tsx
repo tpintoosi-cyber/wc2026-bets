@@ -226,7 +226,7 @@ export default function Predict() {
                         <div key={match.id} className="match-row">
                           <div className="match-header">
                             <span className="match-datetime">
-                              📅 {MATCH_SCHEDULE[match.id] ?? '—'} שעון ישראל
+                              🗓 {MATCH_SCHEDULE[match.id] ?? '—'}
                             </span>
                             <span className="match-num">#{match.id}</span>
                           </div>
@@ -256,8 +256,8 @@ export default function Predict() {
                               />
                             </div>
                             <span className="team-name team-name-b">
-                              {match.teamB}
                               <span className="team-flag">{FLAGS[match.teamB] ?? '🏳️'}</span>
+                              {match.teamB}
                             </span>
                           </div>
 
