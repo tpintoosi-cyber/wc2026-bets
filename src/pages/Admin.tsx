@@ -222,13 +222,21 @@ export default function Admin() {
                 <div key={match.id} className="admin-match-row">
                   <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
                   <span className="admin-match-team">{match.teamA}</span>
-                  <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                    value={r.resultA ?? 0}
-                    onChange={e => updateMatchResult(match.id, 'resultA', parseInt(e.target.value) || 0)} />
-                  <span>–</span>
-                  <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                    value={r.resultB ?? 0}
-                    onChange={e => updateMatchResult(match.id, 'resultB', parseInt(e.target.value) || 0)} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, direction: 'ltr' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600 }}>בית</span>
+                      <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                        value={r.resultA ?? ''}
+                        onChange={e => updateMatchResult(match.id, 'resultA', parseInt(e.target.value) || 0)} />
+                    </div>
+                    <span style={{ fontWeight: 300, color: '#aaa', fontSize: 20, marginTop: 14 }}>–</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                      <span style={{ fontSize: 10, color: '#aaa', fontWeight: 600 }}>אורח</span>
+                      <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                        value={r.resultB ?? ''}
+                        onChange={e => updateMatchResult(match.id, 'resultB', parseInt(e.target.value) || 0)} />
+                    </div>
+                  </div>
                   <span className="admin-match-team admin-match-team-b">{match.teamB}</span>
                   <label title="היה כרטיס אדום">
                     <input type="checkbox" checked={r.hadRedCard ?? false}

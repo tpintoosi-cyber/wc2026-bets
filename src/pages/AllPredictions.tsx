@@ -246,7 +246,7 @@ export default function AllPredictions() {
                                 {/* MY PRED */}
                                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                                   <span style={{ fontSize: 11, color: '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', minWidth: 52 }}>ניחוש שלי</span>
-                                  <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e' }}>
+                                  <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e' }} dir="ltr">
                                     {p.scoreA ?? '?'} – {p.scoreB ?? '?'}
                                   </span>
                                   <span style={{ fontSize: 12, background: '#f0f0f0', color: '#555', padding: '2px 8px', borderRadius: 20 }}>
@@ -262,7 +262,7 @@ export default function AllPredictions() {
                                 {played && (
                                   <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <span style={{ fontSize: 11, color: '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', minWidth: 40 }}>בפועל</span>
-                                    <span style={{ fontSize: 14, fontWeight: 600, color: '#555' }}>
+                                    <span style={{ fontSize: 14, fontWeight: 600, color: '#555' }} dir="ltr">
                                       {result.resultA ?? 0} – {result.resultB ?? 0}
                                     </span>
                                     {result.hadRedCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥</span>}
