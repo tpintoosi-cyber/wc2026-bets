@@ -307,6 +307,17 @@ select { cursor: pointer; }
 .page[dir="ltr"] .match-header { flex-direction: row-reverse; }
 .page[dir="ltr"] .ranking-gap-bottom { flex-direction: row-reverse; }
 
+/* ── Admin API Sync ──────────────────────────────── */
+.api-sync-section { border: 2px solid #2563eb22; }
+.btn-sync { background: #2563eb; min-width: 180px; }
+.btn-sync:hover:not(:disabled) { background: #1d4ed8; }
+.sync-log {
+  margin-top: 12px; background: #0f172a; color: #94a3b8;
+  border-radius: 8px; padding: 12px 14px; font-family: monospace;
+  font-size: 13px; line-height: 1.8; max-height: 200px; overflow-y: auto;
+}
+.sync-log div { border-bottom: 1px solid #1e293b; padding: 2px 0; }
+
 /* ── Utilities ───────────────────────────────────── */
 .hint { font-size: 13px; color: #888; margin-bottom: 8px; }
 .text-muted { color: #888; }

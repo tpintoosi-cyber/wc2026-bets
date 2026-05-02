@@ -122,6 +122,10 @@ export default function Predict({ lang }: { lang: Lang }) {
   // Helper: team name in current language
   const tn = (hebrewName: string) => lang === 'en' ? (TEAM_EN[hebrewName] ?? hebrewName) : hebrewName
 
+  // Live schedule from Firestore (synced from API), fallback to static
+  const [liveSchedule, setLiveSchedule] = useState<Record<number, string>>({})
+  const getMatchTime = (id: number) => liveSchedule[id] ?? MATCH_SCHEDULE[id] ?? '—'
+
   const redCardCount = Object.values(matchPreds).filter(p => p.redCard).length
 
   useEffect(() => {
@@ -135,6 +139,15 @@ export default function Predict({ lang }: { lang: Lang }) {
         setMatchPreds(data.matches ?? {})
         setGroupPreds(data.groups ?? {})
         setBonus(data.bonus ?? {})
+      }
+      // Load live schedule from Firestore if available
+      try {
+        const schedSnap = await getDoc(doc(db, 'admin', 'schedule'))
+        if (schedSnap.exists()) {
+          setLiveSchedule(schedSnap.data().schedule ?? {})
+        }
+      } catch {
+        // fallback to static schedule
       }
     })()
   }, [user])
@@ -241,7 +254,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         <div key={match.id} className="match-row">
                           <div className="match-header">
                             <span className="match-datetime">
-                              🗓 {MATCH_SCHEDULE[match.id] ?? '—'}
+                              🗓 {getMatchTime(match.id) ?? '—'}
                             </span>
                             <span className="match-num">#{match.id}</span>
                           </div>
