@@ -4,24 +4,14 @@ import { db } from '../firebase'
 import { MATCHES, GROUPS_TEAMS, TEAM_EN } from '../data/matches'
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction } from '../types'
-import { fetchGroupStageMatches, toIsraelTime, ApiMatch } from '../services/wc2026api'
+import { fetchGroupStageMatches, toIsraelTime } from '../services/wc2026api'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
 
-// Reverse map: English API name → Hebrew name
-const EN_TO_HE: Record<string, string> = {}
-import('../data/matches').then(m => {
-  for (const [he, en] of Object.entries(m.TEAM_EN)) {
-    EN_TO_HE[en.toLowerCase()] = he
-  }
-})
-
-// Build EN→HE at module level
 const EN_TO_HE_MAP: Record<string, string> = {}
 for (const [he, en] of Object.entries(TEAM_EN)) {
   EN_TO_HE_MAP[en.toLowerCase()] = he
 }
-// API name aliases
 const API_ALIASES: Record<string, string> = {
   'korea republic': 'south korea',
   'bosnia-herzegovina': 'bosnia',
@@ -61,51 +51,38 @@ export default function Admin() {
     })()
   }, [])
 
-  // ── API Sync ──────────────────────────────────────────────
   const syncFromApi = async () => {
     setSyncing(true)
     setSyncLog([])
     const log: string[] = []
-
     try {
       log.push('⏳ מושך נתונים מ-wc2026api.com...')
       setSyncLog([...log])
-
       const apiMatches = await fetchGroupStageMatches()
       log.push(`✅ התקבלו ${apiMatches.length} משחקים מה-API`)
       setSyncLog([...log])
-
       const updatedMatches = { ...matches }
       let updatedSchedule = 0
       let updatedResults = 0
-
       for (const apiMatch of apiMatches) {
-        // Find our match by team names
-      const normHome = API_ALIASES[apiMatch.home_team?.toLowerCase()] ?? apiMatch.home_team?.toLowerCase()
-      const normAway = API_ALIASES[apiMatch.away_team?.toLowerCase()] ?? apiMatch.away_team?.toLowerCase()
-      const homeHe = EN_TO_HE_MAP[normHome] ?? apiMatch.home_team
-      const awayHe = EN_TO_HE_MAP[normAway] ?? apiMatch.away_team
-
+        const normHome = API_ALIASES[apiMatch.home_team?.toLowerCase()] ?? apiMatch.home_team?.toLowerCase()
+        const normAway = API_ALIASES[apiMatch.away_team?.toLowerCase()] ?? apiMatch.away_team?.toLowerCase()
+        const homeHe = EN_TO_HE_MAP[normHome] ?? apiMatch.home_team
+        const awayHe = EN_TO_HE_MAP[normAway] ?? apiMatch.away_team
         const ourMatch = MATCHES.find(m =>
           (m.teamA === homeHe && m.teamB === awayHe) ||
           (m.teamA === awayHe && m.teamB === homeHe)
         )
-
         if (!ourMatch) {
           log.push(`⚠️ לא נמצא: ${apiMatch.home_team} vs ${apiMatch.away_team}`)
           continue
         }
-
         const current = updatedMatches[ourMatch.id] ?? { ...ourMatch }
         const isReversed = ourMatch.teamA === awayHe
-
-        // Update schedule time
         if (apiMatch.kickoff_utc) {
           (current as any).scheduleIL = toIsraelTime(apiMatch.kickoff_utc)
           updatedSchedule++
         }
-
-        // Update results if completed
         if (apiMatch.status === 'completed' &&
             apiMatch.home_score !== null && apiMatch.away_score !== null) {
           current.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
@@ -113,51 +90,37 @@ export default function Admin() {
           current.isPlayed = true
           updatedResults++
         }
-
         updatedMatches[ourMatch.id] = current as Match
       }
-
       setMatches(updatedMatches)
       log.push(`📅 עודכנו ${updatedSchedule} שעות משחק`)
       log.push(`⚽ עודכנו ${updatedResults} תוצאות`)
-
-      // Save to Firestore
       await setDoc(doc(db, 'admin', 'results'), {
-        matches: updatedMatches,
-        groups: actualGroups,
-        bonus: actualBonus,
+        matches: updatedMatches, groups: actualGroups, bonus: actualBonus,
       }, { merge: true })
-
-      // Also save schedule to settings
       const scheduleMap: Record<number, string> = {}
       for (const [id, m] of Object.entries(updatedMatches)) {
         if ((m as any).scheduleIL) scheduleMap[Number(id)] = (m as any).scheduleIL
       }
       await setDoc(doc(db, 'admin', 'schedule'), { schedule: scheduleMap })
-
       log.push('💾 נשמר ב-Firestore')
-
       if (updatedResults > 0) {
         log.push('🔄 מחשב ניקוד...')
         setSyncLog([...log])
         await recalcAllScores(updatedMatches)
         log.push('🏆 ניקוד עודכן!')
       }
-
       log.push('✅ סנכרון הושלם!')
       setMsg(`✓ סנכרון הצליח — ${updatedResults} תוצאות, ${updatedSchedule} שעות`)
-
     } catch (e) {
       log.push(`❌ שגיאה: ${(e as Error).message}`)
       setMsg('שגיאה בסנכרון: ' + (e as Error).message)
     }
-
     setSyncLog([...log])
     setSyncing(false)
     setTimeout(() => setMsg(''), 5000)
   }
 
-  // ── Score calculation ─────────────────────────────────────
   const recalcAllScores = async (matchData?: Record<number, Match>) => {
     const data = matchData ?? matches
     const usersSnap = await getDocs(collection(db, 'predictions'))
@@ -257,13 +220,16 @@ export default function Admin() {
               const r = matches[match.id] ?? match
               return (
                 <div key={match.id} className="admin-match-row">
-                  <span className="admin-match-teams">{match.teamA} — {match.teamB}</span>
                   <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                  <input className="score-input" type="number" min="0" max="20" placeholder="A"
-                    value={r.resultA ?? ''} onChange={e => updateMatchResult(match.id, 'resultA', parseInt(e.target.value) || 0)} />
+                  <span className="admin-match-team">{match.teamA}</span>
+                  <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                    value={r.resultA ?? ''}
+                    onChange={e => updateMatchResult(match.id, 'resultA', parseInt(e.target.value) || 0)} />
                   <span>–</span>
-                  <input className="score-input" type="number" min="0" max="20" placeholder="B"
-                    value={r.resultB ?? ''} onChange={e => updateMatchResult(match.id, 'resultB', parseInt(e.target.value) || 0)} />
+                  <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                    value={r.resultB ?? ''}
+                    onChange={e => updateMatchResult(match.id, 'resultB', parseInt(e.target.value) || 0)} />
+                  <span className="admin-match-team admin-match-team-b">{match.teamB}</span>
                   <label title="היה כרטיס אדום">
                     <input type="checkbox" checked={r.hadRedCard ?? false}
                       onChange={e => updateMatchResult(match.id, 'hadRedCard', e.target.checked)} />
