@@ -286,13 +286,16 @@ export default function AllPredictions() {
                                 {/* MY PRED */}
                                 <div style={{ flex: 1 }}>
                                   <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, letterSpacing: '.5px', marginBottom: 5 }}>ניחוש שלי</div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                     <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e' }}>{match.teamB}</span>
                                     <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a2e', minWidth: 18, textAlign: 'center' }}>{p.scoreB ?? '?'}</span>
                                     <span style={{ color: '#aaa', fontWeight: 300 }}>–</span>
                                     <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a2e', minWidth: 18, textAlign: 'center' }}>{p.scoreA ?? '?'}</span>
                                     <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e' }}>{match.teamA}</span>
-                                    {p.redCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10, marginRight: 4 }}>🟥</span>}
+                                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#1a1a2e', color: '#fff', marginRight: 2 }}>
+                                      {p.prediction1X2 === '1' ? match.teamA : p.prediction1X2 === '2' ? match.teamB : 'תיקו'}
+                                    </span>
+                                    {p.redCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥</span>}
                                   </div>
                                 </div>
 
