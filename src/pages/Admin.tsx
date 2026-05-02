@@ -21,6 +21,16 @@ const EN_TO_HE_MAP: Record<string, string> = {}
 for (const [he, en] of Object.entries(TEAM_EN)) {
   EN_TO_HE_MAP[en.toLowerCase()] = he
 }
+// API name aliases
+const API_ALIASES: Record<string, string> = {
+  'korea republic': 'south korea',
+  'bosnia-herzegovina': 'bosnia',
+  "côte d'ivoire": 'ivory coast',
+  'cabo verde': 'cape verde',
+  'ir iran': 'iran',
+  'congo dr': 'dr congo',
+  'czechia': 'czech republic',
+}
 
 export default function Admin() {
   const [matches, setMatches] = useState<Record<number, Match>>({})
@@ -71,8 +81,10 @@ export default function Admin() {
 
       for (const apiMatch of apiMatches) {
         // Find our match by team names
-        const homeHe = EN_TO_HE_MAP[apiMatch.home_team?.toLowerCase()] ?? apiMatch.home_team
-        const awayHe = EN_TO_HE_MAP[apiMatch.away_team?.toLowerCase()] ?? apiMatch.away_team
+      const normHome = API_ALIASES[apiMatch.home_team?.toLowerCase()] ?? apiMatch.home_team?.toLowerCase()
+      const normAway = API_ALIASES[apiMatch.away_team?.toLowerCase()] ?? apiMatch.away_team?.toLowerCase()
+      const homeHe = EN_TO_HE_MAP[normHome] ?? apiMatch.home_team
+      const awayHe = EN_TO_HE_MAP[normAway] ?? apiMatch.away_team
 
         const ourMatch = MATCHES.find(m =>
           (m.teamA === homeHe && m.teamB === awayHe) ||
