@@ -54,7 +54,7 @@ export function calcScorePoints(
   if (predA === resultA && predB === resultB) {
     const total = resultA + resultB
     const overUnder = calcOverUnder(total, category) ? 1 : 0
-    return 3 + overUnder
+    return 2 + overUnder
   }
   if ((predA - predB) === (resultA - resultB)) return 1
   return 0
