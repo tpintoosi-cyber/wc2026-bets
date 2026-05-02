@@ -223,11 +223,11 @@ export default function Admin() {
                   <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
                   <span className="admin-match-team">{match.teamA}</span>
                   <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                    value={r.resultA ?? ''}
+                    value={r.resultA ?? 0}
                     onChange={e => updateMatchResult(match.id, 'resultA', parseInt(e.target.value) || 0)} />
                   <span>–</span>
                   <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                    value={r.resultB ?? ''}
+                    value={r.resultB ?? 0}
                     onChange={e => updateMatchResult(match.id, 'resultB', parseInt(e.target.value) || 0)} />
                   <span className="admin-match-team admin-match-team-b">{match.teamB}</span>
                   <label title="היה כרטיס אדום">
