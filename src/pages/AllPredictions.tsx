@@ -121,6 +121,42 @@ export default function AllPredictions() {
     return p1 + ps + pr
   }
 
+  // Breakdown of how points were earned
+  function matchBreakdown(matchId: number, pred: MatchPrediction | undefined): { label: string; pts: number }[] {
+    if (!pred) return []
+    const result = adminResults[matchId]
+    if (!result?.isPlayed || result.resultA == null || result.resultB == null) return []
+    const match = MATCHES.find(m => m.id === matchId)!
+    const rA = Number(result.resultA), rB = Number(result.resultB)
+    const pA = pred.scoreA != null ? Number(pred.scoreA) : null
+    const pB = pred.scoreB != null ? Number(pred.scoreB) : null
+    const items: { label: string; pts: number }[] = []
+
+    const p1 = calc1X2Points(pred.prediction1X2, rA, rB, match.fifaPointsA, match.fifaPointsB, match.category)
+    if (p1 > 0) items.push({ label: `1X2: +${p1}`, pts: p1 })
+
+    if (pA !== null && pB !== null) {
+      const exact = pA === rA && pB === rB
+      const marginOk = (pA - pB) === (rA - rB)
+      if (exact) {
+        items.push({ label: 'מדויק: +2', pts: 2 })
+        const total = rA + rB
+        const isOU = (match.category === 'A' || match.category === 'B') ? (total <= 1 || total >= 4) : (total <= 2 || total >= 5)
+        if (isOU) {
+          const ouLabel = total <= ((match.category === 'A' || match.category === 'B') ? 1 : 2) ? 'אנדר' : 'אובר'
+          items.push({ label: `${ouLabel}: +1`, pts: 1 })
+        }
+      } else if (marginOk) {
+        items.push({ label: 'הפרש: +1', pts: 1 })
+      }
+    }
+
+    const pr = calcRedCardPoints(pred.redCard, result.hadRedCard ?? false)
+    if (pr > 0) items.push({ label: '🟥: +1', pts: 1 })
+
+    return items
+  }
+
   // Calculate group points for a single group
   function groupPts(group: Group): number {
     const pred = current?.groups[group]
@@ -184,6 +220,7 @@ export default function AllPredictions() {
                           const result = adminResults[match.id]
                           const played = result?.isPlayed ?? false
                           const pts = matchPts(match.id, p)
+                          const breakdown = played ? matchBreakdown(match.id, p) : []
 
                           // Determine result tag — uses same logic as matchPts
                           const getResultTag = () => {
@@ -244,31 +281,48 @@ export default function AllPredictions() {
                               </div>
 
                               {/* Pred vs Actual */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 0, borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                              <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8, display: 'flex', gap: 0, alignItems: 'stretch' }}>
+
                                 {/* MY PRED */}
-                                <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ fontSize: 11, color: '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', minWidth: 52 }}>ניחוש שלי</span>
-                                  <span style={{ fontSize: 14, fontWeight: 600, color: '#1a1a2e' }} dir="ltr">
-                                    {p.scoreA ?? '?'} – {p.scoreB ?? '?'}
-                                  </span>
-                                  <span style={{ fontSize: 12, background: '#f0f0f0', color: '#555', padding: '2px 8px', borderRadius: 20 }}>
-                                    {predWinner}
-                                  </span>
-                                  {p.redCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥</span>}
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, letterSpacing: '.5px', marginBottom: 5 }}>ניחוש שלי</div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e' }}>{match.teamB}</span>
+                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a2e', minWidth: 18, textAlign: 'center' }}>{p.scoreB ?? '?'}</span>
+                                    <span style={{ color: '#aaa', fontWeight: 300 }}>–</span>
+                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#1a1a2e', minWidth: 18, textAlign: 'center' }}>{p.scoreA ?? '?'}</span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e' }}>{match.teamA}</span>
+                                    {p.redCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10, marginRight: 4 }}>🟥</span>}
+                                  </div>
                                 </div>
 
                                 {/* Divider */}
-                                {played && <div style={{ width: 1, height: 28, background: '#e5e5e5', margin: '0 12px', flexShrink: 0 }} />}
+                                {played && <div style={{ width: 1, background: '#e5e5e5', margin: '0 14px', flexShrink: 0 }} />}
 
                                 {/* ACTUAL RESULT */}
                                 {played && (
-                                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <span style={{ fontSize: 11, color: '#aaa', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', minWidth: 40 }}>בפועל</span>
-                                    <span style={{ fontSize: 14, fontWeight: 600, color: '#555' }} dir="ltr">
-                                      {result.resultA ?? 0} – {result.resultB ?? 0}
-                                    </span>
-                                    {result.hadRedCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥</span>}
-                                    {tag && <span style={{ fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 20, background: tag.bg, color: tag.color }}>{tag.label}</span>}
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, letterSpacing: '.5px', marginBottom: 5, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span>בפועל</span>
+                                      {tag && <span style={{ fontSize: 12, fontWeight: 600, padding: '1px 8px', borderRadius: 20, background: tag.bg, color: tag.color }}>{tag.label}</span>}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{match.teamB}</span>
+                                      <span style={{ fontSize: 15, fontWeight: 700, color: '#555', minWidth: 18, textAlign: 'center' }}>{result.resultB ?? 0}</span>
+                                      <span style={{ color: '#aaa', fontWeight: 300 }}>–</span>
+                                      <span style={{ fontSize: 15, fontWeight: 700, color: '#555', minWidth: 18, textAlign: 'center' }}>{result.resultA ?? 0}</span>
+                                      <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{match.teamA}</span>
+                                      {result.hadRedCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10, marginRight: 4 }}>🟥</span>}
+                                    </div>
+                                    {breakdown.length > 0 && (
+                                      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                                        {breakdown.map((b, i) => (
+                                          <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#EAF3DE', color: '#3B6D11' }}>
+                                            {b.label}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 )}
                               </div>
