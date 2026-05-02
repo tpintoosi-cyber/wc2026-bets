@@ -290,6 +290,15 @@ select { cursor: pointer; }
   border-radius: 8px; margin-bottom: 16px; font-weight: 500;
 }
 
+/* ── LTR overrides (English mode) ───────────────── */
+.page[dir="ltr"] .team-name-b {
+  justify-content: flex-start;
+  flex-direction: row;
+}
+.page[dir="ltr"] .status-bar { flex-direction: row-reverse; }
+.page[dir="ltr"] .match-header { flex-direction: row-reverse; }
+.page[dir="ltr"] .ranking-gap-bottom { flex-direction: row-reverse; }
+
 /* ── Utilities ───────────────────────────────────── */
 .hint { font-size: 13px; color: #888; margin-bottom: 8px; }
 .text-muted { color: #888; }

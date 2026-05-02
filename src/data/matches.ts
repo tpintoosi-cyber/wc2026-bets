@@ -15,6 +15,21 @@ export const FLAGS: Record<string, string> = {
   'גאנה': '🇬🇭', 'פנמה': '🇵🇦', 'אוזבקיסטן': '🇺🇿', 'קולומביה': '🇨🇴',
 }
 
+export const TEAM_EN: Record<string, string> = {
+  'מקסיקו': 'Mexico', 'דרום אפריקה': 'South Africa', 'קוריאה הדרומית': 'South Korea', 'צ׳כיה': 'Czech Republic',
+  'קנדה': 'Canada', 'בוסניה': 'Bosnia', 'ארה"ב': 'USA', 'פרגוואי': 'Paraguay',
+  'אוסטרליה': 'Australia', 'טורקיה': 'Turkey', 'קטר': 'Qatar', 'שווייץ': 'Switzerland',
+  'ברזיל': 'Brazil', 'מרוקו': 'Morocco', 'האיטי': 'Haiti', 'סקוטלנד': 'Scotland',
+  'גרמניה': 'Germany', 'קוראסאו': 'Curaçao', 'הולנד': 'Netherlands', 'יפן': 'Japan',
+  'חוף השנהב': 'Ivory Coast', 'אקוודור': 'Ecuador', 'שוודיה': 'Sweden', 'תוניסיה': 'Tunisia',
+  'ספרד': 'Spain', 'כף ורדה': 'Cape Verde', 'סעודיה': 'Saudi Arabia', 'אורוגוואי': 'Uruguay',
+  'בלגיה': 'Belgium', 'מצרים': 'Egypt', 'איראן': 'Iran', 'ניו זילנד': 'New Zealand',
+  'צרפת': 'France', 'סנגל': 'Senegal', 'עיראק': 'Iraq', 'נורווגיה': 'Norway',
+  'ארגנטינה': 'Argentina', 'אלג׳יריה': 'Algeria', 'אוסטריה': 'Austria', 'ירדן': 'Jordan',
+  'פורטוגל': 'Portugal', 'קונגו': 'DR Congo', 'אנגליה': 'England', 'קרואטיה': 'Croatia',
+  'גאנה': 'Ghana', 'פנמה': 'Panama', 'אוזבקיסטן': 'Uzbekistan', 'קולומביה': 'Colombia',
+}
+
 // Match schedule — Israel time (UTC+3)
 export const MATCH_SCHEDULE: Record<number, string> = {
    1: "12/6 01:00",   2: "12/6 08:00",   3: "13/6 01:00",   4: "13/6 07:00",

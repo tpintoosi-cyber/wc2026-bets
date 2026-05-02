@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
-import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category } from '../types'
 import { calc1X2Points, calcOverUnder } from '../scoring'
 import { T, Lang, Translations, BONUS_QUESTIONS_EN } from '../i18n'
@@ -78,17 +78,17 @@ const CAT_COLORS = {
   D: { color: '#4a1b0c', bg: '#faece7' },
 }
 
-function RankingGap({ teamA, teamB, fifaA, fifaB, category, t }: {
+function RankingGap({ teamA, teamB, fifaA, fifaB, category, t, tn }: {
   teamA: string; teamB: string; fifaA: number; fifaB: number; category: Category
-  t: Translations
+  t: Translations; tn: (name: string) => string
 }) {
   const { color, bg } = CAT_COLORS[category]
   const rankA = FIFA_RANK[teamA] ?? '?'
   const rankB = FIFA_RANK[teamB] ?? '?'
   const favTeam = fifaA >= fifaB ? teamA : teamB
   const favRank = fifaA >= fifaB ? rankA : rankB
-  const label = t[`cat${category}` as keyof typeof t] as string
-  const desc = t[`catDesc${category}` as keyof typeof t] as string
+  const label = t[`cat${category}` as keyof Translations] as string
+  const desc = t[`catDesc${category}` as keyof Translations] as string
   const ou = (category === 'A' || category === 'B') ? t.ouAB : t.ouCD
 
   return (
@@ -98,9 +98,9 @@ function RankingGap({ teamA, teamB, fifaA, fifaB, category, t }: {
         <span className="ranking-gap-desc" style={{ color }}>{desc}</span>
       </div>
       <div className="ranking-gap-bottom">
-        <span className="ranking-fifa" style={{ color }}>{FLAGS[teamA]} {teamA} <strong>#{rankA}</strong></span>
-        <span className="ranking-arrow" style={{ color }}>{t.favoriteLabel}: {FLAGS[favTeam]} {favTeam} (#{favRank})</span>
-        <span className="ranking-fifa" style={{ color }}>{FLAGS[teamB]} {teamB} <strong>#{rankB}</strong></span>
+        <span className="ranking-fifa" style={{ color }}>{FLAGS[teamA]} {tn(teamA)} <strong>#{rankA}</strong></span>
+        <span className="ranking-arrow" style={{ color }}>{t.favoriteLabel}: {FLAGS[favTeam]} {tn(favTeam)} (#{favRank})</span>
+        <span className="ranking-fifa" style={{ color }}>{FLAGS[teamB]} {tn(teamB)} <strong>#{rankB}</strong></span>
       </div>
       <div className="ranking-gap-ou" style={{ color }}>{ou}</div>
     </div>
@@ -125,6 +125,9 @@ export default function Predict() {
     setLang(next)
     localStorage.setItem('lang', next)
   }
+
+  // Helper: team name in current language
+  const tn = (hebrewName: string) => lang === 'en' ? (TEAM_EN[hebrewName] ?? hebrewName) : hebrewName
 
   const redCardCount = Object.values(matchPreds).filter(p => p.redCard).length
 
@@ -203,7 +206,7 @@ export default function Predict() {
   const matchProgress = Object.values(matchPreds).filter(p => p.prediction1X2).length
 
   return (
-    <div className="page">
+    <div className="page" dir={lang === 'en' ? 'ltr' : 'rtl'}>
       <div className="status-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {!isOpen && <span className="badge badge-red">{t.closed}</span>}
@@ -256,13 +259,13 @@ export default function Predict() {
                           <RankingGap
                             teamA={match.teamA} teamB={match.teamB}
                             fifaA={match.fifaPointsA} fifaB={match.fifaPointsB}
-                            category={match.category} t={t}
+                            category={match.category} t={t} tn={tn}
                           />
 
                           <div className="match-body">
                             <span className="team-name">
                               <span className="team-flag">{FLAGS[match.teamA] ?? '🏳️'}</span>
-                              {match.teamA}
+                              {tn(match.teamA)}
                             </span>
                             <div className="score-inputs">
                               <input className="score-input" type="number" min="0" max="20"
@@ -279,7 +282,7 @@ export default function Predict() {
                             </div>
                             <span className="team-name team-name-b">
                               <span className="team-flag">{FLAGS[match.teamB] ?? '🏳️'}</span>
-                              {match.teamB}
+                              {tn(match.teamB)}
                             </span>
                           </div>
 
@@ -292,9 +295,9 @@ export default function Predict() {
                                   onClick={() => updateMatch(match.id, 'prediction1X2', opt)}
                                 >
                                   {opt === '1'
-                                    ? `${FLAGS[match.teamA] ?? ''} ${match.teamA.slice(0,4)}`
+                                    ? `${FLAGS[match.teamA] ?? ''} ${tn(match.teamA).slice(0,5)}`
                                     : opt === '2'
-                                    ? `${match.teamB.slice(0,4)} ${FLAGS[match.teamB] ?? ''}`
+                                    ? `${tn(match.teamB).slice(0,5)} ${FLAGS[match.teamB] ?? ''}`
                                     : t.draw}
                                 </button>
                               ))}
