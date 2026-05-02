@@ -6,9 +6,13 @@ import Predict from './pages/Predict'
 import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
 import AllPredictions from './pages/AllPredictions'
+import { Lang } from './i18n'
 import './styles/global.css'
 
-function Nav({ dark, toggleDark }: { dark: boolean; toggleDark: () => void }) {
+function Nav({ dark, toggleDark, lang, toggleLang }: {
+  dark: boolean; toggleDark: () => void
+  lang: Lang; toggleLang: () => void
+}) {
   const { user, isAdmin, logout } = useAuth()
   const loc = useLocation()
   if (!user) return null
@@ -16,17 +20,28 @@ function Nav({ dark, toggleDark }: { dark: boolean; toggleDark: () => void }) {
     <nav className="nav">
       <div className="nav-logo">⚽ WC2026</div>
       <div className="nav-links">
-        <Link className={loc.pathname === '/predict' ? 'active' : ''} to="/predict">הימורים שלי</Link>
-        <Link className={loc.pathname === '/all' ? 'active' : ''} to="/all">הימורי כולם</Link>
-        <Link className={loc.pathname === '/leaderboard' ? 'active' : ''} to="/leaderboard">טבלה</Link>
-        {isAdmin && <Link className={loc.pathname === '/admin' ? 'active' : ''} to="/admin">אדמין</Link>}
+        <Link className={loc.pathname === '/predict' ? 'active' : ''} to="/predict">
+          {lang === 'he' ? 'הימורים שלי' : 'My Bets'}
+        </Link>
+        <Link className={loc.pathname === '/all' ? 'active' : ''} to="/all">
+          {lang === 'he' ? 'הימורי כולם' : 'All Bets'}
+        </Link>
+        <Link className={loc.pathname === '/leaderboard' ? 'active' : ''} to="/leaderboard">
+          {lang === 'he' ? 'טבלה' : 'Leaderboard'}
+        </Link>
+        {isAdmin && <Link className={loc.pathname === '/admin' ? 'active' : ''} to="/admin">Admin</Link>}
       </div>
-      <button className="dark-toggle" onClick={toggleDark} title="מצב כהה">
-        {dark ? '☀️' : '🌙'}
-      </button>
-      <button className="btn-ghost" onClick={logout}>
-        {user.displayName?.split(' ')[0]} ↩
-      </button>
+      <div className="nav-controls">
+        <button className="nav-btn" onClick={toggleLang} title="Change language">
+          {lang === 'he' ? 'EN' : 'עב'}
+        </button>
+        <button className="nav-btn" onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'}>
+          {dark ? '☀️ Light' : '🌙 Dark'}
+        </button>
+        <button className="btn-ghost" onClick={logout}>
+          {user.displayName?.split(' ')[0]} ↩
+        </button>
+      </div>
     </nav>
   )
 }
@@ -47,18 +62,25 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const [dark, setDark] = useState(() => localStorage.getItem('darkMode') === 'true')
+  const [lang, setLang] = useState<Lang>(() => (localStorage.getItem('lang') as Lang) || 'he')
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark)
     localStorage.setItem('darkMode', String(dark))
   }, [dark])
 
+  const toggleLang = () => {
+    const next: Lang = lang === 'he' ? 'en' : 'he'
+    setLang(next)
+    localStorage.setItem('lang', next)
+  }
+
   return (
     <HashRouter>
-      <Nav dark={dark} toggleDark={() => setDark(d => !d)} />
+      <Nav dark={dark} toggleDark={() => setDark(d => !d)} lang={lang} toggleLang={toggleLang} />
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/predict" element={<RequireAuth><Predict /></RequireAuth>} />
+        <Route path="/predict" element={<RequireAuth><Predict lang={lang} /></RequireAuth>} />
         <Route path="/all" element={<RequireAuth><AllPredictions /></RequireAuth>} />
         <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />

@@ -107,9 +107,8 @@ function RankingGap({ teamA, teamB, fifaA, fifaB, category, t, tn }: {
   )
 }
 
-export default function Predict() {
+export default function Predict({ lang }: { lang: Lang }) {
   const { user } = useAuth()
-  const [lang, setLang] = useState<Lang>(() => (localStorage.getItem('lang') as Lang) || 'he')
   const t = T[lang]
   const [tab, setTab] = useState<Tab>('matches')
   const [isOpen, setIsOpen] = useState(true)
@@ -119,12 +118,6 @@ export default function Predict() {
   const [groupPreds, setGroupPreds] = useState<Record<Group, GroupPrediction>>({} as any)
   const [bonus, setBonus] = useState<Partial<BonusPredictions>>({})
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const toggleLang = () => {
-    const next: Lang = lang === 'he' ? 'en' : 'he'
-    setLang(next)
-    localStorage.setItem('lang', next)
-  }
 
   // Helper: team name in current language
   const tn = (hebrewName: string) => lang === 'en' ? (TEAM_EN[hebrewName] ?? hebrewName) : hebrewName
@@ -215,9 +208,6 @@ export default function Predict() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span className="text-muted">{t.matches}: {matchProgress}/72 • {t.redCards}: {redCardCount}/{MAX_RED_CARDS}</span>
-          <button className="lang-toggle" onClick={toggleLang} title="Change language">
-            {lang === 'he' ? 'EN' : 'עב'}
-          </button>
         </div>
       </div>
 

@@ -89,6 +89,14 @@ select { cursor: pointer; }
   cursor: pointer; white-space: nowrap; font-size: 13px;
 }
 .btn-ghost:hover { background: rgba(255,255,255,0.1); }
+.nav-controls { display: flex; align-items: center; gap: 8px; }
+.nav-btn {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.9); padding: 6px 13px; border-radius: 8px;
+  cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap;
+  transition: all 0.15s; letter-spacing: 0.3px;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.22); color: #fff; }
 
 /* ── Buttons ─────────────────────────────────────── */
 .btn-primary {
