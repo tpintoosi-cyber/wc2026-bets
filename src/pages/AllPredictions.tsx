@@ -109,11 +109,13 @@ export default function AllPredictions() {
   function matchPts(matchId: number, pred: MatchPrediction | undefined): number {
     if (!pred) return 0
     const result = adminResults[matchId]
-    if (!result?.isPlayed || result.resultA === undefined || result.resultB === undefined) return 0
+    if (!result?.isPlayed || result.resultA === undefined || result.resultA === null) return 0
+    if (result.resultB === undefined || result.resultB === null) return 0
     const match = MATCHES.find(m => m.id === matchId)!
-    const p1 = calc1X2Points(pred.prediction1X2, result.resultA!, result.resultB!, match.fifaPointsA, match.fifaPointsB, match.category)
+    const rA = Number(result.resultA), rB = Number(result.resultB)
+    const p1 = calc1X2Points(pred.prediction1X2, rA, rB, match.fifaPointsA, match.fifaPointsB, match.category)
     const ps = pred.scoreA !== null && pred.scoreA !== undefined && pred.scoreB !== null && pred.scoreB !== undefined
-      ? calcScorePoints(pred.scoreA, pred.scoreB, result.resultA!, result.resultB!, match.category)
+      ? calcScorePoints(Number(pred.scoreA), Number(pred.scoreB), rA, rB, match.category)
       : 0
     const pr = calcRedCardPoints(pred.redCard, result.hadRedCard ?? false)
     return p1 + ps + pr
@@ -186,14 +188,19 @@ export default function AllPredictions() {
                           // Determine result tag
                           const getResultTag = () => {
                             if (!played || !p) return null
-                            const rA = result.resultA ?? 0, rB = result.resultB ?? 0
+                            const rA = Number(result.resultA ?? 0)
+                            const rB = Number(result.resultB ?? 0)
+                            const pA = p.scoreA !== null && p.scoreA !== undefined ? Number(p.scoreA) : null
+                            const pB = p.scoreB !== null && p.scoreB !== undefined ? Number(p.scoreB) : null
                             const actual1x2 = rA > rB ? '1' : rA < rB ? '2' : 'X'
-                            const exact = p.scoreA === rA && p.scoreB === rB
-                            const marginOk = p.scoreA !== null && p.scoreB !== null && ((p.scoreA - p.scoreB) === (rA - rB))
-                            if (pts >= 4 && exact) return { label: '✓ מדויק', bg: '#EAF3DE', color: '#3B6D11' }
-                            if (pts > 0 && p.prediction1X2 === actual1x2 && marginOk) return { label: 'הפרש נכון', bg: '#E6F1FB', color: '#185FA5' }
-                            if (pts > 0 && p.prediction1X2 === actual1x2) return { label: '✓ 1X2 נכון', bg: '#EAF3DE', color: '#3B6D11' }
-                            if (pts > 0 && marginOk) return { label: 'הפרש נכון', bg: '#E6F1FB', color: '#185FA5' }
+                            const correct1x2 = p.prediction1X2 === actual1x2
+                            const exact = pA !== null && pB !== null && pA === rA && pB === rB
+                            const marginOk = pA !== null && pB !== null && (pA - pB) === (rA - rB)
+
+                            if (exact && correct1x2) return { label: '✓ מדויק', bg: '#EAF3DE', color: '#3B6D11' }
+                            if (correct1x2 && marginOk) return { label: '1X2 + הפרש', bg: '#EAF3DE', color: '#3B6D11' }
+                            if (correct1x2) return { label: '✓ 1X2 נכון', bg: '#EAF3DE', color: '#3B6D11' }
+                            if (marginOk) return { label: 'הפרש נכון', bg: '#E6F1FB', color: '#185FA5' }
                             return { label: '✗ שגוי', bg: '#FCEBEB', color: '#A32D2D' }
                           }
                           const tag = getResultTag()
