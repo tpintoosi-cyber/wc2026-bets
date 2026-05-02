@@ -5,7 +5,7 @@ import { useAuth, isAppOpen } from '../hooks/useAuth'
 import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category } from '../types'
 import { calc1X2Points, calcOverUnder } from '../scoring'
-import { T, Lang, BONUS_QUESTIONS_EN } from '../i18n'
+import { T, Lang, Translations, BONUS_QUESTIONS_EN } from '../i18n'
 
 const MAX_RED_CARDS = 6
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
@@ -17,7 +17,7 @@ function calcMaxPoints(
   category: Category,
   fifaPointsA: number,
   fifaPointsB: number,
-  t: typeof T['he']
+  t: Translations
 ): { total: number; breakdown: string[] } {
   if (!pred.prediction1X2) return { total: 0, breakdown: [] }
   const breakdown: string[] = []
@@ -80,7 +80,7 @@ const CAT_COLORS = {
 
 function RankingGap({ teamA, teamB, fifaA, fifaB, category, t }: {
   teamA: string; teamB: string; fifaA: number; fifaB: number; category: Category
-  t: typeof T['he']
+  t: Translations
 }) {
   const { color, bg } = CAT_COLORS[category]
   const rankA = FIFA_RANK[teamA] ?? '?'
@@ -380,7 +380,7 @@ export default function Predict() {
 
 function BonusInput({ q, value, disabled, onChange, t }: {
   q: typeof BONUS_QUESTIONS[number]; value: string; disabled: boolean
-  onChange: (v: string) => void; t: typeof T['he']
+  onChange: (v: string) => void; t: Translations
 }) {
   const allTeams = Object.values(GROUPS_TEAMS).flat()
   if (q.type === 'team') return (

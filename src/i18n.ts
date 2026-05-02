@@ -1,6 +1,20 @@
 export type Lang = 'he' | 'en'
 
-export const T = {
+export type Translations = {
+  tabMatches: string; tabGroups: string; tabBonus: string;
+  saving: string; saved: string; closed: string;
+  matches: string; redCards: string; round: string; group: string;
+  draw: string; redCard: string; maxPts: string; pts: string;
+  score1x2: string; exactScore: string; margin: string; under: string; over: string;
+  groupsHint1: string; groupsHint2: string; bonusHint: string;
+  selectTeam: string; selectGroup: string; selectPlaceholder: string;
+  enterNumber: string; playerName: string; favorite: string;
+  catA: string; catB: string; catC: string; catD: string;
+  catDescA: string; catDescB: string; catDescC: string; catDescD: string;
+  ouAB: string; ouCD: string; favoriteLabel: string; ilTime: string;
+}
+
+export const T: Record<Lang, Translations> = {
   he: {
     tabMatches: 'משחקים',
     tabGroups: 'עולים מהבית',
@@ -85,7 +99,7 @@ export const T = {
     favoriteLabel: 'Favorite',
     ilTime: 'Israel time',
   },
-} as const
+} as Record<Lang, Translations>
 
 export const BONUS_QUESTIONS_EN: Record<string, string> = {
   q105: 'World Champion 2026',
