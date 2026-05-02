@@ -54,7 +54,7 @@ function calcMaxPoints(
   let ptsRed = 0
   if (pred.redCard) {
     ptsRed = 1
-    breakdown.push(`${t.redCard}: 1`)
+    breakdown.push(`${t.redCard}: 2`)
   }
 
   return { total: pts1x2 + ptsScore + ptsRed, breakdown }

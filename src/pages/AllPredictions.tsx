@@ -152,7 +152,7 @@ export default function AllPredictions() {
     }
 
     const pr = calcRedCardPoints(pred.redCard, result.hadRedCard ?? false)
-    if (pr > 0) items.push({ label: '🟥: +1', pts: 1 })
+    if (pr > 0) items.push({ label: '🟥: +2', pts: 2 })
 
     return items
   }

@@ -63,7 +63,7 @@ export function calcScorePoints(
 // ── RED CARD ─────────────────────────────────────────────────────────────────
 // +1 if predicted red card and match had one; no penalty for wrong prediction
 export function calcRedCardPoints(predicted: boolean, hadRedCard: boolean): number {
-  return predicted && hadRedCard ? 1 : 0
+  return predicted && hadRedCard ? 2 : 0
 }
 
 // ── GROUP ADVANCING ──────────────────────────────────────────────────────────
