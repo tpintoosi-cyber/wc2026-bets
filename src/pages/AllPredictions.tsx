@@ -96,47 +96,49 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
   })
 
   return (
-    <div style={{ marginTop: 14 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: '#444' }}>
-        קיבוץ לפי ניחוש — {teamB} <span style={{ color: '#aaa', fontWeight: 300 }}>נגד</span> {teamA}
+    <div style={{ marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: '#1a1a2e', borderBottom: '2px solid #1a1a2e', paddingBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+        <span>פילוח לפי ניחוש — {teamB} נגד {teamA}</span>
+        <span style={{ fontSize: 12, fontWeight: 400, color: '#888' }}>{Object.values(groups).reduce((s, a) => s + a.length, 0)} הימורים</span>
       </div>
-      <div style={{ border: '1px solid #e5e5e5', borderRadius: 10, overflow: 'hidden' }}>
-        {sorted.map(([score, scoreUsers], idx) => {
-          const [sA, sB] = score === 'לא מולא' ? [null, null] : score.split('-').map(Number)
-          const isExact = played && sA !== null && sA === rA && sB === rB
-          const isMargin = played && sA !== null && !isExact && (sA - sB!) === (rA! - rB!)
-          return (
-            <div key={score}>
-              <div style={{ background: isExact ? '#EAF3DE' : isMargin ? '#E6F1FB' : idx % 2 === 0 ? '#f8f9fa' : '#fff',
-                padding: '7px 14px', borderBottom: '1px solid #e5e5e5',
-                display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontWeight: 700, fontSize: 14, minWidth: 40, color: isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#1a1a2e', direction: 'ltr', display: 'inline-block' }}>
-                  {score === 'לא מולא' ? score : `${sA}-${sB}`}
-                </span>
-                {isExact && <ResultTag label="✓ מדויק" type="ok" />}
-                {isMargin && <ResultTag label="הפרש נכון" type="warn" />}
-                <span style={{ fontSize: 12, color: '#888', marginRight: 4 }}>({scoreUsers.length})</span>
-              </div>
-              <div style={{ padding: '6px 14px 8px', background: isExact ? '#f5fbf2' : isMargin ? '#f0f6fb' : idx % 2 === 0 ? '#fafafa' : '#fff',
-                borderBottom: idx < sorted.length - 1 ? '1px solid #e5e5e5' : 'none' }}>
-                {scoreUsers.map((u, i) => {
-                  const p = u.matches[matchId]
-                  const pred1x2 = p?.prediction1X2
-                  const winner = pred1x2 === '1' ? teamA : pred1x2 === '2' ? teamB : 'תיקו'
-                  return (
-                    <span key={u.userId} style={{ fontSize: 13, marginLeft: i < scoreUsers.length - 1 ? 0 : 0 }}>
-                      {u.userName}
-                      {pred1x2 && <span style={{ fontSize: 11, color: '#888', marginRight: 3 }}>({winner})</span>}
-                      {p?.redCard && <span style={{ fontSize: 11 }}>🟥</span>}
-                      {i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 6px' }}>|</span>}
-                    </span>
-                  )
-                })}
-              </div>
+      {sorted.map(([score, scoreUsers]) => {
+        const [sA, sB] = score === 'לא מולא' ? [null, null] : score.split('-').map(Number)
+        const isExact = played && sA !== null && sA === rA && sB === rB
+        const isMargin = played && sA !== null && !isExact && (sA! - sB!) === (rA! - rB!)
+        const isWrong = played && score !== 'לא מולא' && !isExact && !isMargin
+        return (
+          <div key={score} style={{ marginBottom: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{
+                fontSize: 16, fontWeight: 800, direction: 'ltr', display: 'inline-block',
+                color: isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#1a1a2e',
+                background: isExact ? '#EAF3DE' : isMargin ? '#E6F1FB' : '#f0f0f0',
+                padding: '3px 12px', borderRadius: 8, minWidth: 56, textAlign: 'center',
+              }}>
+                {score === 'לא מולא' ? '—' : `${sA}-${sB}`}
+              </span>
+              {isExact && <ResultTag label="✓ מדויק" type="ok" />}
+              {isMargin && <ResultTag label="הפרש נכון" type="warn" />}
+              {isWrong && <ResultTag label="✗ שגוי" type="bad" />}
+              <span style={{ fontSize: 12, color: '#aaa' }}>({scoreUsers.length})</span>
             </div>
-          )
-        })}
-      </div>
+            <div style={{ paddingRight: 10, borderRight: `3px solid ${isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#e5e5e5'}` }}>
+              {scoreUsers.map((u, i) => {
+                const p = u.matches[matchId]
+                const winner = p?.prediction1X2 === '1' ? teamA : p?.prediction1X2 === '2' ? teamB : 'תיקו'
+                return (
+                  <span key={u.userId} style={{ fontSize: 13 }}>
+                    {u.userName}
+                    {p?.prediction1X2 && <span style={{ fontSize: 11, color: '#888', marginRight: 3 }}>({winner})</span>}
+                    {p?.redCard && <span style={{ fontSize: 11, marginRight: 2 }}>🟥</span>}
+                    {i < scoreUsers.length - 1 && <span style={{ color: '#ccc', margin: '0 8px' }}>·</span>}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -648,7 +650,12 @@ export default function AllPredictions() {
           <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 10, color: '#444' }}>התפלגות ניחושי 1X2 לפי משחק</h2>
           {playedMatches.length === 0 && <div className="hint">אין משחקים שהוחלטו עדיין</div>}
           {playedMatches.map(match => {
-            const preds = users.map(u => ({ x2: u.matches[match.id]?.prediction1X2, name: u.userName })).filter(p => p.x2)
+            const preds = users.map(u => ({
+              x2: u.matches[match.id]?.prediction1X2,
+              name: u.userName,
+              scoreA: u.matches[match.id]?.scoreA,
+              scoreB: u.matches[match.id]?.scoreB,
+            })).filter(p => p.x2)
             const total = preds.length || 1
             const result = adminResults[match.id]
             const rA = Number(result.resultA??0), rB = Number(result.resultB??0)
@@ -673,7 +680,7 @@ export default function AllPredictions() {
                   const rowPreds = preds.filter(p => p.x2 === row.x2)
                   const pct = Math.round((rowPreds.length / total) * 100)
                   const isWinner = row.x2 === actual
-                  const names = rowPreds.map(p => p.name)
+                  const names = rowPreds.map(p => `${p.name}: ${p.scoreA ?? '?'}-${p.scoreB ?? '?'}`)
                   return (
                     <div key={row.x2} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <span style={{ fontSize: 12, minWidth: 70, color: isWinner ? '#1a7a44' : '#555', fontWeight: isWinner ? 700 : 400 }}>{row.label}</span>
