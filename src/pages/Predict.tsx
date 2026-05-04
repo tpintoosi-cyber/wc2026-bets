@@ -119,6 +119,19 @@ export default function Predict({ lang }: { lang: Lang }) {
   const [bonus, setBonus] = useState<Partial<BonusPredictions>>({})
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Nickname
+  const [nickname, setNickname] = useState('')
+  const [editingNick, setEditingNick] = useState(false)
+  const [nickInput, setNickInput] = useState('')
+
+  const saveNickname = async () => {
+    if (!user) return
+    const nick = nickInput.trim()
+    setNickname(nick)
+    setEditingNick(false)
+    await setDoc(doc(db, 'predictions', user.uid), { nickname: nick }, { merge: true })
+  }
+
   // Helper: team name in current language
   const tn = (hebrewName: string) => lang === 'en' ? (TEAM_EN[hebrewName] ?? hebrewName) : hebrewName
 
@@ -139,6 +152,10 @@ export default function Predict({ lang }: { lang: Lang }) {
         setMatchPreds(data.matches ?? {})
         setGroupPreds(data.groups ?? {})
         setBonus(data.bonus ?? {})
+        if (data.nickname) { setNickname(data.nickname); setNickInput(data.nickname) }
+        else setNickInput(user.displayName ?? '')
+      } else {
+        setNickInput(user.displayName ?? '')
       }
       // Load live schedule from Firestore if available
       try {
@@ -221,6 +238,23 @@ export default function Predict({ lang }: { lang: Lang }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span className="text-muted">{t.matches}: {matchProgress}/72 • {t.redCards}: {redCardCount}/{MAX_RED_CARDS}</span>
+          {/* Nickname editor */}
+          {!editingNick ? (
+            <button onClick={() => { setNickInput(nickname || user?.displayName || ''); setEditingNick(true) }}
+              style={{ fontSize: 12, background: 'none', border: '1px solid #ddd', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', color: '#555', display: 'flex', alignItems: 'center', gap: 4 }}>
+              ✏️ {nickname || user?.displayName?.split(' ')[0]}
+            </button>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <input value={nickInput} onChange={e => setNickInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveNickname(); if (e.key === 'Escape') setEditingNick(false) }}
+                placeholder="שם תצוגה..."
+                style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, border: '1px solid #1a1a2e', outline: 'none', width: 120 }}
+                autoFocus />
+              <button onClick={saveNickname} style={{ fontSize: 12, background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>שמור</button>
+              <button onClick={() => setEditingNick(false)} style={{ fontSize: 12, background: 'none', border: '1px solid #ddd', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>ביטול</button>
+            </div>
+          )}
         </div>
       </div>
 

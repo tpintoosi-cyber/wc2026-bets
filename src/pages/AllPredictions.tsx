@@ -9,7 +9,7 @@ import { calc1X2Points, calcScorePoints, calcRedCardPoints, calcGroupPoints, cal
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
 
 interface UserData {
-  userId: string; userName: string
+  userId: string; userName: string; nickname?: string
   matches: Record<number, MatchPrediction>
   groups: Record<Group, GroupPrediction>
   bonus: Partial<BonusPredictions>
@@ -155,7 +155,7 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
                       <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
                         {scoreUsers.map((u, i) => (
                           <span key={u.userId}>
-                            {u.userName}
+                            { displayName(u) }
                             {u.matches[matchId]?.redCard && <span style={{ fontSize: 10, marginRight: 2 }}>🟥</span>}
                             {i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 5px' }}>·</span>}
                           </span>
@@ -215,7 +215,7 @@ function GroupPredTable({ group, users, actualResult }: {
                   teamPreds.flatMap(({ pos, users: us }) =>
                     us.map((u, i) => (
                       <span key={u.userId + pos}>
-                        {u.userName}<span style={{ color: '#aaa', fontSize: 11 }}> (#{pos + 1})</span>
+                        { displayName(u) }<span style={{ color: '#aaa', fontSize: 11 }}> (#{pos + 1})</span>
                         {i < us.length - 1 || teamPreds.indexOf(teamPreds.find(p => p.pos === pos)!) < teamPreds.length - 1 ? <span style={{ color: '#ddd', margin: '0 4px' }}>|</span> : ''}
                       </span>
                     ))
@@ -254,7 +254,7 @@ function BonusPredTable({ qId, users, actualVal }: {
             </span>
             <span style={{ fontSize: 12, color: '#555', flex: 1 }}>
               {valUsers.map((u, i) => (
-                <span key={u.userId}>{u.userName}{i < valUsers.length - 1 ? <span style={{ color: '#ddd', margin: '0 4px' }}>|</span> : ''}</span>
+                <span key={u.userId}>{ displayName(u) }{i < valUsers.length - 1 ? <span style={{ color: '#ddd', margin: '0 4px' }}>|</span> : ''}</span>
               ))}
             </span>
           </div>
@@ -295,6 +295,7 @@ export default function AllPredictions() {
         const snap = await getDocs(collection(db, 'predictions'))
         const data: UserData[] = snap.docs.map(d => ({
           userId: d.id, userName: d.data().userName ?? 'משתמש',
+          nickname: d.data().nickname ?? '',
           matches: d.data().matches ?? {}, groups: d.data().groups ?? {}, bonus: d.data().bonus ?? {},
         }))
         setUsers(data)
@@ -367,6 +368,14 @@ export default function AllPredictions() {
     return { label: `+${pts} נק׳`, type: 'warn' }
   }
 
+  // Display name: nickname if set, else userName. Admin sees both.
+  const displayName = (u: UserData) => u.nickname || u.userName
+  const adminDisplayName = (u: UserData) => {
+    if (!isAdmin) return displayName(u)
+    if (u.nickname && u.nickname !== u.userName) return u.nickname + ' (' + u.userName + ')'
+    return u.userName
+  }
+
   if (loading) return <div className="center-screen">טוען...</div>
   if (isOpen && !isAdmin) return (
     <div className="page"><div className="empty-state">
@@ -411,7 +420,7 @@ export default function AllPredictions() {
               <button key={u.userId}
                 className={`user-btn ${u.userId === selectedUser ? 'active' : ''} ${u.userId === user?.uid ? 'me' : ''}`}
                 onClick={() => setSelectedUser(u.userId)}>
-                {u.userName}{u.userId === user?.uid ? ' (אני)' : ''}
+                { adminDisplayName(u) }{u.userId === user?.uid ? ' (אני)' : ''}
               </button>
             ))}
           </div>
@@ -634,7 +643,7 @@ export default function AllPredictions() {
                       const tag = played ? getTag(selectedMatchId, p, pts) : null
                       return (
                         <div key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 0', borderBottom: '1px solid #f5f5f5', background: u.userId === user?.uid ? '#f8f9ff' : 'transparent' }}>
-                          <span style={{ minWidth: 100, fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400 }}>{u.userName}{u.userId === user?.uid ? ' (אני)' : ''}</span>
+                          <span style={{ minWidth: 100, fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400 }}>{ adminDisplayName(u) }{u.userId === user?.uid ? ' (אני)' : ''}</span>
                           {p ? <>
                             <span style={{ minWidth: 80, textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr', display: 'inline-block' }}>{p.scoreA??'?'}–{p.scoreB??'?'}</span>
                             <span style={{ minWidth: 80, textAlign: 'center' }}>
@@ -682,7 +691,7 @@ export default function AllPredictions() {
           {playedMatches.map(match => {
             const preds = users.map(u => ({
               x2: u.matches[match.id]?.prediction1X2,
-              name: u.userName,
+              name: displayName(u), scoreA: u.matches[match.id]?.scoreA, scoreB: u.matches[match.id]?.scoreB,
               scoreA: u.matches[match.id]?.scoreA,
               scoreB: u.matches[match.id]?.scoreB,
             })).filter(p => p.x2)
