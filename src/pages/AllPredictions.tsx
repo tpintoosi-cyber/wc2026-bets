@@ -18,6 +18,9 @@ interface UserData {
 type MainTab = 'user' | 'match' | 'stats'
 type UserTab = 'matches' | 'groups' | 'bonus'
 
+// Module-level helper — usable in all sub-components
+function getDisplayName(u: UserData) { return u.nickname || u.userName }
+
 // ── Helpers ──────────────────────────────────────────────────────
 function getNextMatchId(): number {
   const now = new Date()
@@ -155,7 +158,7 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
                       <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
                         {scoreUsers.map((u, i) => (
                           <span key={u.userId}>
-                            { displayName(u) }
+                            {getDisplayName(u)}
                             {u.matches[matchId]?.redCard && <span style={{ fontSize: 10, marginRight: 2 }}>🟥</span>}
                             {i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 5px' }}>·</span>}
                           </span>
@@ -215,7 +218,7 @@ function GroupPredTable({ group, users, actualResult }: {
                   teamPreds.flatMap(({ pos, users: us }) =>
                     us.map((u, i) => (
                       <span key={u.userId + pos}>
-                        { displayName(u) }<span style={{ color: '#aaa', fontSize: 11 }}> (#{pos + 1})</span>
+                        {getDisplayName(u)}<span style={{ color: '#aaa', fontSize: 11 }}> (#{pos + 1})</span>
                         {i < us.length - 1 || teamPreds.indexOf(teamPreds.find(p => p.pos === pos)!) < teamPreds.length - 1 ? <span style={{ color: '#ddd', margin: '0 4px' }}>|</span> : ''}
                       </span>
                     ))
@@ -254,7 +257,7 @@ function BonusPredTable({ qId, users, actualVal }: {
             </span>
             <span style={{ fontSize: 12, color: '#555', flex: 1 }}>
               {valUsers.map((u, i) => (
-                <span key={u.userId}>{ displayName(u) }{i < valUsers.length - 1 ? <span style={{ color: '#ddd', margin: '0 4px' }}>|</span> : ''}</span>
+                <span key={u.userId}>{getDisplayName(u)}{i < valUsers.length - 1 ? <span style={{ color: '#ddd', margin: '0 4px' }}>|</span> : ''}</span>
               ))}
             </span>
           </div>
@@ -691,7 +694,7 @@ export default function AllPredictions() {
           {playedMatches.map(match => {
             const preds = users.map(u => ({
               x2: u.matches[match.id]?.prediction1X2,
-              name: displayName(u), scoreA: u.matches[match.id]?.scoreA, scoreB: u.matches[match.id]?.scoreB,
+              name: getDisplayName(u),
               scoreA: u.matches[match.id]?.scoreA,
               scoreB: u.matches[match.id]?.scoreB,
             })).filter(p => p.x2)
