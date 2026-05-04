@@ -101,44 +101,74 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
         <span>פילוח לפי ניחוש — {teamB} נגד {teamA}</span>
         <span style={{ fontSize: 12, fontWeight: 400, color: '#888' }}>{Object.values(groups).reduce((s, a) => s + a.length, 0)} הימורים</span>
       </div>
-      {sorted.map(([score, scoreUsers]) => {
-        const [sA, sB] = score === 'לא מולא' ? [null, null] : score.split('-').map(Number)
-        const isExact = played && sA !== null && sA === rA && sB === rB
-        const isMargin = played && sA !== null && !isExact && (sA! - sB!) === (rA! - rB!)
-        const isWrong = played && score !== 'לא מולא' && !isExact && !isMargin
-        return (
-          <div key={score} style={{ marginBottom: 10 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-              <span style={{
-                fontSize: 16, fontWeight: 800, direction: 'ltr', display: 'inline-block',
-                color: isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#1a1a2e',
-                background: isExact ? '#EAF3DE' : isMargin ? '#E6F1FB' : '#f0f0f0',
-                padding: '3px 12px', borderRadius: 8, minWidth: 56, textAlign: 'center',
-              }}>
-                {score === 'לא מולא' ? '—' : `${sA}-${sB}`}
-              </span>
-              {isExact && <ResultTag label="✓ מדויק" type="ok" />}
-              {isMargin && <ResultTag label="הפרש נכון" type="warn" />}
-              {isWrong && <ResultTag label="✗ שגוי" type="bad" />}
-              <span style={{ fontSize: 12, color: '#aaa' }}>({scoreUsers.length})</span>
+
+      {/* 3-column layout: teamA wins | draw | teamB wins */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+        {[
+        { label: teamA, x2: '1', color: '#444', bg: '#f0f0f0' },
+          { label: 'תיקו', x2: 'X', color: '#444', bg: '#f0f0f0' },
+          { label: teamB, x2: '2', color: '#444', bg: '#f0f0f0' },
+        ].map(col => {
+          // Filter scores for this 1X2 outcome
+          const colScores = sorted.filter(([score]) => {
+            if (score === 'לא מולא') return col.x2 === 'X' // show "not filled" under draw
+            const [sA, sB] = score.split('-').map(Number)
+            if (col.x2 === '1') return sA > sB
+            if (col.x2 === '2') return sB > sA
+            return sA === sB
+          })
+          const total = colScores.reduce((s, [, u]) => s + u.length, 0)
+
+          return (
+            <div key={col.x2}>
+              {/* Column header */}
+              <div style={{ background: col.bg, color: col.color, fontWeight: 700, fontSize: 13,
+                padding: '6px 10px', borderRadius: '8px 8px 0 0', textAlign: 'center', borderBottom: `2px solid ${col.color}` }}>
+                {col.label}
+                <span style={{ fontWeight: 400, fontSize: 11, marginRight: 5, opacity: 0.8 }}>({total})</span>
+              </div>
+
+              {/* Score groups in this column */}
+              <div style={{ border: `1px solid ${col.color}30`, borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
+                {colScores.length === 0 && (
+                  <div style={{ padding: '10px', fontSize: 12, color: '#ccc', textAlign: 'center' }}>אין הימורים</div>
+                )}
+                {colScores.map(([score, scoreUsers], idx) => {
+                  const [sA, sB] = score === 'לא מולא' ? [null, null] : score.split('-').map(Number)
+                  const isExact = played && sA !== null && sA === rA && sB === rB
+                  const isMargin = played && sA !== null && !isExact && (sA! - sB!) === (rA! - rB!)
+                  return (
+                    <div key={score} style={{ borderBottom: idx < colScores.length - 1 ? '1px solid #f0f0f0' : 'none',
+                      background: isExact ? '#f0fbf4' : isMargin ? '#f0f6fb' : idx % 2 === 0 ? '#fafafa' : '#fff',
+                      padding: '7px 10px' }}>
+                      {/* Score badge */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 15, fontWeight: 800, direction: 'ltr', display: 'inline-block',
+                          color: isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#1a1a2e' }}>
+                          {score === 'לא מולא' ? '—' : `${sA}-${sB}`}
+                        </span>
+                        {isExact && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#EAF3DE', color: '#3B6D11' }}>✓</span>}
+                        {isMargin && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#E6F1FB', color: '#185FA5' }}>~</span>}
+                        <span style={{ fontSize: 11, color: '#aaa', marginRight: 'auto' }}>({scoreUsers.length})</span>
+                      </div>
+                      {/* Names */}
+                      <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
+                        {scoreUsers.map((u, i) => (
+                          <span key={u.userId}>
+                            {u.userName}
+                            {u.matches[matchId]?.redCard && <span style={{ fontSize: 10, marginRight: 2 }}>🟥</span>}
+                            {i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 5px' }}>·</span>}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-            <div style={{ paddingRight: 10, borderRight: `3px solid ${isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#e5e5e5'}` }}>
-              {scoreUsers.map((u, i) => {
-                const p = u.matches[matchId]
-                const winner = p?.prediction1X2 === '1' ? teamA : p?.prediction1X2 === '2' ? teamB : 'תיקו'
-                return (
-                  <span key={u.userId} style={{ fontSize: 13 }}>
-                    {u.userName}
-                    {p?.prediction1X2 && <span style={{ fontSize: 11, color: '#888', marginRight: 3 }}>({winner})</span>}
-                    {p?.redCard && <span style={{ fontSize: 11, marginRight: 2 }}>🟥</span>}
-                    {i < scoreUsers.length - 1 && <span style={{ color: '#ccc', margin: '0 8px' }}>·</span>}
-                  </span>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
     </div>
   )
 }
