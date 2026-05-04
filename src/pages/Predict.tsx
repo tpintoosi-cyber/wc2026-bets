@@ -350,10 +350,9 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                           {p.prediction1X2 && (
                             <div className="max-pts-bar">
-                              <div className="max-pts-bar-top">
-                                <span className="max-pts-label">{t.maxPts}:</span>
-                                <span className="max-pts-value">{maxPts} {t.pts}</span>
-                              </div>
+                              <span className="max-pts-label">מקסימום:</span>
+                              <span className="max-pts-value">{maxPts}</span>
+                              <span className="max-pts-label">נק׳</span>
                               <div className="max-pts-breakdown">
                                 {breakdown.map((b, i) => <span key={i} className="max-pts-item">{b}</span>)}
                               </div>
