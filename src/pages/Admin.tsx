@@ -5,7 +5,7 @@ import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOC
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
-import { fetchAllFixtures, fetchFixtureEvents, isConfigured as isApiFootballConfigured } from '../services/apifootball'
+import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
 
@@ -151,85 +151,120 @@ export default function Admin() {
       await setDoc(doc(db, 'admin', 'schedule'), { schedule: scheduleMap })
       log.push('💾 נשמר ב-Firestore')
 
-      // ── API-Football: red cards + 90-min period scores ──────────────
+      // ── API-Football: red cards + 90-min scores + standings + advanceTeam ──
       if (isApiFootballConfigured()) {
-        log.push('🟥 מושך כרטיסים אדומים מ-API-Football...')
+        log.push('🔄 מושך נתונים מ-API-Football...')
         setSyncLog([...log])
         try {
-          const fixtures = await fetchAllFixtures()
-          // Build map: team names → fixture ID, for completed matches
-          const fixtureMap: Record<string, number> = {}
+          const [fixtures, standings] = await Promise.all([
+            fetchAllFixtures(),
+            fetchStandings(),
+          ])
+
+          // Build name → fixture map for completed matches
+          const fixtureByTeams: Record<string, ApiFootballFixture> = {}
           for (const f of fixtures) {
-            if (f.fixture.status.short === 'FT' || f.fixture.status.short === 'AET' || f.fixture.status.short === 'PEN') {
-              const key = `${f.teams.home.name}|${f.teams.away.name}`
-              fixtureMap[key] = f.fixture.id
+            const s = f.fixture.status.short
+            if (['FT', 'AET', 'PEN'].includes(s)) {
+              fixtureByTeams[`${f.teams.home.name}|${f.teams.away.name}`] = f
+              fixtureByTeams[`${f.teams.away.name}|${f.teams.home.name}`] = f
             }
           }
 
-          // Find our matches that need red card check (played, no hadRedCard set yet)
-          const matchesToCheck = [
-            ...MATCHES.filter(m => updatedMatches[m.id]?.isPlayed),
-            ...KNOCKOUT_MATCHES.filter(km => (updatedKnockout[km.id] as any)?.isPlayed),
-          ]
+          // EN→HE map for team name conversion
+          const enToHe: Record<string, string> = {}
+          for (const [he, en] of Object.entries(TEAM_EN)) {
+            enToHe[en.toLowerCase()] = he
+            enToHe[en] = he
+          }
 
-          let redCardUpdates = 0
-          let periodScoreUpdates = 0
+          let redCards = 0, scoresFix = 0, advanceFix = 0
 
-          for (const m of matchesToCheck) {
-            // Find matching fixture by team names (EN)
-            const teamAen = TEAM_EN[('teamA' in m ? m.teamA : (updatedKnockout[(m as any).id] as any)?.teamA)] ?? ''
-            const teamBen = TEAM_EN[('teamB' in m ? m.teamB : (updatedKnockout[(m as any).id] as any)?.teamB)] ?? ''
+          // ── Group stage: 90-min scores + red cards ──────────────────
+          for (const match of MATCHES) {
+            if (!updatedMatches[match.id]?.isPlayed) continue
+            const teamAen = TEAM_EN[match.teamA] ?? match.teamA
+            const teamBen = TEAM_EN[match.teamB] ?? match.teamB
+            const fixture = fixtureByTeams[`${teamAen}|${teamBen}`]
+            if (!fixture) continue
+
+            const ft = fixture.score.fulltime
+            if (ft.home !== null && ft.away !== null) {
+              const isRev = fixture.teams.home.name !== teamAen
+              updatedMatches[match.id].resultA = isRev ? ft.away : ft.home
+              updatedMatches[match.id].resultB = isRev ? ft.home : ft.away
+              scoresFix++
+            }
+
+            // Red cards from events
+            const events = await fetchFixtureEvents(fixture.fixture.id)
+            const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
+            updatedMatches[match.id].hadRedCard = hasRed
+            if (hasRed) redCards++
+          }
+
+          // ── Knockout: 90-min scores + advanceTeam + red cards ───────
+          for (const km of KNOCKOUT_MATCHES) {
+            const kd = updatedKnockout[km.id] as any
+            if (!kd?.isPlayed || kd.manualScore) continue
+            const teamAen = TEAM_EN[kd.teamA] ?? kd.teamA ?? ''
+            const teamBen = TEAM_EN[kd.teamB] ?? kd.teamB ?? ''
             if (!teamAen || !teamBen) continue
 
-            const fixtureId = fixtureMap[`${teamAen}|${teamBen}`] ?? fixtureMap[`${teamBen}|${teamAen}`]
-            if (!fixtureId) continue
+            const fixture = fixtureByTeams[`${teamAen}|${teamBen}`]
+            if (!fixture) continue
 
-            // Find the API fixture for period scores
-            const apiFixture = fixtures.find(f => f.fixture.id === fixtureId)
-
-            // Get period scores — use fulltime (90 min) instead of final
-            if (apiFixture?.score.fulltime.home !== null && 'id' in m && m.id <= 72) {
-              const ft = apiFixture.score.fulltime
-              const isReversed = TEAM_EN[(m as any).teamB] === apiFixture.teams.home.name
-              const r90A = isReversed ? ft.away! : ft.home!
-              const r90B = isReversed ? ft.home! : ft.away!
-              if (updatedMatches[m.id]) {
-                updatedMatches[m.id].resultA = r90A
-                updatedMatches[m.id].resultB = r90B
-                periodScoreUpdates++
-              }
+            const result = getKnockoutResult(fixture, kd.teamA, kd.teamB)
+            if (result) {
+              kd.resultA = result.score90A
+              kd.resultB = result.score90B
+              kd.advanceTeam = result.advanceTeam
+              advanceFix++
             }
 
-            // Fetch events for red cards
-            const events = await fetchFixtureEvents(fixtureId)
-            const hasRedCard = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
+            // Red cards (R32 + R16 only)
+            if (km.round === 'R32' || km.round === 'R16') {
+              const events = await fetchFixtureEvents(fixture.fixture.id)
+              const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
+              kd.hadRedCard = hasRed
+              if (hasRed) redCards++
+            }
+            updatedKnockout[km.id] = kd
+          }
 
-            if ('id' in m && m.id <= 72) {
-              if (updatedMatches[m.id] && updatedMatches[m.id].hadRedCard !== hasRedCard) {
-                updatedMatches[m.id].hadRedCard = hasRedCard
-                if (hasRedCard) redCardUpdates++
+          // ── Group qualifiers from standings ─────────────────────────
+          if (standings.length > 0) {
+            const { groupQualifiers } = parseStandings(standings, enToHe)
+            const hasData = Object.keys(groupQualifiers).length > 0
+            if (hasData) {
+              // Merge with existing — don't overwrite if already set
+              for (const [g, teams] of Object.entries(groupQualifiers)) {
+                if (teams[0]) setActualGroups(prev => ({ ...prev, [g]: teams }))
               }
-            } else {
-              const koId = (m as any).id
-              if (updatedKnockout[koId] && (updatedKnockout[koId] as any).hadRedCard !== hasRedCard) {
-                (updatedKnockout[koId] as any).hadRedCard = hasRedCard
-                if (hasRedCard) redCardUpdates++
-              }
+              await setDoc(doc(db, 'admin', 'results'), {
+                matches: updatedMatches,
+                groups: { ...actualGroups, ...groupQualifiers },
+                bonus: actualBonus,
+              }, { merge: true })
+              log.push(`🏅 עודכנו עולות מהבתים (${Object.keys(groupQualifiers).length} בתים)`)
             }
           }
 
-          // Save updated red cards + period scores
-          await setDoc(doc(db, 'admin', 'results'), { matches: updatedMatches, groups: actualGroups, bonus: actualBonus }, { merge: true })
-          await setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout })
+          // Save updated knockout
           setMatches({ ...updatedMatches })
           setKnockoutMatches({ ...updatedKnockout })
-          log.push(`🟥 עודכנו ${redCardUpdates} כרטיסים אדומים`)
-          if (periodScoreUpdates > 0) log.push(`⏱️ עודכנו ${periodScoreUpdates} תוצאות 90 דקות מדויקות`)
+          await setDoc(doc(db, 'admin', 'results'), { matches: updatedMatches, groups: actualGroups, bonus: actualBonus }, { merge: true })
+          await setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout })
+
+          log.push(`⏱️ תוצאות 90 דקות: ${scoresFix} משחקים`)
+          log.push(`🟥 כרטיסים אדומים: ${redCards}`)
+          log.push(`🏆 מי עלה הלאה: ${advanceFix} משחקים`)
+
         } catch (e) {
           log.push(`⚠️ API-Football: ${(e as Error).message}`)
         }
       } else {
-        log.push('ℹ️ API-Football לא מוגדר — כרטיסים אדומים ידניים')
+        log.push('ℹ️ API-Football לא מוגדר')
       }
       if (updatedResults > 0 || koUpdated > 0) {
         log.push('🔄 מחשב ניקוד...')
