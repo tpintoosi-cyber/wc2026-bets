@@ -538,53 +538,70 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const advA = pred?.advance === tA && tA
                 const advB = pred?.advance === tB && tB
                 const hasPred = !!(pred?.prediction1X2)
+                const hasScore = pred?.scoreA !== null && pred?.scoreA !== undefined
+
                 return (
                   <div
                     id={`bracket-match-${id}`}
-                    onClick={() => handleMatchClick(id)}
                     style={{
-                      border: hasPred ? '1px solid #b7ddb0' : '0.5px solid #ddd',
+                      border: advA || advB ? '1.5px solid #b7ddb0' : hasPred ? '1px solid #d0e8ff' : '0.5px solid #ddd',
                       borderRadius: 6, overflow: 'hidden',
                       background: hasPred ? '#f6fbf2' : '#fff',
-                      cursor: 'pointer', margin: '2px 3px',
-                      minWidth: compact ? 80 : 90, flex: 1,
-                      transition: 'box-shadow 0.15s',
+                      margin: '2px 3px', minWidth: compact ? 80 : 90, flex: 1,
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)')}
-                    onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
                   >
-                    {[['A', tA, advA], ['B', tB, advB]].map(([side, team, isWinner]) => (
-                      <div key={String(side)} style={{
-                        display: 'flex', alignItems: 'center', padding: '3px 5px', gap: 3,
-                        fontSize: 10, minHeight: 20,
-                        borderBottom: side === 'A' ? '0.5px solid #eee' : 'none',
-                        background: isWinner ? '#EAF3DE' : 'transparent',
-                      }}>
-                        <span style={{ fontSize: 11, width: 14 }}>{team ? (FLAGS[team as string] ?? '') : ''}</span>
+                    {([['A', tA, advA], ['B', tB, advB]] as [string, string | undefined, string | false | undefined][]).map(([side, team, isWinner]) => (
+                      <div
+                        key={side}
+                        onClick={() => team && !isLocked && updateKnockout(id, 'advance', team)}
+                        style={{
+                          display: 'flex', alignItems: 'center', padding: '4px 5px', gap: 3,
+                          fontSize: 10, minHeight: 22,
+                          borderBottom: side === 'A' ? '0.5px solid #eee' : 'none',
+                          background: isWinner ? '#EAF3DE' : 'transparent',
+                          cursor: team && !isLocked ? 'pointer' : 'default',
+                        }}
+                      >
+                        <span style={{ fontSize: 11, width: 14 }}>{team ? (FLAGS[team] ?? '') : ''}</span>
                         <span style={{
                           flex: 1, color: isWinner ? '#1a7a44' : team ? '#333' : '#bbb',
-                          fontWeight: isWinner ? 600 : 400,
-                          fontStyle: team ? 'normal' : 'italic',
+                          fontWeight: isWinner ? 700 : 400, fontStyle: team ? 'normal' : 'italic',
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           maxWidth: compact ? 55 : 65,
                         }}>{team ?? '...'}</span>
-                        {pred && team && (
-                          <span style={{ fontSize: 10, color: '#999' }}>
-                            {side === 'A' ? (pred.scoreA ?? '') : (pred.scoreB ?? '')}
-                          </span>
-                        )}
+                        {isWinner && <span style={{ fontSize: 9, color: '#1a7a44' }}>✓</span>}
                       </div>
                     ))}
+                    {hasScore && (
+                      <div style={{ textAlign: 'center', fontSize: 9, color: '#aaa', padding: '1px 0 2px' }}>
+                        {pred!.scoreA}–{pred!.scoreB} {pred!.prediction1X2 && `· ${pred!.prediction1X2}`}
+                      </div>
+                    )}
+                    {!isLocked && tA && tB && !pred?.advance && (
+                      <div style={{ textAlign: 'center', fontSize: 8, color: '#ccc', paddingBottom: 2 }}>
+                        לחץ לבחירה ↑
+                      </div>
+                    )}
                   </div>
                 )
               }
 
-              const Row = ({ ids, label }: { ids: number[]; label?: string }) => (
-                <div>
-                  {label && <div style={{ fontSize: 9, fontWeight: 600, color: '#888', textAlign: 'center', padding: '3px 0 1px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</div>}
-                  <div style={{ display: 'flex', justifyContent: 'center' }}>
-                    {ids.map(id => <MatchCard key={id} id={id} compact={ids.length > 3} />)}
-                  </div>
+              // RoundSection: groups multiple rows under one label, no arrows between rows
+              const RoundSection = ({ label, ids, dir }: { label: string; ids: number[][]; dir: 'down' | 'up' }) => (
+                <div style={{ border: '1px solid #e8e8f0', borderRadius: 10, margin: '2px 0', overflow: 'hidden' }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 700, color: '#5a5a8a', textAlign: 'center',
+                    padding: '4px 8px', background: '#f4f4fa', letterSpacing: '0.06em',
+                    borderBottom: '1px solid #e8e8f0',
+                  }}>{label}</div>
+                  {ids.map((row, i) => (
+                    <div key={i}>
+                      {i > 0 && <div style={{ height: 1, background: '#f0f0f0', margin: '0 8px' }} />}
+                      <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 2px' }}>
+                        {row.map(id => <MatchCard key={id} id={id} compact={row.length > 3} />)}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )
 
@@ -600,21 +617,24 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const pred = knockoutPreds[104]
                 return (
                   <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }}>
-                    <div onClick={() => handleMatchClick(104)} style={{
+                    <div style={{
                       border: '1.5px solid #b7ddb0', borderRadius: 8, overflow: 'hidden',
-                      background: '#EAF3DE', minWidth: 110, maxWidth: 140, cursor: 'pointer',
+                      background: '#EAF3DE', minWidth: 110, maxWidth: 140,
                     }}>
-                      {[['A', tA], ['B', tB]].map(([side, team]) => {
+                      {([['A', tA], ['B', tB]] as [string, string | undefined][]).map(([side, team]) => {
                         const isChamp = pred?.advance === team && team
                         return (
-                          <div key={String(side)} style={{
-                            display: 'flex', alignItems: 'center', padding: '4px 6px', gap: 3,
-                            fontSize: 11, borderBottom: side === 'A' ? '0.5px solid #c5e8c0' : 'none',
-                            background: isChamp ? '#d4edcc' : 'transparent',
-                          }}>
-                            <span style={{ fontSize: 12, width: 16 }}>{team ? (FLAGS[team as string] ?? '') : ''}</span>
+                          <div key={side}
+                            onClick={() => team && !isLocked && updateKnockout(104, 'advance', team)}
+                            style={{
+                              display: 'flex', alignItems: 'center', padding: '5px 6px', gap: 3,
+                              fontSize: 11, borderBottom: side === 'A' ? '0.5px solid #c5e8c0' : 'none',
+                              background: isChamp ? '#d4edcc' : 'transparent',
+                              cursor: team && !isLocked ? 'pointer' : 'default',
+                            }}>
+                            <span style={{ fontSize: 12, width: 16 }}>{team ? (FLAGS[team] ?? '') : ''}</span>
                             <span style={{ flex: 1, color: isChamp ? '#1a5c30' : team ? '#2d5a3d' : '#aaa', fontWeight: isChamp ? 700 : 500, fontStyle: team ? 'normal' : 'italic' }}>{team ?? '...'}</span>
-                            {isChamp && <span style={{ fontSize: 12 }}>🏆</span>}
+                            {isChamp && <span style={{ fontSize: 13 }}>🏆</span>}
                           </div>
                         )
                       })}
@@ -630,20 +650,28 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const pred = knockoutPreds[103]
                 return (
                   <div style={{ display: 'flex', justifyContent: 'center', margin: '3px 0' }}>
-                    <div onClick={() => handleMatchClick(103)} style={{
+                    <div style={{
                       border: '0.5px solid #ddd', borderRadius: 6, overflow: 'hidden',
-                      background: '#fff', minWidth: 100, maxWidth: 120, cursor: 'pointer', opacity: 0.85,
+                      background: '#fff', minWidth: 100, maxWidth: 120, opacity: 0.85,
                     }}>
                       <div style={{ fontSize: 9, textAlign: 'center', padding: '2px', color: '#888', background: '#f8f9fa' }}>🥉 מקום שלישי</div>
-                      {[['A', tA], ['B', tB]].map(([side, team]) => (
-                        <div key={String(side)} style={{
-                          display: 'flex', alignItems: 'center', padding: '3px 5px', gap: 3,
-                          fontSize: 10, borderTop: '0.5px solid #eee',
-                        }}>
-                          <span style={{ fontSize: 11, width: 14 }}>{team ? (FLAGS[team as string] ?? '') : ''}</span>
-                          <span style={{ flex: 1, color: team ? '#555' : '#bbb', fontStyle: team ? 'normal' : 'italic' }}>{team ?? '...'}</span>
-                        </div>
-                      ))}
+                      {([['A', tA], ['B', tB]] as [string, string | undefined][]).map(([side, team]) => {
+                        const isWinner = pred?.advance === team && team
+                        return (
+                          <div key={side}
+                            onClick={() => team && !isLocked && updateKnockout(103, 'advance', team)}
+                            style={{
+                              display: 'flex', alignItems: 'center', padding: '3px 5px', gap: 3,
+                              fontSize: 10, borderTop: '0.5px solid #eee',
+                              background: isWinner ? '#EAF3DE' : 'transparent',
+                              cursor: team && !isLocked ? 'pointer' : 'default',
+                            }}>
+                            <span style={{ fontSize: 11, width: 14 }}>{team ? (FLAGS[team] ?? '') : ''}</span>
+                            <span style={{ flex: 1, color: isWinner ? '#1a7a44' : team ? '#555' : '#bbb', fontWeight: isWinner ? 700 : 400, fontStyle: team ? 'normal' : 'italic' }}>{team ?? '...'}</span>
+                            {isWinner && <span style={{ fontSize: 9, color: '#1a7a44' }}>✓</span>}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 )
@@ -687,40 +715,32 @@ export default function Predict({ lang }: { lang: Lang }) {
                   })()}
 
                   <div style={{ fontSize: 11, color: '#888', textAlign: 'center', marginBottom: 8 }}>
-                    לחץ על משחק כדי למלא הימור
+                    לחץ על נבחרת כדי לבחור מי עולה → משתפשט אוטמטית לשלב הבא
                   </div>
 
-                  {/* TOP HALF */}
-                  <Row ids={[73, 74, 75, 76]} label="R32" />
+                  {/* TOP HALF — converges downward */}
+                  <RoundSection label="שלב 32" ids={[[73,74,75,76],[77,78,79,80]]} dir="down" />
                   <Arrow dir="down" />
-                  <Row ids={[77, 78, 79, 80]} />
+                  <RoundSection label="שמינית גמר" ids={[[89,90],[91,92]]} dir="down" />
                   <Arrow dir="down" />
-                  <Row ids={[89, 90]} label="R16" />
+                  <RoundSection label="רבע גמר" ids={[[97,98]]} dir="down" />
                   <Arrow dir="down" />
-                  <Row ids={[91, 92]} />
-                  <Arrow dir="down" />
-                  <Row ids={[97, 98]} label="רבע גמר" />
-                  <Arrow dir="down" />
-                  <Row ids={[101]} label="חצי גמר" />
+                  <RoundSection label="חצי גמר" ids={[[101]]} dir="down" />
                   <Arrow dir="down" />
 
                   {/* CENTER */}
                   <FinalCard />
                   <ThirdCard />
 
-                  {/* BOTTOM HALF */}
+                  {/* BOTTOM HALF — converges upward */}
                   <Arrow dir="up" />
-                  <Row ids={[102]} label="חצי גמר" />
+                  <RoundSection label="חצי גמר" ids={[[102]]} dir="up" />
                   <Arrow dir="up" />
-                  <Row ids={[99, 100]} label="רבע גמר" />
+                  <RoundSection label="רבע גמר" ids={[[99,100]]} dir="up" />
                   <Arrow dir="up" />
-                  <Row ids={[93, 94]} label="R16" />
+                  <RoundSection label="שמינית גמר" ids={[[93,94],[95,96]]} dir="up" />
                   <Arrow dir="up" />
-                  <Row ids={[95, 96]} />
-                  <Arrow dir="up" />
-                  <Row ids={[81, 82, 83, 84]} label="R32" />
-                  <Arrow dir="up" />
-                  <Row ids={[85, 86, 87, 88]} />
+                  <RoundSection label="שלב 32" ids={[[81,82,83,84],[85,86,87,88]]} dir="up" />
                 </div>
               )
             }
@@ -828,42 +848,30 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 ))}
                               </div>
 
-                              {/* Points preview */}
+                              {/* Points preview — same style as group stage */}
                               {pred?.prediction1X2 && (() => {
-                                const breakdown: string[] = []
-                                let total = 0
-                                // 1X2 max
                                 const catIdx = { A: 0, B: 1, C: 2, D: 3 }[km.category]
                                 const aIsFav = km.fifaPointsA >= km.fifaPointsB
-                                const predIs1 = pred.prediction1X2 === '1'
-                                const predIs2 = pred.prediction1X2 === '2'
-                                const predIsX = pred.prediction1X2 === 'X'
-                                const isFav = (predIs1 && aIsFav) || (predIs2 && !aIsFav)
-                                const p1x2 = predIsX ? [1,1,2,3][catIdx] : isFav ? 1 : [1,2,3,4][catIdx]
-                                breakdown.push(`1X2: ${p1x2}`)
-                                total += p1x2
-                                // Score
+                                const isFav = (pred.prediction1X2 === '1' && aIsFav) || (pred.prediction1X2 === '2' && !aIsFav)
+                                const p1x2 = pred.prediction1X2 === 'X' ? [1,1,2,3][catIdx] : isFav ? 1 : [1,2,3,4][catIdx]
+                                const items: string[] = [`1X2: ${p1x2}`]
+                                let total = p1x2
                                 if (pred.scoreA !== null && pred.scoreA !== undefined) {
-                                  const goalTotal = (Number(pred.scoreA) + Number(pred.scoreB ?? 0))
+                                  const goalTotal = Number(pred.scoreA) + Number(pred.scoreB ?? 0)
                                   const isOU = catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
-                                  breakdown.push(isOU ? 'מדויק: 2 (הפרש: 1) | O/U: 1' : 'מדויק: 2 (הפרש: 1)')
+                                  items.push(isOU ? 'מדויק: 2 (הפרש: 1) | O/U: 1' : 'מדויק: 2 (הפרש: 1)')
                                   total += isOU ? 3 : 2
                                 }
-                                // Red card
-                                if ((round === 'R32' || round === 'R16') && pred.redCard) {
-                                  breakdown.push('🟥: 2')
-                                  total += 2
-                                }
-                                // Advance
-                                if (pred.advance) {
-                                  breakdown.push(`מעלה: +${advPts}`)
-                                  total += advPts
-                                }
+                                if ((round === 'R32' || round === 'R16') && pred.redCard) { items.push('🟥: 2'); total += 2 }
+                                if (pred.advance) { items.push(`מעלה: +${advPts}`); total += advPts }
                                 return (
-                                  <div style={{ marginTop: 8, padding: '6px 10px', background: '#f0f7ff', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                                    <span style={{ fontSize: 11, color: '#888' }}>מקסימום משחק זה:</span>
-                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#185FA5' }}>{total} נק'</span>
-                                    <span style={{ fontSize: 10, color: '#aaa' }}>({breakdown.join(' | ')})</span>
+                                  <div className="max-pts-bar">
+                                    <span className="max-pts-label">מקסימום:</span>
+                                    <span className="max-pts-value">{total}</span>
+                                    <span className="max-pts-label">נק׳</span>
+                                    <div className="max-pts-breakdown">
+                                      {items.map((b, i) => <span key={i} className="max-pts-item">{b}</span>)}
+                                    </div>
                                   </div>
                                 )
                               })()}
