@@ -18,25 +18,25 @@ function Nav({ dark, toggleDark, lang, toggleLang }: {
   if (!user) return null
   return (
     <nav className="nav">
-      <div className="nav-logo">⚽ WC2026</div>
+      <div className="nav-logo">⚽ <span className="nav-label">WC2026</span></div>
       <div className="nav-links">
         <Link className={loc.pathname === '/predict' ? 'active' : ''} to="/predict">
-          {lang === 'he' ? 'הימורים שלי' : 'My Bets'}
+          🎯 <span className="nav-label">{lang === 'he' ? 'הימורים' : 'My Bets'}</span>
         </Link>
         <Link className={loc.pathname === '/all' ? 'active' : ''} to="/all">
-          {lang === 'he' ? 'הימורי כולם' : 'All Bets'}
+          👥 <span className="nav-label">{lang === 'he' ? 'כולם' : 'All Bets'}</span>
         </Link>
         <Link className={loc.pathname === '/leaderboard' ? 'active' : ''} to="/leaderboard">
-          {lang === 'he' ? 'טבלה' : 'Leaderboard'}
+          🏆 <span className="nav-label">{lang === 'he' ? 'טבלה' : 'Board'}</span>
         </Link>
-        {isAdmin && <Link className={loc.pathname === '/admin' ? 'active' : ''} to="/admin">Admin</Link>}
+        {isAdmin && <Link className={loc.pathname === '/admin' ? 'active' : ''} to="/admin">⚙️</Link>}
       </div>
       <div className="nav-controls">
         <button className="nav-btn" onClick={toggleLang} title="Change language">
           {lang === 'he' ? 'EN' : 'עב'}
         </button>
         <button className="nav-btn" onClick={toggleDark} title={dark ? 'Light mode' : 'Dark mode'}>
-          {dark ? '☀️ Light' : '🌙 Dark'}
+          {dark ? '☀️' : '🌙'}
         </button>
         <button className="btn-ghost" onClick={logout}>
           {user.displayName?.split(' ')[0]} ↩

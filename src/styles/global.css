@@ -428,10 +428,75 @@ body.dark .lang-toggle:hover { border-color: #94a3b8; color: #f1f5f9; background
 .user-btn.me { border-style: dashed; }
 
 @media (max-width: 600px) {
-  .nav-links a { padding: 6px 8px; font-size: 13px; }
-  .lb-header, .lb-row { grid-template-columns: 28px 1fr 48px 48px 48px 54px; padding: 9px 10px; gap: 4px; font-size: 13px; }
+  /* Base */
+  body { font-size: 16px; }
+  .page { padding: 10px; }
+
+  /* Nav — icon-only on mobile */
+  .nav { padding: 0 12px; height: 48px; gap: 8px; }
+  .nav-logo { font-size: 16px; }
+  .nav-links { gap: 2px; }
+  .nav-links a {
+    padding: 5px 7px; font-size: 12px; border-radius: 8px;
+  }
+  .nav-links a span.nav-label { display: none; }
+  .nav-btn { padding: 5px 8px; font-size: 12px; }
+  .btn-ghost { padding: 4px 8px; font-size: 12px; }
+
+  /* Match cards */
+  .match-row, .match-row-view { border-radius: 12px; margin-bottom: 8px; }
+  .match-header { padding: 8px 10px; }
+  .match-body {
+    grid-template-columns: 1fr 90px 1fr;
+    gap: 6px; padding: 12px 10px 8px;
+  }
+  .team-name { font-size: 13px; gap: 5px; }
+  .team-flag { font-size: 26px; }
+  .score-input { width: 44px; height: 44px; font-size: 20px; border-radius: 10px; }
+  .match-1x2-row { padding: 8px 10px 10px; gap: 6px; }
+  .btn-1x2 { padding: 8px 4px; font-size: 12px; border-radius: 8px; }
+  .red-card-label { padding: 7px 8px; font-size: 11px; }
+  .max-pts-bar { padding: 8px 10px; gap: 5px; }
+  .max-pts-value { font-size: 17px; }
+  .max-pts-item { font-size: 11px; padding: 2px 7px; }
+
+  /* Tabs */
+  .tabs { gap: 3px; padding: 3px; }
+  .tab { padding: 7px 4px; font-size: 13px; }
+
+  /* Status bar */
+  .status-bar { flex-direction: column; gap: 6px; padding: 8px 10px; align-items: stretch; }
+  .status-bar > div { justify-content: center; flex-wrap: wrap; }
+
+  /* Leaderboard */
+  .lb-header, .lb-row {
+    grid-template-columns: 28px 1fr 42px 42px 42px 52px;
+    padding: 9px 10px; gap: 4px; font-size: 12px;
+  }
   .lb-total { font-size: 14px; }
-  .match-body { grid-template-columns: 1fr 100px 1fr; }
+  .lb-name { font-size: 13px; }
+  .lb-header { font-size: 11px; }
+
+  /* Groups grid */
+  .groups-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .group-card { padding: 10px; }
+
+  /* AllPredictions tabs row */
+  .user-selector { gap: 5px; }
+  .user-btn { padding: 6px 10px; font-size: 12px; }
+
+  /* Round title */
+  .round-title { font-size: 11px; margin: 16px 0 8px; }
+
+  /* Bonus */
+  .bonus-row { padding: 10px 12px; }
+  .bonus-label { font-size: 13px; }
+
+  /* AllPredictions match view */
+  .match-row-view { padding: 10px 10px; }
+
+  /* Score table 3-col */
+  .score-3col { grid-template-columns: 1fr !important; gap: 8px !important; }
 }
 
 /* ── Dark mode overrides ─────────────────────────── */

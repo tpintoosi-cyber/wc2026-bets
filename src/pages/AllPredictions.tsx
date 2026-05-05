@@ -107,7 +107,7 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
       </div>
 
       {/* 3-column layout: teamA wins | draw | teamB wins */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+      <div className="score-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         {[
         { label: teamA, x2: '1', color: '#444', bg: '#f0f0f0' },
           { label: 'תיקו', x2: 'X', color: '#444', bg: '#f0f0f0' },
