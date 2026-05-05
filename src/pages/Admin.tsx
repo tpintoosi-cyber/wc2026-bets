@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
-import { MATCHES, GROUPS_TEAMS, TEAM_EN } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS } from '../data/matches'
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction } from '../types'
 import { fetchGroupStageMatches, toIsraelTime } from '../services/wc2026api'
@@ -275,6 +275,28 @@ export default function Admin() {
           ))}
         </div>
         <button className="btn-primary" onClick={saveResults}>שמור עולות</button>
+      </section>
+
+      {/* Bonus answers */}
+      <section className="admin-section">
+        <h2>תשובות בונוס בפועל</h2>
+        <p className="hint">מלא את התשובות הנכונות לאחר סיום הטורניר</p>
+        {BONUS_QUESTIONS.map(q => (
+          <div key={q.id} className="admin-row" style={{ alignItems: 'center', gap: 10, marginBottom: 10 }}>
+            <label style={{ fontSize: 13, flex: 1 }}>
+              <span style={{ fontWeight: 600 }}>{q.label}</span>
+              <span style={{ color: '#888', fontSize: 12, marginRight: 6 }}>({q.points} נק׳)</span>
+            </label>
+            <input
+              type="text"
+              value={(actualBonus as any)[q.id] ?? ''}
+              onChange={e => setActualBonus(prev => ({ ...prev, [q.id]: e.target.value }))}
+              placeholder="תשובה..."
+              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, width: 160 }}
+            />
+          </div>
+        ))}
+        <button className="btn-primary" onClick={saveResults}>שמור בונוס</button>
       </section>
 
       {/* Recalculate */}
