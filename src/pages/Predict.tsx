@@ -544,10 +544,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                   <div
                     id={`bracket-match-${id}`}
                     style={{
-                      border: advA || advB ? '1.5px solid #b7ddb0' : hasPred ? '1px solid #d0e8ff' : '0.5px solid #ddd',
-                      borderRadius: 6, overflow: 'hidden',
-                      background: hasPred ? '#f6fbf2' : '#fff',
-                      margin: '2px 3px', minWidth: compact ? 80 : 90, flex: 1,
+                      border: advA || advB ? '2px solid #1a7a44' : '1px solid #e0e0e0',
+                      borderRadius: 8, overflow: 'hidden',
+                      background: advA || advB ? '#f2faf5' : '#fff',
+                      margin: '2px 3px', flex: 1,
+                      minWidth: compact ? 72 : 82,
+                      maxWidth: compact ? 95 : 120,
                     }}
                   >
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string | undefined, string | false | undefined][]).map(([side, team, isWinner]) => (
@@ -555,49 +557,55 @@ export default function Predict({ lang }: { lang: Lang }) {
                         key={side}
                         onClick={() => team && !isLocked && updateKnockout(id, 'advance', team)}
                         style={{
-                          display: 'flex', alignItems: 'center', padding: '4px 5px', gap: 3,
-                          fontSize: 10, minHeight: 22,
-                          borderBottom: side === 'A' ? '0.5px solid #eee' : 'none',
+                          display: 'flex', alignItems: 'center',
+                          padding: '5px 6px', gap: 4,
+                          fontSize: 12,
+                          borderBottom: side === 'A' ? '1px solid #f0f0f0' : 'none',
                           background: isWinner ? '#EAF3DE' : 'transparent',
                           cursor: team && !isLocked ? 'pointer' : 'default',
                         }}
                       >
-                        <span style={{ fontSize: 11, width: 14 }}>{team ? (FLAGS[team] ?? '') : ''}</span>
+                        <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>
+                          {team ? (FLAGS[team] ?? '🏳') : ''}
+                        </span>
                         <span style={{
-                          flex: 1, color: isWinner ? '#1a7a44' : team ? '#333' : '#bbb',
-                          fontWeight: isWinner ? 700 : 400, fontStyle: team ? 'normal' : 'italic',
+                          flex: 1, color: isWinner ? '#1a7a44' : team ? '#222' : '#ccc',
+                          fontWeight: isWinner ? 700 : 500,
+                          fontStyle: team ? 'normal' : 'italic',
+                          fontSize: compact ? 11 : 12,
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          maxWidth: compact ? 55 : 65,
                         }}>{team ?? '...'}</span>
-                        {isWinner && <span style={{ fontSize: 9, color: '#1a7a44' }}>✓</span>}
+                        {isWinner && <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>✓</span>}
                       </div>
                     ))}
                     {hasScore && (
-                      <div style={{ textAlign: 'center', fontSize: 9, color: '#aaa', padding: '1px 0 2px' }}>
-                        {pred!.scoreA}–{pred!.scoreB} {pred!.prediction1X2 && `· ${pred!.prediction1X2}`}
+                      <div style={{ textAlign: 'center', fontSize: 10, color: '#888', padding: '2px 0', background: '#fafafa', borderTop: '1px solid #f0f0f0', fontWeight: 600 }}>
+                        {pred!.scoreA}–{pred!.scoreB}
                       </div>
                     )}
                     {!isLocked && tA && tB && !pred?.advance && (
-                      <div style={{ textAlign: 'center', fontSize: 8, color: '#ccc', paddingBottom: 2 }}>
-                        לחץ לבחירה ↑
+                      <div style={{ textAlign: 'center', fontSize: 9, color: '#bbb', padding: '2px 0', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
+                        בחר ↑
                       </div>
                     )}
                   </div>
                 )
               }
 
-              // RoundSection: groups multiple rows under one label, no arrows between rows
-              const RoundSection = ({ label, ids, dir }: { label: string; ids: number[][]; dir: 'down' | 'up' }) => (
-                <div style={{ border: '1px solid #e8e8f0', borderRadius: 10, margin: '2px 0', overflow: 'hidden' }}>
+              // RoundSection: groups multiple rows under one bold header
+              const RoundSection = ({ label, ids }: { label: string; ids: number[][] }) => (
+                <div style={{ margin: '3px 0' }}>
                   <div style={{
-                    fontSize: 10, fontWeight: 700, color: '#5a5a8a', textAlign: 'center',
-                    padding: '4px 8px', background: '#f4f4fa', letterSpacing: '0.06em',
-                    borderBottom: '1px solid #e8e8f0',
+                    fontSize: 13, fontWeight: 700, color: '#1a1a2e', textAlign: 'center',
+                    padding: '6px 8px', letterSpacing: '0.02em',
+                    background: 'linear-gradient(to right, transparent, #f0f0fa, transparent)',
+                    borderTop: '1.5px solid #d0d0e8', borderBottom: '1.5px solid #d0d0e8',
+                    marginBottom: 4,
                   }}>{label}</div>
                   {ids.map((row, i) => (
                     <div key={i}>
-                      {i > 0 && <div style={{ height: 1, background: '#f0f0f0', margin: '0 8px' }} />}
-                      <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 2px' }}>
+                      {i > 0 && <div style={{ height: 6 }} />}
+                      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 0 }}>
                         {row.map(id => <MatchCard key={id} id={id} compact={row.length > 3} />)}
                       </div>
                     </div>
@@ -605,8 +613,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                 </div>
               )
 
-              const Arrow = ({ dir }: { dir: 'down' | 'up' }) => (
-                <div style={{ textAlign: 'center', fontSize: 12, color: '#bbb', lineHeight: 1, margin: '1px 0' }}>
+              const Arrow = ({ dir = 'down' }: { dir?: 'down' | 'up' }) => (
+                <div style={{ textAlign: 'center', fontSize: 14, color: '#9090b0', lineHeight: 1, margin: '2px 0', fontWeight: 700 }}>
                   {dir === 'down' ? '↓' : '↑'}
                 </div>
               )
@@ -719,13 +727,13 @@ export default function Predict({ lang }: { lang: Lang }) {
                   </div>
 
                   {/* TOP HALF — converges downward */}
-                  <RoundSection label="שלב 32" ids={[[73,74,75,76],[77,78,79,80]]} dir="down" />
+                  <RoundSection label="שלב 32" ids={[[73,74,75,76],[77,78,79,80]]} />
                   <Arrow dir="down" />
-                  <RoundSection label="שמינית גמר" ids={[[89,90],[91,92]]} dir="down" />
+                  <RoundSection label="שמינית גמר" ids={[[89,90],[91,92]]} />
                   <Arrow dir="down" />
-                  <RoundSection label="רבע גמר" ids={[[97,98]]} dir="down" />
+                  <RoundSection label="רבע גמר" ids={[[97,98]]} />
                   <Arrow dir="down" />
-                  <RoundSection label="חצי גמר" ids={[[101]]} dir="down" />
+                  <RoundSection label="חצי גמר" ids={[[101]]} />
                   <Arrow dir="down" />
 
                   {/* CENTER */}
@@ -734,13 +742,13 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                   {/* BOTTOM HALF — converges upward */}
                   <Arrow dir="up" />
-                  <RoundSection label="חצי גמר" ids={[[102]]} dir="up" />
+                  <RoundSection label="חצי גמר" ids={[[102]]} />
                   <Arrow dir="up" />
-                  <RoundSection label="רבע גמר" ids={[[99,100]]} dir="up" />
+                  <RoundSection label="רבע גמר" ids={[[99,100]]} />
                   <Arrow dir="up" />
-                  <RoundSection label="שמינית גמר" ids={[[93,94],[95,96]]} dir="up" />
+                  <RoundSection label="שמינית גמר" ids={[[93,94],[95,96]]} />
                   <Arrow dir="up" />
-                  <RoundSection label="שלב 32" ids={[[81,82,83,84],[85,86,87,88]]} dir="up" />
+                  <RoundSection label="שלב 32" ids={[[81,82,83,84],[85,86,87,88]]} />
                 </div>
               )
             }
