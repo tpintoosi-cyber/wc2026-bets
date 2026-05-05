@@ -572,7 +572,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                           flex: 1, color: isWinner ? '#1a7a44' : team ? '#222' : '#ccc',
                           fontWeight: isWinner ? 700 : 500,
                           fontStyle: team ? 'normal' : 'italic',
-                          fontSize: compact ? 11 : 12,
+                          fontSize: compact ? 12 : 13,
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{team ?? '...'}</span>
                         {isWinner && <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>✓</span>}
@@ -605,7 +605,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                   {ids.map((row, i) => (
                     <div key={i}>
                       {i > 0 && <div style={{ height: 6 }} />}
-                      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap', gap: 0, overflowX: 'auto' }}>
                         {row.map(id => <MatchCard key={id} id={id} compact={row.length > 3} />)}
                       </div>
                     </div>
@@ -722,8 +722,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                     )
                   })()}
 
-                  <div style={{ fontSize: 11, color: '#888', textAlign: 'center', marginBottom: 8 }}>
-                    לחץ על נבחרת כדי לבחור מי עולה → משתפשט אוטמטית לשלב הבא
+                  <div style={{ fontSize: 12, color: '#185FA5', textAlign: 'center', marginBottom: 10, fontWeight: 600, padding: '7px 12px', background: '#EBF4FF', borderRadius: 8, border: '1px solid #d0e8ff' }}>
+                    💡 לחץ על נבחרת כדי לבחור מי עולה — מתעדכן אוטומטית לשלב הבא
                   </div>
 
                   {/* TOP HALF — converges downward */}
