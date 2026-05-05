@@ -53,5 +53,5 @@ export async function fetchFixtureEvents(fixtureId: number): Promise<ApiFootball
 
 // Check if API key is configured
 export function isConfigured(): boolean {
-  return API_KEY !== 'YOUR_API_FOOTBALL_KEY' && API_KEY.length > 10
+  return API_KEY.length > 10
 }
