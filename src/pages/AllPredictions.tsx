@@ -294,15 +294,22 @@ export default function AllPredictions() {
       const deadline = settings.exists() ? settings.data().deadline : null
       const isClosed = !open || (deadline && Date.now() > deadline)
       setIsOpen(!isClosed)
-      const resultsSnap = await getDoc(doc(db, 'admin', 'results'))
+
+      // Run all reads in parallel
+      const [resultsSnap, predsSnap, scoresSnap] = await Promise.all([
+        getDoc(doc(db, 'admin', 'results')),
+        (isClosed || isAdmin) ? getDocs(collection(db, 'predictions')) : Promise.resolve(null),
+        (isClosed || isAdmin) ? getDocs(collection(db, 'scores')) : Promise.resolve(null),
+      ])
+
       if (resultsSnap.exists()) {
         setAdminResults(resultsSnap.data().matches ?? {})
         setActualGroups(resultsSnap.data().groups ?? {})
         setActualBonus(resultsSnap.data().bonus ?? {})
       }
-      if (isClosed || isAdmin) {
-        const snap = await getDocs(collection(db, 'predictions'))
-        const data: UserData[] = snap.docs.map(d => ({
+
+      if (predsSnap) {
+        const data: UserData[] = predsSnap.docs.map(d => ({
           userId: d.id, userName: d.data().userName ?? 'משתמש',
           nickname: d.data().nickname ?? '',
           matches: d.data().matches ?? {}, groups: d.data().groups ?? {}, bonus: d.data().bonus ?? {},
@@ -312,7 +319,9 @@ export default function AllPredictions() {
           const me = data.find(u => u.userId === user?.uid)
           setSelectedUser(me ? me.userId : data[0].userId)
         }
-        const scoresSnap = await getDocs(collection(db, 'scores'))
+      }
+
+      if (scoresSnap) {
         const sc: Record<string, number> = {}
         scoresSnap.docs.forEach(d => { sc[d.id] = d.data().total ?? 0 })
         setScores(sc)
@@ -640,28 +649,32 @@ export default function AllPredictions() {
                   </div>
                   <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600 }}>
-                      <span style={{ minWidth: 100 }}>משתמש</span>
-                      <span style={{ minWidth: 80, textAlign: 'center' }}>ניחוש</span>
-                      <span style={{ minWidth: 80, textAlign: 'center' }}>1X2</span>
-                      <span style={{ minWidth: 30, textAlign: 'center' }}>🟥</span>
-                      {played && <><span style={{ minWidth: 50, textAlign: 'center' }}>נק׳</span><span>תוצאה</span></>}
+                      <span style={{ flex: 1 }}>משתמש</span>
+                      <span style={{ minWidth: 56, textAlign: 'center' }}>ניחוש</span>
+                      <span style={{ minWidth: 68, textAlign: 'center' }}>1X2</span>
+                      <span style={{ minWidth: 22, textAlign: 'center' }}>🟥</span>
+                      {played && <span style={{ minWidth: 44 }}>נק׳</span>}
                     </div>
                     {users.map(u => {
                       const p = u.matches[selectedMatchId]
                       const pts = played ? getMatchPts(selectedMatchId, p) : 0
                       const tag = played ? getTag(selectedMatchId, p, pts) : null
                       return (
-                        <div key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 0', borderBottom: '1px solid #f5f5f5', background: u.userId === user?.uid ? '#f8f9ff' : 'transparent' }}>
-                          <span style={{ minWidth: 100, fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400 }}>{ adminDisplayName(u) }{u.userId === user?.uid ? ' (אני)' : ''}</span>
+                        <div key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 0',
+                          borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap',
+                          background: u.userId === user?.uid ? '#f8f9ff' : 'transparent' }}>
+                          <span style={{ flex: 1, fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, minWidth: 70 }}>
+                            { adminDisplayName(u) }{u.userId === user?.uid ? ' (אני)' : ''}
+                          </span>
                           {p ? <>
-                            <span style={{ minWidth: 80, textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr', display: 'inline-block' }}>{p.scoreA??'?'}–{p.scoreB??'?'}</span>
-                            <span style={{ minWidth: 80, textAlign: 'center' }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#f0f0f0', color: '#333' }}>
+                            <span style={{ minWidth: 56, textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr', display: 'inline-block' }}>{p.scoreA??'?'}–{p.scoreB??'?'}</span>
+                            <span style={{ minWidth: 68, textAlign: 'center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10, background: '#f0f0f0', color: '#333' }}>
                                 {p.prediction1X2==='1' ? match.teamA : p.prediction1X2==='2' ? match.teamB : 'תיקו'}
                               </span>
                             </span>
-                            <span style={{ minWidth: 30, textAlign: 'center' }}>{p.redCard?'🟥':'—'}</span>
-                          </> : <span style={{ fontSize: 12, color: '#ccc', minWidth: 190 }}>לא מולא</span>}
+                            <span style={{ minWidth: 22, textAlign: 'center', fontSize: 12 }}>{p.redCard?'🟥':'—'}</span>
+                          </> : <span style={{ fontSize: 12, color: '#ccc', flex: 1 }}>לא מולא</span>}
                           {played && <PtsBadge pts={pts} played={true} />}
                           {played && tag && <ResultTag label={tag.label} type={tag.type} />}
                         </div>
