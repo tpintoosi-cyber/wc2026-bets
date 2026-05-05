@@ -698,8 +698,12 @@ export default function AllPredictions() {
             {[
               { label: 'משתתפים', value: users.length },
               { label: 'משחקים שהוחלטו', value: playedMatches.length },
-              { label: 'ניחושים מדויקים', value: (() => { let c=0; users.forEach(u=>playedMatches.forEach(m=>{const p=u.matches[m.id],r=adminResults[m.id]; if(p?.scoreA!=null&&r?.resultA!=null&&Number(p.scoreA)===Number(r.resultA)&&Number(p.scoreB)===Number(r.resultB))c++})); return c })() },
-              { label: 'כרטיסים שניחשו', value: (() => { let c=0; users.forEach(u=>playedMatches.forEach(m=>{const p=u.matches[m.id],r=adminResults[m.id]; if(p?.redCard&&r?.hadRedCard)c++})); return c })() },
+              { label: playedMatches.length > 0 ? 'ניחושים מדויקים' : 'הימורים שהוגשו',
+                value: playedMatches.length > 0
+                  ? (() => { let c=0; users.forEach(u=>playedMatches.forEach(m=>{const p=u.matches[m.id],r=adminResults[m.id]; if(p?.scoreA!=null&&r?.resultA!=null&&Number(p.scoreA)===Number(r.resultA)&&Number(p.scoreB)===Number(r.resultB))c++})); return c })()
+                  : users.filter(u => Object.keys(u.matches).length > 0).length },
+              { label: playedMatches.length > 0 ? 'כרטיסים שניחשו' : 'כרטיסי אדום שסומנו',
+                value: (() => { let c=0; users.forEach(u=>{ if(playedMatches.length > 0) { playedMatches.forEach(m=>{const p=u.matches[m.id],r=adminResults[m.id]; if(p?.redCard&&r?.hadRedCard)c++}) } else { Object.values(u.matches).forEach((p:any)=>{if(p?.redCard)c++}) } }); return c })() },
             ].map((s,i) => (
               <div key={i} style={{ background: '#f8f9fa', borderRadius: 10, padding: 12, textAlign: 'center', border: '1px solid #e5e5e5' }}>
                 <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>{s.value}</div>
@@ -709,28 +713,36 @@ export default function AllPredictions() {
           </div>
 
           <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 10, color: '#444' }}>התפלגות ניחושי 1X2 לפי משחק</h2>
-          {playedMatches.length === 0 && <div className="hint">אין משחקים שהוחלטו עדיין</div>}
-          {playedMatches.map(match => {
+          {MATCHES.map(match => {
             const preds = users.map(u => ({
               x2: u.matches[match.id]?.prediction1X2,
               name: getDisplayName(u),
               scoreA: u.matches[match.id]?.scoreA,
               scoreB: u.matches[match.id]?.scoreB,
             })).filter(p => p.x2)
+            if (preds.length === 0) return null
             const total = preds.length || 1
             const result = adminResults[match.id]
-            const rA = Number(result.resultA??0), rB = Number(result.resultB??0)
-            const actual = rA > rB ? '1' : rA < rB ? '2' : 'X'
+            const played = result?.isPlayed ?? false
+            const rA = played ? Number(result.resultA??0) : null
+            const rB = played ? Number(result.resultB??0) : null
+            const actual = rA !== null && rB !== null ? (rA > rB ? '1' : rA < rB ? '2' : 'X') : null
             return (
               <div key={match.id} className="match-row-view" style={{ marginBottom: 8, padding: '10px 12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <span className="match-num">#{match.id}</span>
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{FLAGS[match.teamA]} {match.teamA} נגד {match.teamB} {FLAGS[match.teamB]}</span>
-                  <span style={{ marginRight: 'auto', fontSize: 12, color: '#888' }}>
-                    בפועל: {result.resultA}–{result.resultB}
-                    <span style={{ marginRight: 6, fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 10, background: '#EAF3DE', color: '#3B6D11' }}>
-                      {actual==='1'?match.teamA:actual==='2'?match.teamB:'תיקו'}
-                    </span>
+                  <span style={{ marginRight: 'auto', fontSize: 12 }}>
+                    {played && actual ? (
+                      <>
+                        <span style={{ color: '#888' }}>בפועל: {rA}–{rB} </span>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 10, background: '#EAF3DE', color: '#3B6D11' }}>
+                          {actual==='1'?match.teamA:actual==='2'?match.teamB:'תיקו'}
+                        </span>
+                      </>
+                    ) : (
+                      <span style={{ fontSize: 11, color: '#bbb' }}>טרם הוחלט</span>
+                    )}
                   </span>
                 </div>
                 {[
@@ -740,7 +752,7 @@ export default function AllPredictions() {
                 ].map(row => {
                   const rowPreds = preds.filter(p => p.x2 === row.x2)
                   const pct = Math.round((rowPreds.length / total) * 100)
-                  const isWinner = row.x2 === actual
+                  const isWinner = played && row.x2 === actual
                   const names = rowPreds.map(p => `${p.name}: ${p.scoreA ?? '?'}-${p.scoreB ?? '?'}`)
                   return (
                     <div key={row.x2} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
