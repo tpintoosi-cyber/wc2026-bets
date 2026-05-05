@@ -121,6 +121,8 @@ export default function Predict({ lang }: { lang: Lang }) {
   const [knockoutOpen, setKnockoutOpen] = useState(false)
   const [knockoutDeadline, setKnockoutDeadline] = useState<number | null>(null)
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, any>>({})
+  const [knockoutView, setKnockoutView] = useState<'bracket' | 'form'>('bracket')
+  const [focusMatchId, setFocusMatchId] = useState<number | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Nickname
@@ -462,41 +464,36 @@ export default function Predict({ lang }: { lang: Lang }) {
       {/* ── KNOCKOUT TAB ─────────────────────────────────────────────── */}
       {tab === 'knockout' && (
         <div>
+          {/* Status banner */}
           {!knockoutOpen && (
-            <div className="lb-pre-tournament" style={{ marginBottom: 16 }}>
+            <div className="lb-pre-tournament" style={{ marginBottom: 12 }}>
               🔒 חלון הנוקאאוט סגור — ניתן לצפות בהימורים בלבד
             </div>
           )}
           {knockoutOpen && knockoutDeadline && (
-            <div className="lb-pre-tournament" style={{ marginBottom: 16, background: '#EAF3DE', color: '#3B6D11', borderColor: '#b7ddb0' }}>
+            <div className="lb-pre-tournament" style={{ marginBottom: 12, background: '#EAF3DE', color: '#3B6D11', borderColor: '#b7ddb0' }}>
               ⚡ חלון פתוח עד {new Date(knockoutDeadline).toLocaleString('he-IL')}
             </div>
           )}
 
+          {/* View toggle */}
+          <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: '#f8f9fa', borderRadius: 10, padding: 4 }}>
+            <button onClick={() => setKnockoutView('bracket')} style={{
+              flex: 1, padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
+              background: knockoutView === 'bracket' ? '#1a1a2e' : 'transparent',
+              color: knockoutView === 'bracket' ? '#fff' : '#666',
+            }}>🏆 עץ הטורניר</button>
+            <button onClick={() => { setKnockoutView('form'); setFocusMatchId(null) }} style={{
+              flex: 1, padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
+              background: knockoutView === 'form' ? '#1a1a2e' : 'transparent',
+              color: knockoutView === 'form' ? '#fff' : '#666',
+            }}>✏️ מלא הימורים</button>
+          </div>
+
           {(() => {
             const isLocked = !knockoutOpen || (knockoutDeadline != null && Date.now() > knockoutDeadline)
-
-            // Get team for a match side — cascades from advance picks
-            const getTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
-              const bracket = KNOCKOUT_BRACKET[matchId]
-              if (!bracket) return undefined
-              const feederId = side === 'A' ? bracket.feederA : bracket.feederB
-              // R32: admin sets teams
-              if (feederId === null) {
-                return side === 'A' ? knockoutMatches[matchId]?.teamA : knockoutMatches[matchId]?.teamB
-              }
-              // SF loser (3rd place match)
-              if (feederId < 0) {
-                const sfId = Math.abs(feederId)
-                const winner = knockoutPreds[sfId]?.advance
-                const sfA = getTeam(sfId, 'A')
-                const sfB = getTeam(sfId, 'B')
-                if (!winner || !sfA || !sfB) return undefined
-                return winner === sfA ? sfB : sfA
-              }
-              // Winner of feeder match
-              return knockoutPreds[feederId]?.advance
-            }
 
             const getTeamSafe = (matchId: number, side: 'A' | 'B'): string | undefined => {
               try {
@@ -518,6 +515,182 @@ export default function Predict({ lang }: { lang: Lang }) {
               } catch { return undefined }
             }
 
+            // ── BRACKET VIEW ────────────────────────────────────────────────
+            if (knockoutView === 'bracket') {
+              // Bracket half definitions
+              // Top: R32 73-80, R16 89-92, QF 97-98, SF 101
+              // Bottom: R32 81-88, R16 93-96, QF 99-100, SF 102
+              // Center: Final 104, Third 103
+
+              const handleMatchClick = (id: number) => {
+                setKnockoutView('form')
+                setFocusMatchId(id)
+                setTimeout(() => {
+                  const el = document.getElementById(`ko-match-${id}`)
+                  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                }, 100)
+              }
+
+              const MatchCard = ({ id, compact = false }: { id: number; compact?: boolean }) => {
+                const tA = getTeamSafe(id, 'A')
+                const tB = getTeamSafe(id, 'B')
+                const pred = knockoutPreds[id]
+                const advA = pred?.advance === tA && tA
+                const advB = pred?.advance === tB && tB
+                const hasPred = !!(pred?.prediction1X2)
+                return (
+                  <div
+                    id={`bracket-match-${id}`}
+                    onClick={() => handleMatchClick(id)}
+                    style={{
+                      border: hasPred ? '1px solid #b7ddb0' : '0.5px solid #ddd',
+                      borderRadius: 6, overflow: 'hidden',
+                      background: hasPred ? '#f6fbf2' : '#fff',
+                      cursor: 'pointer', margin: '2px 3px',
+                      minWidth: compact ? 80 : 90, flex: 1,
+                      transition: 'box-shadow 0.15s',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)')}
+                    onMouseLeave={e => (e.currentTarget.style.boxShadow = 'none')}
+                  >
+                    {[['A', tA, advA], ['B', tB, advB]].map(([side, team, isWinner]) => (
+                      <div key={String(side)} style={{
+                        display: 'flex', alignItems: 'center', padding: '3px 5px', gap: 3,
+                        fontSize: 10, minHeight: 20,
+                        borderBottom: side === 'A' ? '0.5px solid #eee' : 'none',
+                        background: isWinner ? '#EAF3DE' : 'transparent',
+                      }}>
+                        <span style={{ fontSize: 11, width: 14 }}>{team ? (FLAGS[team as string] ?? '') : ''}</span>
+                        <span style={{
+                          flex: 1, color: isWinner ? '#1a7a44' : team ? '#333' : '#bbb',
+                          fontWeight: isWinner ? 600 : 400,
+                          fontStyle: team ? 'normal' : 'italic',
+                          whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          maxWidth: compact ? 55 : 65,
+                        }}>{team ?? '...'}</span>
+                        {pred && team && (
+                          <span style={{ fontSize: 10, color: '#999' }}>
+                            {side === 'A' ? (pred.scoreA ?? '') : (pred.scoreB ?? '')}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )
+              }
+
+              const Row = ({ ids, label }: { ids: number[]; label?: string }) => (
+                <div>
+                  {label && <div style={{ fontSize: 9, fontWeight: 600, color: '#888', textAlign: 'center', padding: '3px 0 1px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</div>}
+                  <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    {ids.map(id => <MatchCard key={id} id={id} compact={ids.length > 3} />)}
+                  </div>
+                </div>
+              )
+
+              const Arrow = ({ dir }: { dir: 'down' | 'up' }) => (
+                <div style={{ textAlign: 'center', fontSize: 12, color: '#bbb', lineHeight: 1, margin: '1px 0' }}>
+                  {dir === 'down' ? '↓' : '↑'}
+                </div>
+              )
+
+              const FinalCard = () => {
+                const tA = getTeamSafe(104, 'A')
+                const tB = getTeamSafe(104, 'B')
+                const pred = knockoutPreds[104]
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }}>
+                    <div onClick={() => handleMatchClick(104)} style={{
+                      border: '1.5px solid #b7ddb0', borderRadius: 8, overflow: 'hidden',
+                      background: '#EAF3DE', minWidth: 110, maxWidth: 140, cursor: 'pointer',
+                    }}>
+                      {[['A', tA], ['B', tB]].map(([side, team]) => {
+                        const isChamp = pred?.advance === team && team
+                        return (
+                          <div key={String(side)} style={{
+                            display: 'flex', alignItems: 'center', padding: '4px 6px', gap: 3,
+                            fontSize: 11, borderBottom: side === 'A' ? '0.5px solid #c5e8c0' : 'none',
+                            background: isChamp ? '#d4edcc' : 'transparent',
+                          }}>
+                            <span style={{ fontSize: 12, width: 16 }}>{team ? (FLAGS[team as string] ?? '') : ''}</span>
+                            <span style={{ flex: 1, color: isChamp ? '#1a5c30' : team ? '#2d5a3d' : '#aaa', fontWeight: isChamp ? 700 : 500, fontStyle: team ? 'normal' : 'italic' }}>{team ?? '...'}</span>
+                            {isChamp && <span style={{ fontSize: 12 }}>🏆</span>}
+                          </div>
+                        )
+                      })}
+                      <div style={{ fontSize: 9, textAlign: 'center', padding: '2px', color: '#1a7a44', fontWeight: 600 }}>גמר</div>
+                    </div>
+                  </div>
+                )
+              }
+
+              const ThirdCard = () => {
+                const tA = getTeamSafe(103, 'A')
+                const tB = getTeamSafe(103, 'B')
+                const pred = knockoutPreds[103]
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'center', margin: '3px 0' }}>
+                    <div onClick={() => handleMatchClick(103)} style={{
+                      border: '0.5px solid #ddd', borderRadius: 6, overflow: 'hidden',
+                      background: '#fff', minWidth: 100, maxWidth: 120, cursor: 'pointer', opacity: 0.85,
+                    }}>
+                      <div style={{ fontSize: 9, textAlign: 'center', padding: '2px', color: '#888', background: '#f8f9fa' }}>🥉 מקום שלישי</div>
+                      {[['A', tA], ['B', tB]].map(([side, team]) => (
+                        <div key={String(side)} style={{
+                          display: 'flex', alignItems: 'center', padding: '3px 5px', gap: 3,
+                          fontSize: 10, borderTop: '0.5px solid #eee',
+                        }}>
+                          <span style={{ fontSize: 11, width: 14 }}>{team ? (FLAGS[team as string] ?? '') : ''}</span>
+                          <span style={{ flex: 1, color: team ? '#555' : '#bbb', fontStyle: team ? 'normal' : 'italic' }}>{team ?? '...'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <div style={{ fontSize: 13, userSelect: 'none' }}>
+                  <div style={{ fontSize: 11, color: '#888', textAlign: 'center', marginBottom: 8 }}>
+                    לחץ על משחק כדי למלא הימור
+                  </div>
+
+                  {/* TOP HALF */}
+                  <Row ids={[73, 74, 75, 76]} label="R32" />
+                  <Arrow dir="down" />
+                  <Row ids={[77, 78, 79, 80]} />
+                  <Arrow dir="down" />
+                  <Row ids={[89, 90]} label="R16" />
+                  <Arrow dir="down" />
+                  <Row ids={[91, 92]} />
+                  <Arrow dir="down" />
+                  <Row ids={[97, 98]} label="רבע גמר" />
+                  <Arrow dir="down" />
+                  <Row ids={[101]} label="חצי גמר" />
+                  <Arrow dir="down" />
+
+                  {/* CENTER */}
+                  <FinalCard />
+                  <ThirdCard />
+
+                  {/* BOTTOM HALF */}
+                  <Arrow dir="up" />
+                  <Row ids={[102]} label="חצי גמר" />
+                  <Arrow dir="up" />
+                  <Row ids={[99, 100]} label="רבע גמר" />
+                  <Arrow dir="up" />
+                  <Row ids={[93, 94]} label="R16" />
+                  <Arrow dir="up" />
+                  <Row ids={[95, 96]} />
+                  <Arrow dir="up" />
+                  <Row ids={[81, 82, 83, 84]} label="R32" />
+                  <Arrow dir="up" />
+                  <Row ids={[85, 86, 87, 88]} />
+                </div>
+              )
+            }
+
+            // ── FORM VIEW ───────────────────────────────────────────────────
             return (['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
               const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
               const hasRedCard = round === 'R32' || round === 'R16'
@@ -533,9 +706,11 @@ export default function Predict({ lang }: { lang: Lang }) {
                     const base = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[round]
                     const catBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
                     const advPts = base + catBonus
+                    const isFocused = focusMatchId === km.id
 
                     return (
-                      <div key={km.id} className="match-row" style={{ opacity: !teamsReady ? 0.5 : 1 }}>
+                      <div key={km.id} id={`ko-match-${km.id}`} className="match-row"
+                        style={{ opacity: !teamsReady ? 0.5 : 1, outline: isFocused ? '2px solid #1a7a44' : 'none', borderRadius: 12 }}>
                         <div className="match-header">
                           <span className="match-num">#{km.id}</span>
                           <span className={`cat-badge cat-${km.category.toLowerCase()}`}>{km.category}</span>
@@ -592,7 +767,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                               )}
                             </div>
 
-                            {/* Who advances — every round */}
                             <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>
                               <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>
                                 {round === 'F' ? '🏆 אלוף העולם' : round === '3P' ? '🥉 מקום שלישי' : 'מי עולה לשלב הבא?'}
@@ -629,8 +803,7 @@ export default function Predict({ lang }: { lang: Lang }) {
             })
           })()}
         </div>
-      )}
-    </div>
+      )}</div>
   )
 }
 
