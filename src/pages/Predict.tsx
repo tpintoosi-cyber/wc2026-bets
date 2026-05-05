@@ -492,7 +492,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const sfA = getTeam(sfId, 'A')
                 const sfB = getTeam(sfId, 'B')
                 if (!winner || !sfA || !sfB) return undefined
-                return winner === sfA ? sfB : sfTa => sfTa === sfA ? sfB : sfA
+                return winner === sfA ? sfB : sfA
               }
               // Winner of feeder match
               return knockoutPreds[feederId]?.advance
