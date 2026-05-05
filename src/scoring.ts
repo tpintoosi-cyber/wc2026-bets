@@ -1,4 +1,4 @@
-import { Category, Match, MatchPrediction, GroupPrediction, BonusPredictions, UserScore, MatchScore } from './types'
+import { Category, Match, MatchPrediction, GroupPrediction, BonusPredictions, UserScore, MatchScore, KnockoutMatch, KnockoutMatchPrediction, KnockoutRound } from './types'
 
 // ── 1X2 ──────────────────────────────────────────────────────────────────────
 // Implements the Excel formula exactly:
@@ -108,6 +108,23 @@ export function calcBonusPoints(
   return pts
 }
 
+// ── KNOCKOUT ADVANCE ─────────────────────────────────────────────────────────
+// Points for correctly predicting which team advances in knockout stage
+// Formula: round_base + category_bonus
+//   R32: base=2, R16: base=3, QF: base=4, SF/F: base=5, 3P: base=4
+//   Cat A: +0, B: +1, C/D: +2
+export function calcAdvancePoints(
+  predicted: string,
+  actual: string,
+  round: KnockoutRound,
+  category: Category
+): number {
+  if (!predicted || !actual || predicted !== actual) return 0
+  const base = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[round]
+  const catBonus = { A: 0, B: 1, C: 2, D: 2 }[category]
+  return base + catBonus
+}
+
 // ── FULL USER SCORE ───────────────────────────────────────────────────────────
 export function computeUserScore(
   userId: string,
@@ -117,7 +134,9 @@ export function computeUserScore(
   bonusPredictions: Partial<BonusPredictions>,
   playedMatches: Match[],
   actualGroups: Record<string, [string, string, string]>,
-  actualBonus: Partial<BonusPredictions>
+  actualBonus: Partial<BonusPredictions>,
+  knockoutPredictions?: Record<number, KnockoutMatchPrediction>,
+  playedKnockout?: KnockoutMatch[]
 ): UserScore {
   const matchDetails: Record<number, MatchScore> = {}
   let matchPoints = 0
@@ -151,6 +170,52 @@ export function computeUserScore(
 
   const bonusPoints = calcBonusPoints(bonusPredictions, actualBonus)
 
+  // ── Knockout scoring ──────────────────────────────────────────────────────
+  let knockoutPoints = 0
+  if (knockoutPredictions && playedKnockout) {
+    for (const km of playedKnockout) {
+      if (!km.isPlayed || km.resultA === undefined || km.resultB === undefined) continue
+      const pred = knockoutPredictions[km.id]
+      if (!pred) continue
+
+      // 1X2 at 90 min
+      if (pred.prediction1X2) {
+        knockoutPoints += calc1X2Points(
+          pred.prediction1X2, km.resultA, km.resultB,
+          km.fifaPointsA, km.fifaPointsB, km.category
+        )
+      }
+
+      // Exact score + over/under
+      if (pred.scoreA !== null && pred.scoreA !== undefined && pred.scoreB !== null && pred.scoreB !== undefined) {
+        knockoutPoints += calcScorePoints(Number(pred.scoreA), Number(pred.scoreB), km.resultA, km.resultB, km.category)
+      }
+
+      // Red card (R32 + R16 only)
+      if ((km.round === 'R32' || km.round === 'R16') && pred.redCard !== undefined) {
+        knockoutPoints += calcRedCardPoints(pred.redCard, km.hadRedCard ?? false)
+      }
+
+      // Advance — who goes through
+      if (km.advanceTeam) {
+        // For R32: use pred.advance directly
+        if (km.round === 'R32' && pred.advance) {
+          knockoutPoints += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category)
+        }
+        // For R16+: find R32 prediction where user picked this team to advance
+        if (km.round !== 'R32' && km.teamA && km.teamB) {
+          // Find R32 match where the actual advancing team came from
+          const r32AdvancePred = findR32AdvancePrediction(
+            km.teamA, km.teamB, knockoutPredictions, km.advanceTeam
+          )
+          if (r32AdvancePred) {
+            knockoutPoints += calcAdvancePoints(r32AdvancePred, km.advanceTeam, km.round, km.category)
+          }
+        }
+      }
+    }
+  }
+
   return {
     userId,
     userName,
@@ -158,8 +223,25 @@ export function computeUserScore(
     groupPoints,
     bonusPoints,
     redCardPoints,
-    total: matchPoints + redCardPoints + groupPoints + bonusPoints,
+    knockoutPoints,
+    total: matchPoints + redCardPoints + groupPoints + bonusPoints + knockoutPoints,
     matchDetails,
     lastUpdated: Date.now(),
   }
+}
+
+// Find which team the user predicted to advance based on their R32 predictions
+function findR32AdvancePrediction(
+  teamA: string,
+  teamB: string,
+  knockoutPreds: Record<number, KnockoutMatchPrediction>,
+  actualAdvance: string
+): string | null {
+  // Look through R32 predictions to find if user predicted one of these teams
+  for (const pred of Object.values(knockoutPreds)) {
+    if (pred.advance === teamA || pred.advance === teamB) {
+      return pred.advance
+    }
+  }
+  return null
 }

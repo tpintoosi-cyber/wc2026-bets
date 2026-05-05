@@ -1,3 +1,4 @@
+import type { KnockoutMatch, KnockoutRound } from '../types'
 import { Match } from '../types'
 
 export const FLAGS: Record<string, string> = {
@@ -164,3 +165,60 @@ export const BONUS_QUESTIONS = [
   { id: 'q116', label: 'כמה משחקי playoff יוכרעו בפנדלים? (מתוך 32)', type: 'number', points: '3' },
   { id: 'q117', label: 'כמה כרטיסים אדומים בכל הטורניר?', type: 'number', points: '3' },
 ]
+
+// ── KNOCKOUT MATCHES ─────────────────────────────────────────────────────────
+// Teams are TBD — filled by admin after group stage
+// FIFA points determine category (same formula as group stage)
+// IDs 73-104
+
+
+// Category is pre-computed based on FIFA ranking gap (from Excel)
+export const KNOCKOUT_MATCHES: KnockoutMatch[] = [
+  // Round of 32 (16 matches)
+  { id: 73,  round: 'R32', category: 'A', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 74,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 75,  round: 'R32', category: 'C', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 76,  round: 'R32', category: 'D', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 77,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 78,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 79,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 80,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 81,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 82,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 83,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 84,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 85,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 86,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 87,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 88,  round: 'R32', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  // Round of 16 (8 matches)
+  { id: 89,  round: 'R16', category: 'A', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 90,  round: 'R16', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 91,  round: 'R16', category: 'C', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 92,  round: 'R16', category: 'D', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 93,  round: 'R16', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 94,  round: 'R16', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 95,  round: 'R16', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 96,  round: 'R16', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  // Quarter-Finals (4 matches)
+  { id: 97,  round: 'QF', category: 'A', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 98,  round: 'QF', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 99,  round: 'QF', category: 'C', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 100, round: 'QF', category: 'C', fifaPointsA: 0, fifaPointsB: 0 },
+  // Semi-Finals (2 matches)
+  { id: 101, round: 'SF', category: 'B', fifaPointsA: 0, fifaPointsB: 0 },
+  { id: 102, round: 'SF', category: 'C', fifaPointsA: 0, fifaPointsB: 0 },
+  // Third Place
+  { id: 103, round: '3P', category: 'C', fifaPointsA: 0, fifaPointsB: 0 },
+  // Final
+  { id: 104, round: 'F',  category: 'C', fifaPointsA: 0, fifaPointsB: 0 },
+]
+
+export const KNOCKOUT_ROUND_LABELS: Record<string, string> = {
+  R32: 'שלב 32',
+  R16: 'שמינית הגמר',
+  QF:  'רבע גמר',
+  SF:  'חצי גמר',
+  '3P': 'מקום שלישי',
+  F:   'גמר',
+}

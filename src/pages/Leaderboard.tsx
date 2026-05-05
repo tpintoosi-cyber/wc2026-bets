@@ -55,6 +55,7 @@ export default function Leaderboard() {
           <span className="lb-pts">משחקים</span>
           <span className="lb-pts">בתים</span>
           <span className="lb-pts">בונוס</span>
+          <span className="lb-pts">נוקאאוט</span>
           <span className="lb-total">סה"כ</span>
         </div>
         {scores.map((s, i) => (
@@ -66,6 +67,7 @@ export default function Leaderboard() {
             <span className="lb-pts">{s.matchPoints + s.redCardPoints}</span>
             <span className="lb-pts">{s.groupPoints}</span>
             <span className="lb-pts">{s.bonusPoints}</span>
+            <span className="lb-pts">{s.knockoutPoints ?? 0}</span>
             <span className="lb-total">{s.total}</span>
           </div>
         ))}

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
-import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS } from '../data/matches'
 import { computeUserScore } from '../scoring'
-import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction } from '../types'
+import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, toIsraelTime } from '../services/wc2026api'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
@@ -26,27 +26,37 @@ export default function Admin() {
   const [matches, setMatches] = useState<Record<number, Match>>({})
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
-  const [settings, setSettings] = useState({ isOpen: true, deadline: '' })
+  const [settings, setSettings] = useState({ isOpen: true, deadline: '', knockoutOpen: false, knockoutDeadline: '' })
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
   const [syncLog, setSyncLog] = useState<string[]>([])
+  const [knockoutMatches, setKnockoutMatches] = useState<Record<number, KnockoutMatch>>({})
+  const [adminTab, setAdminTab] = useState<'group' | 'knockout'>('group')
 
   useEffect(() => {
     ;(async () => {
-      const snap = await getDoc(doc(db, 'admin', 'results'))
-      if (snap.exists()) {
-        setMatches(snap.data().matches ?? {})
-        setActualGroups(snap.data().groups ?? {})
-        setActualBonus(snap.data().bonus ?? {})
+      const [resultsSnap, settingsSnap, koSnap] = await Promise.all([
+        getDoc(doc(db, 'admin', 'results')),
+        getDoc(doc(db, 'settings', 'app')),
+        getDoc(doc(db, 'admin', 'knockout')),
+      ])
+      if (resultsSnap.exists()) {
+        setMatches(resultsSnap.data().matches ?? {})
+        setActualGroups(resultsSnap.data().groups ?? {})
+        setActualBonus(resultsSnap.data().bonus ?? {})
       }
-      const s = await getDoc(doc(db, 'settings', 'app'))
-      if (s.exists()) {
-        const d = s.data()
+      if (settingsSnap.exists()) {
+        const d = settingsSnap.data()
         setSettings({
           isOpen: d.isOpen ?? true,
           deadline: d.deadline ? new Date(d.deadline).toISOString().slice(0, 16) : '',
+          knockoutOpen: d.knockoutOpen ?? false,
+          knockoutDeadline: d.knockoutDeadline ? new Date(d.knockoutDeadline).toISOString().slice(0, 16) : '',
         })
+      }
+      if (koSnap.exists()) {
+        setKnockoutMatches(koSnap.data().matches ?? {})
       }
     })()
   }, [])
@@ -128,11 +138,13 @@ export default function Admin() {
     const batch = writeBatch(db)
     for (const userDoc of usersSnap.docs) {
       const d = userDoc.data()
+      const playedKO = KNOCKOUT_MATCHES.map(km => ({ ...km, ...(knockoutMatches[km.id] ?? {}) })).filter(km => km.isPlayed)
       const score = computeUserScore(
         userDoc.id, d.userName ?? 'Unknown',
         (d.matches ?? {}) as Record<number, MatchPrediction>,
         (d.groups ?? {}) as Record<Group, GroupPrediction>,
-        d.bonus ?? {}, playedMatches, actualGroups, actualBonus
+        d.bonus ?? {}, playedMatches, actualGroups, actualBonus,
+        d.knockout ?? {}, playedKO
       )
       batch.set(doc(db, 'scores', userDoc.id), score)
     }
@@ -145,10 +157,18 @@ export default function Admin() {
     setTimeout(() => setMsg(''), 3000)
   }
 
+  const saveKnockout = async () => {
+    await setDoc(doc(db, 'admin', 'knockout'), { matches: knockoutMatches })
+    setMsg('✓ נוקאאוט נשמר')
+    setTimeout(() => setMsg(''), 3000)
+  }
+
   const saveSettings = async () => {
     await setDoc(doc(db, 'settings', 'app'), {
       isOpen: settings.isOpen,
       deadline: settings.deadline ? new Date(settings.deadline).getTime() : null,
+      knockoutOpen: settings.knockoutOpen,
+      knockoutDeadline: settings.knockoutDeadline ? new Date(settings.knockoutDeadline).getTime() : null,
     }, { merge: true })
     setMsg('✓ הגדרות נשמרו')
     setTimeout(() => setMsg(''), 3000)
@@ -171,12 +191,36 @@ export default function Admin() {
     setMatches(prev => ({ ...prev, [id]: { ...(prev[id] ?? MATCHES.find(m => m.id === id)!), [field]: value } as Match }))
   }
 
+  const updateKnockoutMatch = (id: number, field: string, value: unknown) => {
+    setKnockoutMatches(prev => {
+      const base = prev[id] ?? KNOCKOUT_MATCHES.find(m => m.id === id)!
+      return { ...prev, [id]: { ...base, [field]: value } as KnockoutMatch }
+    })
+  }
+
   return (
     <div className="page admin-page">
       <h1>פאנל אדמין</h1>
       {msg && <div className="admin-msg">{msg}</div>}
 
+      {/* Tab switcher */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: '#f8f9fa', borderRadius: 10, padding: 4 }}>
+        <button onClick={() => setAdminTab('group')} style={{
+          flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
+          background: adminTab === 'group' ? '#1a1a2e' : 'transparent',
+          color: adminTab === 'group' ? '#fff' : '#666',
+        }}>⚽ שלב בתים</button>
+        <button onClick={() => setAdminTab('knockout')} style={{
+          flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
+          background: adminTab === 'knockout' ? '#1a1a2e' : 'transparent',
+          color: adminTab === 'knockout' ? '#fff' : '#666',
+        }}>🏆 נוקאאוט</button>
+      </div>
+
       {/* API Sync */}
+      {adminTab === 'group' && <>
       <section className="admin-section api-sync-section">
         <h2>🔄 סנכרון מ-API</h2>
         <p className="hint">מושך שעות ותוצאות אוטומטית מ-wc2026api.com</p>
@@ -201,7 +245,7 @@ export default function Admin() {
           </label>
         </div>
         <div className="admin-row">
-          <label>דדליין:&nbsp;
+          <label>דדליין שלב בתים:&nbsp;
             <input type="datetime-local" value={settings.deadline}
               onChange={e => setSettings(s => ({ ...s, deadline: e.target.value }))} />
           </label>
@@ -306,6 +350,111 @@ export default function Admin() {
           {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
         </button>
       </section>
+      </>}
+
+      {/* ── KNOCKOUT TAB ─────────────────────────────────── */}
+      {adminTab === 'knockout' && <>
+
+        {/* Knockout settings */}
+        <section className="admin-section">
+          <h2>הגדרות נוקאאוט</h2>
+          <div className="admin-row">
+            <label>
+              <input type="checkbox" checked={settings.knockoutOpen}
+                onChange={e => setSettings(s => ({ ...s, knockoutOpen: e.target.checked }))} />
+              &nbsp;חלון R32 פתוח (משתמשים יכולים למלא)
+            </label>
+          </div>
+          <div className="admin-row">
+            <label>דדליין נוקאאוט:&nbsp;
+              <input type="datetime-local" value={settings.knockoutDeadline}
+                onChange={e => setSettings(s => ({ ...s, knockoutDeadline: e.target.value }))} />
+            </label>
+          </div>
+          <button className="btn-primary" onClick={saveSettings}>שמור הגדרות</button>
+        </section>
+
+        {/* Knockout match management */}
+        {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
+          const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
+          return (
+            <section key={round} className="admin-section">
+              <h2>{KNOCKOUT_ROUND_LABELS[round]}</h2>
+              {roundMatches.map(km => {
+                const r = knockoutMatches[km.id] ?? km
+                return (
+                  <div key={km.id} className="admin-match-row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+                    <span className={`cat-badge cat-${km.category.toLowerCase()}`}>{km.category}</span>
+                    <span className="match-num">#{km.id}</span>
+
+                    {/* Team A selector */}
+                    <select value={r.teamA ?? ''}
+                      onChange={e => updateKnockoutMatch(km.id, 'teamA', e.target.value)}
+                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}>
+                      <option value="">— נבחרת A —</option>
+                      {ALL_TEAMS.sort().map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+
+                    {/* Scores */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 10, color: '#aaa' }}>90′</span>
+                      <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                        value={r.resultA ?? ''}
+                        onChange={e => updateKnockoutMatch(km.id, 'resultA', parseInt(e.target.value) || 0)}
+                        style={{ width: 46, height: 38, fontSize: 18 }} />
+                      <span>–</span>
+                      <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                        value={r.resultB ?? ''}
+                        onChange={e => updateKnockoutMatch(km.id, 'resultB', parseInt(e.target.value) || 0)}
+                        style={{ width: 46, height: 38, fontSize: 18 }} />
+                    </div>
+
+                    {/* Team B selector */}
+                    <select value={r.teamB ?? ''}
+                      onChange={e => updateKnockoutMatch(km.id, 'teamB', e.target.value)}
+                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}>
+                      <option value="">— נבחרת B —</option>
+                      {ALL_TEAMS.sort().map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+
+                    {/* Advance team (who actually won, could differ from 90min result) */}
+                    <select value={r.advanceTeam ?? ''}
+                      onChange={e => updateKnockoutMatch(km.id, 'advanceTeam', e.target.value)}
+                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, background: '#EAF3DE' }}>
+                      <option value="">— מי עלה? —</option>
+                      {[r.teamA, r.teamB].filter(Boolean).map(t => <option key={t} value={t!}>{t}</option>)}
+                    </select>
+
+                    {/* Red card (R32+R16 only) */}
+                    {(round === 'R32' || round === 'R16') && (
+                      <label title="כרטיס אדום">
+                        <input type="checkbox" checked={r.hadRedCard ?? false}
+                          onChange={e => updateKnockoutMatch(km.id, 'hadRedCard', e.target.checked)} />
+                        &nbsp;🟥
+                      </label>
+                    )}
+
+                    {/* Played */}
+                    <label title="הושלם">
+                      <input type="checkbox" checked={r.isPlayed ?? false}
+                        onChange={e => updateKnockoutMatch(km.id, 'isPlayed', e.target.checked)} />
+                      &nbsp;✓
+                    </label>
+                  </div>
+                )
+              })}
+            </section>
+          )
+        })}
+
+        <section className="admin-section">
+          <button className="btn-primary" onClick={saveKnockout}>💾 שמור נוקאאוט</button>
+          &nbsp;
+          <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ marginTop: 8 }}>
+            {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
+          </button>
+        </section>
+      </>}
     </div>
   )
 }

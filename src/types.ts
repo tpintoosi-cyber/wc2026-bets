@@ -1,6 +1,7 @@
 export type Category = 'A' | 'B' | 'C' | 'D'
 export type Result1X2 = '1' | 'X' | '2'
 export type Group = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'I' | 'J' | 'K' | 'L'
+export type KnockoutRound = 'R32' | 'R16' | 'QF' | 'SF' | '3P' | 'F'
 
 export interface Match {
   id: number
@@ -18,12 +19,39 @@ export interface Match {
   isPlayed?: boolean
 }
 
+export interface KnockoutMatch {
+  id: number           // 73–104
+  round: KnockoutRound
+  category: Category
+  fifaPointsA: number
+  fifaPointsB: number
+  teamA?: string       // set by admin after group stage
+  teamB?: string
+  // Admin results
+  resultA?: number     // score at 90 min
+  resultB?: number
+  advanceTeam?: string // who actually advanced (could be different from winner at 90min)
+  hadRedCard?: boolean // R32 + R16 only
+  isPlayed?: boolean
+}
+
 export interface MatchPrediction {
   matchId: number
   prediction1X2: Result1X2
   scoreA: number
   scoreB: number
   redCard: boolean
+}
+
+// R32: user fills 1X2 + score + advance + redCard
+// R16+: user fills 1X2 + score (+ redCard for R16), advance comes from R32
+export interface KnockoutMatchPrediction {
+  matchId: number
+  prediction1X2: Result1X2
+  scoreA: number | null
+  scoreB: number | null
+  redCard?: boolean      // R32 + R16 only
+  advance?: string       // R32 only: which team advances
 }
 
 export interface GroupPrediction {
@@ -55,6 +83,7 @@ export interface UserPredictions {
   matches: Record<number, MatchPrediction>
   groups: Record<Group, GroupPrediction>
   bonus: Partial<BonusPredictions>
+  knockout?: Record<number, KnockoutMatchPrediction>
 }
 
 export interface MatchScore {
@@ -78,6 +107,7 @@ export interface UserScore {
   groupPoints: number
   bonusPoints: number
   redCardPoints: number
+  knockoutPoints: number
   matchDetails: Record<number, MatchScore>
   lastUpdated: number
 }
@@ -86,4 +116,6 @@ export interface AppSettings {
   deadline: number   // timestamp ms
   isOpen: boolean
   adminUids: string[]
+  knockoutOpen?: boolean          // window open for R32 predictions
+  knockoutDeadline?: number
 }

@@ -2,15 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
-import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN } from '../data/matches'
-import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category } from '../types'
-import { calc1X2Points, calcOverUnder } from '../scoring'
+import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS } from '../data/matches'
+import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category, KnockoutMatchPrediction, Result1X2 } from '../types'
+import { calc1X2Points, calcOverUnder, calcAdvancePoints } from '../scoring'
 import { T, Lang, Translations, BONUS_QUESTIONS_EN } from '../i18n'
 
 const MAX_RED_CARDS = 6
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
 
-type Tab = 'matches' | 'groups' | 'bonus'
+type Tab = 'matches' | 'groups' | 'bonus' | 'knockout'
 
 function calcMaxPoints(
   pred: MatchPrediction,
@@ -117,6 +117,10 @@ export default function Predict({ lang }: { lang: Lang }) {
   const [matchPreds, setMatchPreds] = useState<Record<number, MatchPrediction>>({})
   const [groupPreds, setGroupPreds] = useState<Record<Group, GroupPrediction>>({} as any)
   const [bonus, setBonus] = useState<Partial<BonusPredictions>>({})
+  const [knockoutPreds, setKnockoutPreds] = useState<Record<number, KnockoutMatchPrediction>>({})
+  const [knockoutOpen, setKnockoutOpen] = useState(false)
+  const [knockoutDeadline, setKnockoutDeadline] = useState<number | null>(null)
+  const [knockoutMatches, setKnockoutMatches] = useState<Record<number, any>>({})
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Nickname
@@ -166,13 +170,31 @@ export default function Predict({ lang }: { lang: Lang }) {
       } catch {
         // fallback to static schedule
       }
+      // Load knockout settings + match data
+      try {
+        const [koSnap, settingsSnap] = await Promise.all([
+          getDoc(doc(db, 'admin', 'knockout')),
+          getDoc(doc(db, 'settings', 'app')),
+        ])
+        if (koSnap.exists()) setKnockoutMatches(koSnap.data().matches ?? {})
+        if (settingsSnap.exists()) {
+          const d = settingsSnap.data()
+          setKnockoutOpen(d.knockoutOpen ?? false)
+          setKnockoutDeadline(d.knockoutDeadline ?? null)
+        }
+      } catch { /* ignore */ }
+      // Load saved knockout predictions
+      if (snap.exists() && snap.data().knockout) {
+        setKnockoutPreds(snap.data().knockout)
+      }
     })()
   }, [user])
 
   const scheduleSave = useCallback((
     mp: Record<number, MatchPrediction>,
     gp: Record<Group, GroupPrediction>,
-    bn: Partial<BonusPredictions>
+    bn: Partial<BonusPredictions>,
+    ko?: Record<number, KnockoutMatchPrediction>
   ) => {
     if (!user || !isOpen) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -180,7 +202,9 @@ export default function Predict({ lang }: { lang: Lang }) {
       setSaving(true)
       await setDoc(doc(db, 'predictions', user.uid), {
         userId: user.uid, userName: user.displayName,
-        matches: mp, groups: gp, bonus: bn, lastUpdated: Date.now(),
+        matches: mp, groups: gp, bonus: bn,
+        ...(ko !== undefined ? { knockout: ko } : {}),
+        lastUpdated: Date.now(),
       }, { merge: true })
       setSaving(false)
       setLastSaved(new Date())
@@ -222,6 +246,21 @@ export default function Predict({ lang }: { lang: Lang }) {
     setBonus(prev => {
       const updated = { ...prev, [key]: val }
       scheduleSave(matchPreds, groupPreds, updated)
+      return updated
+    })
+  }
+
+  const updateKnockout = (id: number, field: keyof KnockoutMatchPrediction, value: unknown) => {
+    if (!knockoutOpen) return
+    const koDeadlinePassed = knockoutDeadline && Date.now() > knockoutDeadline
+    if (koDeadlinePassed) return
+    setKnockoutPreds(prev => {
+      const ko = KNOCKOUT_MATCHES.find(m => m.id === id)!
+      const updated = {
+        ...prev,
+        [id]: { ...(prev[id] ?? { matchId: id, prediction1X2: '1' as Result1X2, scoreA: null, scoreB: null }), [field]: value } as KnockoutMatchPrediction
+      }
+      scheduleSave(matchPreds, groupPreds, bonus, updated)
       return updated
     })
   }
@@ -268,6 +307,12 @@ export default function Predict({ lang }: { lang: Lang }) {
         <button className={tab === 'bonus' ? 'tab active' : 'tab'} onClick={() => setTab('bonus')}>
           {t.tabBonus}
         </button>
+        {(knockoutOpen || Object.keys(knockoutPreds).length > 0) && (
+          <button className={tab === 'knockout' ? 'tab active' : 'tab'} onClick={() => setTab('knockout')}>
+            🏆 נוקאאוט
+            {knockoutOpen && <span className="badge" style={{ background: '#EAF3DE', color: '#3B6D11' }}>פתוח</span>}
+          </button>
+        )}
       </div>
 
       {tab === 'matches' && (
@@ -411,6 +456,140 @@ export default function Predict({ lang }: { lang: Lang }) {
                 onChange={val => updateBonus(q.id as keyof BonusPredictions, val)} />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ── KNOCKOUT TAB ─────────────────────────────────────────────── */}
+      {tab === 'knockout' && (
+        <div>
+          {!knockoutOpen && (
+            <div className="lb-pre-tournament" style={{ marginBottom: 16 }}>
+              🔒 חלון הנוקאאוט סגור — ניתן לצפות בהימורים בלבד
+            </div>
+          )}
+          {knockoutOpen && knockoutDeadline && (
+            <div className="lb-pre-tournament" style={{ background: '#EAF3DE', color: '#3B6D11', borderColor: '#b7ddb0' }}>
+              ⚡ חלון R32 פתוח עד {new Date(knockoutDeadline).toLocaleString('he-IL')}
+            </div>
+          )}
+
+          {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
+            const roundKoMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
+            return (
+              <div key={round}>
+                <h2 className="round-title">{KNOCKOUT_ROUND_LABELS[round]}</h2>
+                {roundKoMatches.map(km => {
+                  const adminKm = knockoutMatches[km.id] ?? {}
+                  const teamA = adminKm.teamA as string | undefined
+                  const teamB = adminKm.teamB as string | undefined
+                  const pred = knockoutPreds[km.id]
+                  const isLocked = !knockoutOpen || (knockoutDeadline != null && Date.now() > knockoutDeadline)
+                  const isR32 = round === 'R32'
+                  const hasRedCard = round === 'R32' || round === 'R16'
+
+                  // Max pts calculation for R32
+                  const advPts = isR32 ? (() => {
+                    const base = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[round]
+                    const bonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
+                    return base + bonus
+                  })() : 0
+
+                  return (
+                    <div key={km.id} className="match-row" style={{ opacity: !teamA ? 0.5 : 1 }}>
+                      {/* Header */}
+                      <div className="match-header">
+                        <span className="match-num">#{km.id}</span>
+                        <span className={`cat-badge cat-${km.category.toLowerCase()}`}>{km.category}</span>
+                        {teamA && teamB ? (
+                          <span style={{ fontSize: 13, fontWeight: 600 }}>
+                            {FLAGS[teamA] ?? ''} {teamA} נגד {teamB} {FLAGS[teamB] ?? ''}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: 12, color: '#bbb' }}>ממתין לתוצאות שלב הבתים</span>
+                        )}
+                      </div>
+
+                      {/* Body — only show if teams are set */}
+                      {teamA && teamB && (
+                        <div style={{ padding: '12px 14px' }}>
+                          {/* Score inputs */}
+                          <div className="match-body">
+                            <div className="team-name">
+                              <span className="team-flag">{FLAGS[teamA] ?? ''}</span>
+                              <span>{teamA}</span>
+                            </div>
+                            <div className="score-inputs">
+                              <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                                value={pred?.scoreA ?? ''}
+                                disabled={isLocked}
+                                onChange={e => updateKnockout(km.id, 'scoreA', parseInt(e.target.value) || 0)} />
+                              <span className="score-sep">–</span>
+                              <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                                value={pred?.scoreB ?? ''}
+                                disabled={isLocked}
+                                onChange={e => updateKnockout(km.id, 'scoreB', parseInt(e.target.value) || 0)} />
+                            </div>
+                            <div className="team-name team-name-b">
+                              <span>{teamB}</span>
+                              <span className="team-flag">{FLAGS[teamB] ?? ''}</span>
+                            </div>
+                          </div>
+
+                          {/* 1X2 + Red card */}
+                          <div className="match-1x2-row">
+                            <div className="btn-group-1x2">
+                              {([['1', teamA], ['X', 'תיקו'], ['2', teamB]] as [Result1X2, string][]).map(([val, label]) => (
+                                <button key={val}
+                                  className={`btn-1x2 ${pred?.prediction1X2 === val ? 'selected' : ''}`}
+                                  disabled={isLocked}
+                                  onClick={() => updateKnockout(km.id, 'prediction1X2', val)}>
+                                  {FLAGS[label] ? `${FLAGS[label]} ${label}` : label}
+                                </button>
+                              ))}
+                            </div>
+                            {hasRedCard && (
+                              <label className={`red-card-label ${pred?.redCard ? 'checked' : ''} ${isLocked ? 'disabled' : ''}`}>
+                                <input type="checkbox" checked={pred?.redCard ?? false}
+                                  disabled={isLocked}
+                                  onChange={e => updateKnockout(km.id, 'redCard', e.target.checked)} />
+                                &nbsp;🟥 כרטיס אדום
+                              </label>
+                            )}
+                          </div>
+
+                          {/* R32 only: who advances */}
+                          {isR32 && (
+                            <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>
+                                מי עולה הלאה? <span style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>({advPts} נק׳ לכל שלב שמתקדמים)</span>
+                              </div>
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                {[teamA, teamB].map(team => (
+                                  <button key={team}
+                                    onClick={() => updateKnockout(km.id, 'advance', team)}
+                                    disabled={isLocked}
+                                    style={{
+                                      flex: 1, padding: '9px 8px', border: '2px solid',
+                                      borderColor: pred?.advance === team ? '#1a7a44' : '#e0e0e0',
+                                      borderRadius: 10, background: pred?.advance === team ? '#EAF3DE' : '#fff',
+                                      color: pred?.advance === team ? '#1a7a44' : '#555',
+                                      cursor: isLocked ? 'not-allowed' : 'pointer', fontWeight: 600,
+                                      fontSize: 13, fontFamily: 'inherit',
+                                    }}>
+                                    {FLAGS[team] ?? ''} {team}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
