@@ -651,6 +651,41 @@ export default function Predict({ lang }: { lang: Lang }) {
 
               return (
                 <div style={{ fontSize: 13, userSelect: 'none' }}>
+                  {/* ── Points summary ──────────────────────────────── */}
+                  {(() => {
+                    let totalAdvancePts = 0
+                    let filledMatches = 0
+                    for (const km of KNOCKOUT_MATCHES) {
+                      const pred = knockoutPreds[km.id]
+                      if (!pred?.advance) continue
+                      const base = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
+                      const catBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
+                      totalAdvancePts += base + catBonus
+                      filledMatches++
+                    }
+                    const totalFilled = KNOCKOUT_MATCHES.filter(km => knockoutPreds[km.id]?.prediction1X2).length
+                    return (
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 10, padding: '8px 12px', background: '#f8f9ff', borderRadius: 10, border: '1px solid #e8e8ff', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, color: '#888' }}>ניחושים מולאו</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a2e' }}>{totalFilled} / {KNOCKOUT_MATCHES.length}</div>
+                        </div>
+                        <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, color: '#888' }}>נק' אם הכל נכון</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: totalAdvancePts > 0 ? '#1a7a44' : '#aaa' }}>
+                            {totalAdvancePts > 0 ? `≈${totalAdvancePts}` : '—'} נק'
+                          </div>
+                        </div>
+                        <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 11, color: '#888' }}>עולים בחרת</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#555' }}>{filledMatches}</div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   <div style={{ fontSize: 11, color: '#888', textAlign: 'center', marginBottom: 8 }}>
                     לחץ על משחק כדי למלא הימור
                   </div>
@@ -792,6 +827,46 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   </button>
                                 ))}
                               </div>
+
+                              {/* Points preview */}
+                              {pred?.prediction1X2 && (() => {
+                                const breakdown: string[] = []
+                                let total = 0
+                                // 1X2 max
+                                const catIdx = { A: 0, B: 1, C: 2, D: 3 }[km.category]
+                                const aIsFav = km.fifaPointsA >= km.fifaPointsB
+                                const predIs1 = pred.prediction1X2 === '1'
+                                const predIs2 = pred.prediction1X2 === '2'
+                                const predIsX = pred.prediction1X2 === 'X'
+                                const isFav = (predIs1 && aIsFav) || (predIs2 && !aIsFav)
+                                const p1x2 = predIsX ? [1,1,2,3][catIdx] : isFav ? 1 : [1,2,3,4][catIdx]
+                                breakdown.push(`1X2: ${p1x2}`)
+                                total += p1x2
+                                // Score
+                                if (pred.scoreA !== null && pred.scoreA !== undefined) {
+                                  const goalTotal = (Number(pred.scoreA) + Number(pred.scoreB ?? 0))
+                                  const isOU = catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
+                                  breakdown.push(isOU ? 'מדויק: 2 (הפרש: 1) | O/U: 1' : 'מדויק: 2 (הפרש: 1)')
+                                  total += isOU ? 3 : 2
+                                }
+                                // Red card
+                                if ((round === 'R32' || round === 'R16') && pred.redCard) {
+                                  breakdown.push('🟥: 2')
+                                  total += 2
+                                }
+                                // Advance
+                                if (pred.advance) {
+                                  breakdown.push(`מעלה: +${advPts}`)
+                                  total += advPts
+                                }
+                                return (
+                                  <div style={{ marginTop: 8, padding: '6px 10px', background: '#f0f7ff', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: 11, color: '#888' }}>מקסימום משחק זה:</span>
+                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#185FA5' }}>{total} נק'</span>
+                                    <span style={{ fontSize: 10, color: '#aaa' }}>({breakdown.join(' | ')})</span>
+                                  </div>
+                                )
+                              })()}
                             </div>
                           </div>
                         )}
