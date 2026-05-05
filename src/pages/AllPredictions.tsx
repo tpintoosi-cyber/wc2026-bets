@@ -52,16 +52,20 @@ function ResultTag({ label, type }: { label: string; type: 'ok' | 'warn' | 'bad'
 
 // Tooltip with user names on hover
 function HoverTooltip({ names, children }: { names: string[]; children: React.ReactNode }) {
-  const [show, setShow] = useState(false)
+  const [pos, setPos] = useState<{x:number,y:number}|null>(null)
   return (
     <span style={{ position: 'relative', cursor: 'pointer' }}
-      onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      onMouseMove={e => setPos({x: e.clientX, y: e.clientY})}
+      onMouseLeave={() => setPos(null)}>
       {children}
-      {show && names.length > 0 && (
-        <div style={{ position: 'fixed', zIndex: 9999, marginTop: 4,
+      {pos && names.length > 0 && (
+        <div style={{
+          position: 'fixed', zIndex: 9999,
+          left: pos.x + 12, top: pos.y - 8,
           background: '#1a1a2e', color: '#fff', borderRadius: 8, padding: '8px 12px',
-          fontSize: 12, whiteSpace: 'nowrap', minWidth: 120, boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-          transform: 'translateY(20px)' }}>
+          fontSize: 12, whiteSpace: 'nowrap', boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
+          pointerEvents: 'none',
+        }}>
           {names.map((n, i) => <div key={i} style={{ padding: '2px 0' }}>{n}</div>)}
         </div>
       )}
@@ -269,7 +273,7 @@ function BonusPredTable({ qId, users, actualVal }: {
 }
 
 export default function AllPredictions() {
-  const { user, isAdmin } = useAuth()
+  const { user, isAdmin, loading: authLoading } = useAuth()
   const [users, setUsers] = useState<UserData[]>([])
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [selectedMatchId, setSelectedMatchId] = useState<number>(() => getNextMatchId())
@@ -283,6 +287,7 @@ export default function AllPredictions() {
   const [scores, setScores] = useState<Record<string, number>>({})
 
   useEffect(() => {
+    if (authLoading) return  // wait for auth to resolve
     ;(async () => {
       const settings = await getDoc(doc(db, 'settings', 'app'))
       const open = settings.exists() ? (settings.data().isOpen ?? true) : true
@@ -314,7 +319,7 @@ export default function AllPredictions() {
       }
       setLoading(false)
     })()
-  }, [isAdmin])
+  }, [isAdmin, authLoading])
 
   // ── Scoring helpers ──────────────────────────────────────────────
   function getMatchPts(matchId: number, pred: MatchPrediction | undefined) {
@@ -380,7 +385,7 @@ export default function AllPredictions() {
     return u.userName
   }
 
-  if (loading) return <div className="center-screen">טוען...</div>
+  if (loading || authLoading) return <div className="center-screen">טוען...</div>
   if (isOpen && !isAdmin) return (
     <div className="page"><div className="empty-state">
       <div style={{ fontSize: 48 }}>🔒</div>
