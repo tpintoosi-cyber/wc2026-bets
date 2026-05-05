@@ -311,7 +311,7 @@ export default function Predict({ lang }: { lang: Lang }) {
         </button>
         {(knockoutOpen || Object.keys(knockoutPreds).length > 0) && (
           <button className={tab === 'knockout' ? 'tab active' : 'tab'} onClick={() => setTab('knockout')}>
-            🏆 נוקאאוט
+            {t.tabKnockout}
             {knockoutOpen && <span className="badge" style={{ background: '#EAF3DE', color: '#3B6D11' }}>פתוח</span>}
           </button>
         )}
@@ -467,12 +467,12 @@ export default function Predict({ lang }: { lang: Lang }) {
           {/* Status banner */}
           {!knockoutOpen && (
             <div className="lb-pre-tournament" style={{ marginBottom: 12 }}>
-              🔒 חלון הנוקאאוט סגור — ניתן לצפות בהימורים בלבד
+              {t.koLocked}
             </div>
           )}
           {knockoutOpen && knockoutDeadline && (
             <div className="lb-pre-tournament" style={{ marginBottom: 12, background: '#EAF3DE', color: '#3B6D11', borderColor: '#b7ddb0' }}>
-              ⚡ חלון פתוח עד {new Date(knockoutDeadline).toLocaleString('he-IL')}
+              {t.koOpen} {new Date(knockoutDeadline).toLocaleString('he-IL')}
             </div>
           )}
 
@@ -483,13 +483,13 @@ export default function Predict({ lang }: { lang: Lang }) {
               fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
               background: knockoutView === 'bracket' ? '#1a1a2e' : 'transparent',
               color: knockoutView === 'bracket' ? '#fff' : '#666',
-            }}>🏆 עץ הטורניר</button>
+            }}>{t.koBracketView}</button>
             <button onClick={() => { setKnockoutView('form'); setFocusMatchId(null) }} style={{
               flex: 1, padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer',
               fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
               background: knockoutView === 'form' ? '#1a1a2e' : 'transparent',
               color: knockoutView === 'form' ? '#fff' : '#666',
-            }}>✏️ מלא הימורים</button>
+            }}>{t.koFormView}</button>
           </div>
 
           {(() => {
@@ -548,8 +548,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                       borderRadius: 8, overflow: 'hidden',
                       background: advA || advB ? '#f2faf5' : '#fff',
                       margin: '2px 3px', flex: 1,
-                      minWidth: compact ? 72 : 82,
-                      maxWidth: compact ? 95 : 120,
+                      minWidth: compact ? 60 : 82,
+                      maxWidth: compact ? 80 : 120,
                     }}
                   >
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string | undefined, string | false | undefined][]).map(([side, team, isWinner]) => (
@@ -605,8 +605,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                   {ids.map((row, i) => (
                     <div key={i}>
                       {i > 0 && <div style={{ height: 6 }} />}
-                      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap', gap: 0, overflowX: 'auto' }}>
-                        {row.map(id => <MatchCard key={id} id={id} compact={row.length > 3} />)}
+                      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap', gap: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+                        {row.map(id => <MatchCard key={id} id={id} compact={row.length > 4} />)}
                       </div>
                     </div>
                   ))}
@@ -703,19 +703,19 @@ export default function Predict({ lang }: { lang: Lang }) {
                     return (
                       <div style={{ display: 'flex', gap: 8, marginBottom: 10, padding: '8px 12px', background: '#f8f9ff', borderRadius: 10, border: '1px solid #e8e8ff', alignItems: 'center', flexWrap: 'wrap' }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: '#888' }}>ניחושים מולאו</div>
+                          <div style={{ fontSize: 11, color: '#888' }}>{t.koFilled}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a2e' }}>{totalFilled} / {KNOCKOUT_MATCHES.length}</div>
                         </div>
                         <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: '#888' }}>נק' אם הכל נכון</div>
+                          <div style={{ fontSize: 11, color: '#888' }}>{t.koIfCorrect}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: totalAdvancePts > 0 ? '#1a7a44' : '#aaa' }}>
                             {totalAdvancePts > 0 ? `≈${totalAdvancePts}` : '—'} נק'
                           </div>
                         </div>
                         <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: '#888' }}>עולים בחרת</div>
+                          <div style={{ fontSize: 11, color: '#888' }}>{t.koAdvancePicked}</div>
                           <div style={{ fontSize: 16, fontWeight: 700, color: '#555' }}>{filledMatches}</div>
                         </div>
                       </div>
@@ -723,17 +723,17 @@ export default function Predict({ lang }: { lang: Lang }) {
                   })()}
 
                   <div style={{ fontSize: 12, color: '#185FA5', textAlign: 'center', marginBottom: 10, fontWeight: 600, padding: '7px 12px', background: '#EBF4FF', borderRadius: 8, border: '1px solid #d0e8ff' }}>
-                    💡 לחץ על נבחרת כדי לבחור מי עולה — מתעדכן אוטומטית לשלב הבא
+                    {t.koHint}
                   </div>
 
                   {/* TOP HALF — converges downward */}
-                  <RoundSection label="שלב 32" ids={[[73,74,75,76],[77,78,79,80]]} />
+                  <RoundSection label={t.roundR32} ids={[[73,74,75,76,77,78,79,80]]} />
                   <Arrow dir="down" />
-                  <RoundSection label="שמינית גמר" ids={[[89,90],[91,92]]} />
+                  <RoundSection label={t.roundR16} ids={[[89,90,91,92]]} />
                   <Arrow dir="down" />
-                  <RoundSection label="רבע גמר" ids={[[97,98]]} />
+                  <RoundSection label={t.roundQF} ids={[[97,98]]} />
                   <Arrow dir="down" />
-                  <RoundSection label="חצי גמר" ids={[[101]]} />
+                  <RoundSection label={t.roundSF} ids={[[101]]} />
                   <Arrow dir="down" />
 
                   {/* CENTER */}
@@ -742,13 +742,13 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                   {/* BOTTOM HALF — converges upward */}
                   <Arrow dir="up" />
-                  <RoundSection label="חצי גמר" ids={[[102]]} />
+                  <RoundSection label={t.roundSF} ids={[[102]]} />
                   <Arrow dir="up" />
-                  <RoundSection label="רבע גמר" ids={[[99,100]]} />
+                  <RoundSection label={t.roundQF} ids={[[99,100]]} />
                   <Arrow dir="up" />
-                  <RoundSection label="שמינית גמר" ids={[[93,94],[95,96]]} />
+                  <RoundSection label={t.roundR16} ids={[[93,94,95,96]]} />
                   <Arrow dir="up" />
-                  <RoundSection label="שלב 32" ids={[[81,82,83,84],[85,86,87,88]]} />
+                  <RoundSection label={t.roundR32} ids={[[81,82,83,84,85,86,87,88]]} />
                 </div>
               )
             }
@@ -783,7 +783,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             </span>
                           ) : (
                             <span style={{ fontSize: 12, color: '#bbb' }}>
-                              {round === 'R32' ? 'ממתין להגדרת אדמין' : '← מלא את השלב הקודם כדי לראות'}
+                              {round === 'R32' ? t.koPendingAdmin : t.koPendingPrev}
                             </span>
                           )}
                         </div>
@@ -832,7 +832,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                             <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>
                               <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>
-                                {round === 'F' ? '🏆 אלוף העולם' : round === '3P' ? '🥉 מקום שלישי' : 'מי עולה לשלב הבא?'}
+                                {round === 'F' ? t.koChampion : round === '3P' ? t.koThirdPlace : t.koWhoAdvances}
                                 <span style={{ fontSize: 11, color: '#888', fontWeight: 400, marginRight: 6 }}>
                                   (+{advPts} נק׳ לכל שלב)
                                 </span>

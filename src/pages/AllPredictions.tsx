@@ -416,7 +416,7 @@ export default function AllPredictions() {
     { id: 'user', label: '👤 לפי משתמש' },
     { id: 'match', label: '⚽ לפי משחק' },
     { id: 'stats', label: '📊 סטטיסטיקות' },
-    { id: 'knockout', label: '🏆 נוקאאוט' },
+    { id: 'knockout', label: '🏆 נוקאאוט / Knockout' },
   ]
 
   return (

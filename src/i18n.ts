@@ -1,7 +1,7 @@
 export type Lang = 'he' | 'en'
 
 export type Translations = {
-  tabMatches: string; tabGroups: string; tabBonus: string;
+  tabMatches: string; tabGroups: string; tabBonus: string; tabKnockout: string;
   saving: string; saved: string; closed: string;
   matches: string; redCards: string; round: string; group: string;
   draw: string; redCard: string; maxPts: string; pts: string;
@@ -12,6 +12,19 @@ export type Translations = {
   catA: string; catB: string; catC: string; catD: string;
   catDescA: string; catDescB: string; catDescC: string; catDescD: string;
   ouAB: string; ouCD: string; favoriteLabel: string; ilTime: string;
+  // Knockout
+  koBracketView: string; koFormView: string; koHint: string;
+  koWhoAdvances: string; koChampion: string; koThirdPlace: string;
+  koMaxPts: string; koAdvance: string; koPendingAdmin: string; koPendingPrev: string;
+  koFilled: string; koIfCorrect: string; koAdvancePicked: string;
+  koLocked: string; koOpen: string;
+  // AllPredictions knockout
+  koByUser: string; koByMatch: string; koAdvanceLabel: string;
+  koActualAdvance: string; koNoPreds: string; koWhoAdvanceQ: string;
+  // Leaderboard
+  koPoints: string;
+  // Rounds
+  roundR32: string; roundR16: string; roundQF: string; roundSF: string; round3P: string; roundF: string;
 }
 
 export const T: Record<Lang, Translations> = {
@@ -19,6 +32,7 @@ export const T: Record<Lang, Translations> = {
     tabMatches: 'משחקים',
     tabGroups: 'עולים מהבית',
     tabBonus: 'בונוס',
+    tabKnockout: '🏆 נוקאאוט',
     saving: 'שומר...',
     saved: 'נשמר',
     closed: 'ההגשות נסגרו',
@@ -56,11 +70,40 @@ export const T: Record<Lang, Translations> = {
     ouCD: 'אנדר: 0–2 | אובר: 5+ שערים',
     favoriteLabel: 'מועדפת',
     ilTime: 'שעון ישראל',
+    koBracketView: '🏆 עץ הטורניר',
+    koFormView: '✏️ מלא הימורים',
+    koHint: '💡 לחץ על נבחרת כדי לבחור מי עולה — מתעדכן אוטומטית לשלב הבא',
+    koWhoAdvances: 'מי עולה לשלב הבא?',
+    koChampion: '🏆 אלוף העולם',
+    koThirdPlace: '🥉 מקום שלישי',
+    koMaxPts: 'מקסימום משחק זה',
+    koAdvance: 'מעלה',
+    koPendingAdmin: 'ממתין להגדרת אדמין',
+    koPendingPrev: '← מלא את השלב הקודם כדי לראות',
+    koFilled: 'ניחושים מולאו',
+    koIfCorrect: "נק' אם הכל נכון",
+    koAdvancePicked: 'עולים בחרת',
+    koLocked: '🔒 חלון הנוקאאוט סגור — ניתן לצפות בהימורים בלבד',
+    koOpen: '⚡ חלון פתוח עד',
+    koByUser: '👤 לפי משתמש',
+    koByMatch: '⚽ לפי משחק',
+    koAdvanceLabel: 'מעלה:',
+    koActualAdvance: 'עלה:',
+    koNoPreds: 'אין הימורים עדיין',
+    koWhoAdvanceQ: 'מי עולה?',
+    koPoints: 'נוקאאוט',
+    roundR32: 'שלב 32',
+    roundR16: 'שמינית גמר',
+    roundQF: 'רבע גמר',
+    roundSF: 'חצי גמר',
+    round3P: 'מקום שלישי',
+    roundF: 'גמר',
   },
   en: {
     tabMatches: 'Matches',
     tabGroups: 'Group Qualifiers',
     tabBonus: 'Bonus',
+    tabKnockout: '🏆 Knockout',
     saving: 'Saving...',
     saved: 'Saved',
     closed: 'Submissions closed',
@@ -98,6 +141,34 @@ export const T: Record<Lang, Translations> = {
     ouCD: 'Under: 0–2 | Over: 5+ goals',
     favoriteLabel: 'Favorite',
     ilTime: 'Israel time',
+    koBracketView: '🏆 Bracket',
+    koFormView: '✏️ Fill predictions',
+    koHint: '💡 Tap a team to pick who advances — updates automatically to the next round',
+    koWhoAdvances: 'Who advances?',
+    koChampion: '🏆 World Champion',
+    koThirdPlace: '🥉 Third place',
+    koMaxPts: 'Max for this match',
+    koAdvance: 'Advance',
+    koPendingAdmin: 'Waiting for admin to set teams',
+    koPendingPrev: '← Fill the previous round first',
+    koFilled: 'Predictions filled',
+    koIfCorrect: 'Pts if all correct',
+    koAdvancePicked: 'Teams advanced',
+    koLocked: '🔒 Knockout window closed — view only',
+    koOpen: '⚡ Window open until',
+    koByUser: '👤 By user',
+    koByMatch: '⚽ By match',
+    koAdvanceLabel: 'Advances:',
+    koActualAdvance: 'Advanced:',
+    koNoPreds: 'No predictions yet',
+    koWhoAdvanceQ: 'Who advances?',
+    koPoints: 'Knockout',
+    roundR32: 'Round of 32',
+    roundR16: 'Round of 16',
+    roundQF: 'Quarter-final',
+    roundSF: 'Semi-final',
+    round3P: 'Third place',
+    roundF: 'Final',
   },
 } as Record<Lang, Translations>
 
