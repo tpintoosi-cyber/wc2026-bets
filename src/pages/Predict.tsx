@@ -44,10 +44,10 @@ function calcMaxPoints(
       const ouLabel = total <= (category === 'A' || category === 'B' ? 1 : 2)
         ? `${t.under}: 1` : `${t.over}: 1`
       ptsScore = 3
-      breakdown.push(`${t.exactScore}: 2 | ${ouLabel}`)
+      breakdown.push(`${t.exactScore}: 2 (הפרש: 1) | ${ouLabel}`)
     } else {
       ptsScore = 2
-      breakdown.push(`${t.exactScore}: 2`)
+      breakdown.push(`${t.exactScore}: 2 (הפרש: 1)`)
     }
   }
 
