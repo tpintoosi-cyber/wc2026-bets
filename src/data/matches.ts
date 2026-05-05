@@ -222,3 +222,48 @@ export const KNOCKOUT_ROUND_LABELS: Record<string, string> = {
   '3P': 'מקום שלישי',
   F:   'גמר',
 }
+
+// ── KNOCKOUT BRACKET STRUCTURE ───────────────────────────────────────────────
+// Defines which matches feed into which in the knockout bracket
+// Format: { matchId: { feederA: matchIdOrNull, feederB: matchIdOrNull } }
+// null = team comes from group stage (admin sets it)
+export const KNOCKOUT_BRACKET: Record<number, { feederA: number | null; feederB: number | null }> = {
+  // R32 — teams set by admin from group stage
+  73: { feederA: null, feederB: null },
+  74: { feederA: null, feederB: null },
+  75: { feederA: null, feederB: null },
+  76: { feederA: null, feederB: null },
+  77: { feederA: null, feederB: null },
+  78: { feederA: null, feederB: null },
+  79: { feederA: null, feederB: null },
+  80: { feederA: null, feederB: null },
+  81: { feederA: null, feederB: null },
+  82: { feederA: null, feederB: null },
+  83: { feederA: null, feederB: null },
+  84: { feederA: null, feederB: null },
+  85: { feederA: null, feederB: null },
+  86: { feederA: null, feederB: null },
+  87: { feederA: null, feederB: null },
+  88: { feederA: null, feederB: null },
+  // R16 — winners of R32 pairs
+  89: { feederA: 73, feederB: 74 },
+  90: { feederA: 75, feederB: 76 },
+  91: { feederA: 77, feederB: 78 },
+  92: { feederA: 79, feederB: 80 },
+  93: { feederA: 81, feederB: 82 },
+  94: { feederA: 83, feederB: 84 },
+  95: { feederA: 85, feederB: 86 },
+  96: { feederA: 87, feederB: 88 },
+  // QF — winners of R16 pairs
+  97:  { feederA: 89, feederB: 90 },
+  98:  { feederA: 91, feederB: 92 },
+  99:  { feederA: 93, feederB: 94 },
+  100: { feederA: 95, feederB: 96 },
+  // SF — winners of QF pairs
+  101: { feederA: 97,  feederB: 98  },
+  102: { feederA: 99,  feederB: 100 },
+  // 3rd place — losers of SF
+  103: { feederA: -101, feederB: -102 }, // negative = loser
+  // Final — winners of SF
+  104: { feederA: 101, feederB: 102 },
+}

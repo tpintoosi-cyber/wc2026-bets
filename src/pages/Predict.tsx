@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
-import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, KNOCKOUT_BRACKET } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category, KnockoutMatchPrediction, Result1X2 } from '../types'
 import { calc1X2Points, calcOverUnder, calcAdvancePoints } from '../scoring'
 import { T, Lang, Translations, BONUS_QUESTIONS_EN } from '../i18n'
@@ -468,128 +468,166 @@ export default function Predict({ lang }: { lang: Lang }) {
             </div>
           )}
           {knockoutOpen && knockoutDeadline && (
-            <div className="lb-pre-tournament" style={{ background: '#EAF3DE', color: '#3B6D11', borderColor: '#b7ddb0' }}>
-              ⚡ חלון R32 פתוח עד {new Date(knockoutDeadline).toLocaleString('he-IL')}
+            <div className="lb-pre-tournament" style={{ marginBottom: 16, background: '#EAF3DE', color: '#3B6D11', borderColor: '#b7ddb0' }}>
+              ⚡ חלון פתוח עד {new Date(knockoutDeadline).toLocaleString('he-IL')}
             </div>
           )}
 
-          {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
-            const roundKoMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
-            return (
-              <div key={round}>
-                <h2 className="round-title">{KNOCKOUT_ROUND_LABELS[round]}</h2>
-                {roundKoMatches.map(km => {
-                  const adminKm = knockoutMatches[km.id] ?? {}
-                  const teamA = adminKm.teamA as string | undefined
-                  const teamB = adminKm.teamB as string | undefined
-                  const pred = knockoutPreds[km.id]
-                  const isLocked = !knockoutOpen || (knockoutDeadline != null && Date.now() > knockoutDeadline)
-                  const isR32 = round === 'R32'
-                  const hasRedCard = round === 'R32' || round === 'R16'
+          {(() => {
+            const isLocked = !knockoutOpen || (knockoutDeadline != null && Date.now() > knockoutDeadline)
 
-                  // Max pts calculation for R32
-                  const advPts = isR32 ? (() => {
+            // Get team for a match side — cascades from advance picks
+            const getTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
+              const bracket = KNOCKOUT_BRACKET[matchId]
+              if (!bracket) return undefined
+              const feederId = side === 'A' ? bracket.feederA : bracket.feederB
+              // R32: admin sets teams
+              if (feederId === null) {
+                return side === 'A' ? knockoutMatches[matchId]?.teamA : knockoutMatches[matchId]?.teamB
+              }
+              // SF loser (3rd place match)
+              if (feederId < 0) {
+                const sfId = Math.abs(feederId)
+                const winner = knockoutPreds[sfId]?.advance
+                const sfA = getTeam(sfId, 'A')
+                const sfB = getTeam(sfId, 'B')
+                if (!winner || !sfA || !sfB) return undefined
+                return winner === sfA ? sfB : sfTa => sfTa === sfA ? sfB : sfA
+              }
+              // Winner of feeder match
+              return knockoutPreds[feederId]?.advance
+            }
+
+            const getTeamSafe = (matchId: number, side: 'A' | 'B'): string | undefined => {
+              try {
+                const bracket = KNOCKOUT_BRACKET[matchId]
+                if (!bracket) return undefined
+                const feederId = side === 'A' ? bracket.feederA : bracket.feederB
+                if (feederId === null) {
+                  return side === 'A' ? (knockoutMatches[matchId] as any)?.teamA : (knockoutMatches[matchId] as any)?.teamB
+                }
+                if (feederId < 0) {
+                  const sfId = Math.abs(feederId)
+                  const winner = knockoutPreds[sfId]?.advance
+                  const sfA = getTeamSafe(sfId, 'A')
+                  const sfB = getTeamSafe(sfId, 'B')
+                  if (!winner || !sfA || !sfB) return undefined
+                  return winner === sfA ? sfB : sfA
+                }
+                return knockoutPreds[feederId]?.advance
+              } catch { return undefined }
+            }
+
+            return (['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
+              const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
+              const hasRedCard = round === 'R32' || round === 'R16'
+
+              return (
+                <div key={round}>
+                  <h2 className="round-title">{KNOCKOUT_ROUND_LABELS[round]}</h2>
+                  {roundMatches.map(km => {
+                    const teamA = getTeamSafe(km.id, 'A')
+                    const teamB = getTeamSafe(km.id, 'B')
+                    const pred = knockoutPreds[km.id]
+                    const teamsReady = !!(teamA && teamB)
                     const base = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[round]
-                    const bonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
-                    return base + bonus
-                  })() : 0
+                    const catBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
+                    const advPts = base + catBonus
 
-                  return (
-                    <div key={km.id} className="match-row" style={{ opacity: !teamA ? 0.5 : 1 }}>
-                      {/* Header */}
-                      <div className="match-header">
-                        <span className="match-num">#{km.id}</span>
-                        <span className={`cat-badge cat-${km.category.toLowerCase()}`}>{km.category}</span>
-                        {teamA && teamB ? (
-                          <span style={{ fontSize: 13, fontWeight: 600 }}>
-                            {FLAGS[teamA] ?? ''} {teamA} נגד {teamB} {FLAGS[teamB] ?? ''}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: 12, color: '#bbb' }}>ממתין לתוצאות שלב הבתים</span>
-                        )}
-                      </div>
+                    return (
+                      <div key={km.id} className="match-row" style={{ opacity: !teamsReady ? 0.5 : 1 }}>
+                        <div className="match-header">
+                          <span className="match-num">#{km.id}</span>
+                          <span className={`cat-badge cat-${km.category.toLowerCase()}`}>{km.category}</span>
+                          {teamsReady ? (
+                            <span style={{ fontSize: 13, fontWeight: 600 }}>
+                              {FLAGS[teamA!] ?? ''} {teamA} נגד {teamB} {FLAGS[teamB!] ?? ''}
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 12, color: '#bbb' }}>
+                              {round === 'R32' ? 'ממתין להגדרת אדמין' : '← מלא את השלב הקודם כדי לראות'}
+                            </span>
+                          )}
+                        </div>
 
-                      {/* Body — only show if teams are set */}
-                      {teamA && teamB && (
-                        <div style={{ padding: '12px 14px' }}>
-                          {/* Score inputs */}
-                          <div className="match-body">
-                            <div className="team-name">
-                              <span className="team-flag">{FLAGS[teamA] ?? ''}</span>
-                              <span>{teamA}</span>
+                        {teamsReady && (
+                          <div style={{ padding: '12px 14px' }}>
+                            <div className="match-body">
+                              <div className="team-name">
+                                <span className="team-flag">{FLAGS[teamA!] ?? ''}</span>
+                                <span>{teamA}</span>
+                              </div>
+                              <div className="score-inputs">
+                                <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                                  value={pred?.scoreA ?? ''} disabled={isLocked}
+                                  onChange={e => updateKnockout(km.id, 'scoreA', parseInt(e.target.value) || 0)} />
+                                <span className="score-sep">–</span>
+                                <input className="score-input" type="number" min="0" max="20" placeholder="0"
+                                  value={pred?.scoreB ?? ''} disabled={isLocked}
+                                  onChange={e => updateKnockout(km.id, 'scoreB', parseInt(e.target.value) || 0)} />
+                              </div>
+                              <div className="team-name team-name-b">
+                                <span>{teamB}</span>
+                                <span className="team-flag">{FLAGS[teamB!] ?? ''}</span>
+                              </div>
                             </div>
-                            <div className="score-inputs">
-                              <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                                value={pred?.scoreA ?? ''}
-                                disabled={isLocked}
-                                onChange={e => updateKnockout(km.id, 'scoreA', parseInt(e.target.value) || 0)} />
-                              <span className="score-sep">–</span>
-                              <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                                value={pred?.scoreB ?? ''}
-                                disabled={isLocked}
-                                onChange={e => updateKnockout(km.id, 'scoreB', parseInt(e.target.value) || 0)} />
-                            </div>
-                            <div className="team-name team-name-b">
-                              <span>{teamB}</span>
-                              <span className="team-flag">{FLAGS[teamB] ?? ''}</span>
-                            </div>
-                          </div>
 
-                          {/* 1X2 + Red card */}
-                          <div className="match-1x2-row">
-                            <div className="btn-group-1x2">
-                              {([['1', teamA], ['X', 'תיקו'], ['2', teamB]] as [Result1X2, string][]).map(([val, label]) => (
-                                <button key={val}
-                                  className={`btn-1x2 ${pred?.prediction1X2 === val ? 'selected' : ''}`}
-                                  disabled={isLocked}
-                                  onClick={() => updateKnockout(km.id, 'prediction1X2', val)}>
-                                  {FLAGS[label] ? `${FLAGS[label]} ${label}` : label}
-                                </button>
-                              ))}
+                            <div className="match-1x2-row">
+                              <div className="btn-group-1x2">
+                                {([['1', teamA!], ['X', 'תיקו'], ['2', teamB!]] as [Result1X2, string][]).map(([val, label]) => (
+                                  <button key={val}
+                                    className={`btn-1x2 ${pred?.prediction1X2 === val ? 'selected' : ''}`}
+                                    disabled={isLocked}
+                                    onClick={() => updateKnockout(km.id, 'prediction1X2', val)}>
+                                    {FLAGS[label] ? `${FLAGS[label]} ${label}` : label}
+                                  </button>
+                                ))}
+                              </div>
+                              {hasRedCard && (
+                                <label className={`red-card-label ${pred?.redCard ? 'checked' : ''} ${isLocked ? 'disabled' : ''}`}>
+                                  <input type="checkbox" checked={pred?.redCard ?? false} disabled={isLocked}
+                                    onChange={e => updateKnockout(km.id, 'redCard', e.target.checked)} />
+                                  &nbsp;🟥 כרטיס אדום
+                                </label>
+                              )}
                             </div>
-                            {hasRedCard && (
-                              <label className={`red-card-label ${pred?.redCard ? 'checked' : ''} ${isLocked ? 'disabled' : ''}`}>
-                                <input type="checkbox" checked={pred?.redCard ?? false}
-                                  disabled={isLocked}
-                                  onChange={e => updateKnockout(km.id, 'redCard', e.target.checked)} />
-                                &nbsp;🟥 כרטיס אדום
-                              </label>
-                            )}
-                          </div>
 
-                          {/* R32 only: who advances */}
-                          {isR32 && (
+                            {/* Who advances — every round */}
                             <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>
                               <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>
-                                מי עולה הלאה? <span style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>({advPts} נק׳ לכל שלב שמתקדמים)</span>
+                                {round === 'F' ? '🏆 אלוף העולם' : round === '3P' ? '🥉 מקום שלישי' : 'מי עולה לשלב הבא?'}
+                                <span style={{ fontSize: 11, color: '#888', fontWeight: 400, marginRight: 6 }}>
+                                  (+{advPts} נק׳ לכל שלב)
+                                </span>
                               </div>
                               <div style={{ display: 'flex', gap: 8 }}>
-                                {[teamA, teamB].map(team => (
+                                {[teamA!, teamB!].map(team => (
                                   <button key={team}
                                     onClick={() => updateKnockout(km.id, 'advance', team)}
                                     disabled={isLocked}
                                     style={{
                                       flex: 1, padding: '9px 8px', border: '2px solid',
                                       borderColor: pred?.advance === team ? '#1a7a44' : '#e0e0e0',
-                                      borderRadius: 10, background: pred?.advance === team ? '#EAF3DE' : '#fff',
+                                      borderRadius: 10,
+                                      background: pred?.advance === team ? '#EAF3DE' : '#fff',
                                       color: pred?.advance === team ? '#1a7a44' : '#555',
-                                      cursor: isLocked ? 'not-allowed' : 'pointer', fontWeight: 600,
-                                      fontSize: 13, fontFamily: 'inherit',
+                                      cursor: isLocked ? 'not-allowed' : 'pointer',
+                                      fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
                                     }}>
                                     {FLAGS[team] ?? ''} {team}
                                   </button>
                                 ))}
                               </div>
                             </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })
+          })()}
         </div>
       )}
     </div>

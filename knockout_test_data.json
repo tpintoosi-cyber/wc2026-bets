@@ -1,0 +1,580 @@
+{
+  "results": {
+    "1": {
+      "resultA": 3,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "2": {
+      "resultA": 1,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "3": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "4": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "5": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "6": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "7": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "8": {
+      "resultA": 0,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "9": {
+      "resultA": 0,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "10": {
+      "resultA": 0,
+      "resultB": 3,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "11": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "12": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "13": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "14": {
+      "resultA": 0,
+      "resultB": 1,
+      "hadRedCard": true,
+      "isPlayed": true
+    },
+    "15": {
+      "resultA": 2,
+      "resultB": 1,
+      "hadRedCard": true,
+      "isPlayed": true
+    },
+    "16": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "17": {
+      "resultA": 0,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "18": {
+      "resultA": 0,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "19": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "20": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "21": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "22": {
+      "resultA": 2,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "23": {
+      "resultA": 0,
+      "resultB": 3,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "24": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "25": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "26": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "27": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "28": {
+      "resultA": 2,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "29": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "30": {
+      "resultA": 2,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "31": {
+      "resultA": 2,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "32": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "33": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "34": {
+      "resultA": 0,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "35": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "36": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "37": {
+      "resultA": 2,
+      "resultB": 1,
+      "hadRedCard": true,
+      "isPlayed": true
+    },
+    "38": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "39": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "40": {
+      "resultA": 0,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "41": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "42": {
+      "resultA": 0,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "43": {
+      "resultA": 1,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "44": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "45": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "46": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "47": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "48": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "49": {
+      "resultA": 0,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "50": {
+      "resultA": 0,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "51": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "52": {
+      "resultA": 1,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "53": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "54": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "55": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "56": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "57": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "58": {
+      "resultA": 1,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "59": {
+      "resultA": 0,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "60": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "61": {
+      "resultA": 2,
+      "resultB": 1,
+      "hadRedCard": true,
+      "isPlayed": true
+    },
+    "62": {
+      "resultA": 3,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "63": {
+      "resultA": 3,
+      "resultB": 1,
+      "hadRedCard": true,
+      "isPlayed": true
+    },
+    "64": {
+      "resultA": 0,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "65": {
+      "resultA": 0,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "66": {
+      "resultA": 1,
+      "resultB": 2,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "67": {
+      "resultA": 1,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "68": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "69": {
+      "resultA": 0,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "70": {
+      "resultA": 2,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "71": {
+      "resultA": 0,
+      "resultB": 1,
+      "hadRedCard": false,
+      "isPlayed": true
+    },
+    "72": {
+      "resultA": 2,
+      "resultB": 0,
+      "hadRedCard": false,
+      "isPlayed": true
+    }
+  },
+  "actualGroups": {
+    "A": [
+      "צ'כיה",
+      "מקסיקו",
+      "דרום אפריקה"
+    ],
+    "B": [
+      "קנדה",
+      "קטר",
+      "בוסניה"
+    ],
+    "C": [
+      "סקוטלנד",
+      "ברזיל",
+      "האיטי"
+    ],
+    "D": [
+      "ארה\"ב",
+      "פרגוואי",
+      "אוסטרליה"
+    ],
+    "E": [
+      "חוף השנהב",
+      "קוראסאו",
+      "גרמניה"
+    ],
+    "F": [
+      "יפן",
+      "תוניסיה",
+      "שוודיה"
+    ],
+    "G": [
+      "בלגיה",
+      "מצרים",
+      "איראן"
+    ],
+    "H": [
+      "ספרד",
+      "כף ורדה",
+      "סעודיה"
+    ],
+    "I": [
+      "סנגל",
+      "נורווגיה",
+      "עיראק"
+    ],
+    "J": [
+      "ירדן",
+      "ארגנטינה",
+      "אוסטריה"
+    ],
+    "K": [
+      "פורטוגל",
+      "קולומביה",
+      "קונגו"
+    ],
+    "L": [
+      "אנגליה",
+      "פנמה",
+      "קרואטיה"
+    ]
+  },
+  "r32_pairs": [
+    [
+      73,
+      "צ'כיה",
+      "קטר"
+    ],
+    [
+      74,
+      "סקוטלנד",
+      "פרגוואי"
+    ],
+    [
+      75,
+      "חוף השנהב",
+      "תוניסיה"
+    ],
+    [
+      76,
+      "בלגיה",
+      "כף ורדה"
+    ],
+    [
+      77,
+      "סנגל",
+      "ארגנטינה"
+    ],
+    [
+      78,
+      "פורטוגל",
+      "פנמה"
+    ],
+    [
+      79,
+      "מקסיקו",
+      "קנדה"
+    ],
+    [
+      80,
+      "ברזיל",
+      "ארה\"ב"
+    ],
+    [
+      81,
+      "קוראסאו",
+      "יפן"
+    ],
+    [
+      82,
+      "מצרים",
+      "ספרד"
+    ],
+    [
+      83,
+      "נורווגיה",
+      "ירדן"
+    ],
+    [
+      84,
+      "קולומביה",
+      "אנגליה"
+    ],
+    [
+      85,
+      "אוסטריה",
+      "קרואטיה"
+    ],
+    [
+      86,
+      "איראן",
+      "אוסטרליה"
+    ],
+    [
+      87,
+      "קונגו",
+      "שוודיה"
+    ],
+    [
+      88,
+      "סעודיה",
+      "האיטי"
+    ]
+  ]
+}
