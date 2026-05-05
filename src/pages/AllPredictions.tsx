@@ -58,9 +58,10 @@ function HoverTooltip({ names, children }: { names: string[]; children: React.Re
       onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
       {children}
       {show && names.length > 0 && (
-        <div style={{ position: 'absolute', zIndex: 100, top: '100%', right: 0, marginTop: 4,
+        <div style={{ position: 'fixed', zIndex: 9999, marginTop: 4,
           background: '#1a1a2e', color: '#fff', borderRadius: 8, padding: '8px 12px',
-          fontSize: 12, whiteSpace: 'nowrap', minWidth: 120, boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
+          fontSize: 12, whiteSpace: 'nowrap', minWidth: 120, boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          transform: 'translateY(20px)' }}>
           {names.map((n, i) => <div key={i} style={{ padding: '2px 0' }}>{n}</div>)}
         </div>
       )}
@@ -453,7 +454,7 @@ export default function AllPredictions() {
                         const tag = getTag(match.id, p, pts)
                         const borderColor = !played ? 'transparent' : pts > 0 ? '#3B6D11' : '#ddd'
                         if (!p) return (
-                          <div key={match.id} className="match-row" style={{ borderRight: `3px solid ${played ? '#ddd' : 'transparent'}` }}>
+                          <div key={match.id} className="match-row-view" style={{ borderRight: `3px solid ${played ? '#ddd' : 'transparent'}` }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <span className="match-num">#{match.id}</span>
                               <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
@@ -464,7 +465,7 @@ export default function AllPredictions() {
                           </div>
                         )
                         return (
-                          <div key={match.id} className="match-row" style={{ borderRight: `3px solid ${borderColor}` }}>
+                          <div key={match.id} className="match-row-view" style={{ borderRight: `3px solid ${borderColor}` }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                               <span className="match-num">#{match.id}</span>
                               <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
@@ -623,7 +624,7 @@ export default function AllPredictions() {
             const played = result?.isPlayed ?? false
             return (
               <>
-                <div className="match-row">
+                <div className="match-row-view">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                     <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
                     <span style={{ fontSize: 15, fontWeight: 600 }}>{FLAGS[match.teamA]} {match.teamA} נגד {match.teamB} {FLAGS[match.teamB]}</span>
@@ -703,7 +704,7 @@ export default function AllPredictions() {
             const rA = Number(result.resultA??0), rB = Number(result.resultB??0)
             const actual = rA > rB ? '1' : rA < rB ? '2' : 'X'
             return (
-              <div key={match.id} className="match-row" style={{ marginBottom: 8, padding: '10px 12px' }}>
+              <div key={match.id} className="match-row-view" style={{ marginBottom: 8, padding: '10px 12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                   <span className="match-num">#{match.id}</span>
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{FLAGS[match.teamA]} {match.teamA} נגד {match.teamB} {FLAGS[match.teamB]}</span>
