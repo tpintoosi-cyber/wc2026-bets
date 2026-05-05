@@ -4,7 +4,7 @@ import { db } from '../firebase'
 import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS } from '../data/matches'
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
-import { fetchGroupStageMatches, toIsraelTime } from '../services/wc2026api'
+import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
 
@@ -68,13 +68,18 @@ export default function Admin() {
     try {
       log.push('⏳ מושך נתונים מ-wc2026api.com...')
       setSyncLog([...log])
-      const apiMatches = await fetchGroupStageMatches()
-      log.push(`✅ התקבלו ${apiMatches.length} משחקים מה-API`)
+      const [apiGroupMatches, apiKnockoutMatches] = await Promise.all([
+        fetchGroupStageMatches(),
+        fetchKnockoutMatches(),
+      ])
+      log.push(`✅ התקבלו ${apiGroupMatches.length} משחקי בתים + ${apiKnockoutMatches.length} משחקי נוקאאוט`)
       setSyncLog([...log])
+
+      // ── Group stage ─────────────────────────────────────────────────
       const updatedMatches = { ...matches }
       let updatedSchedule = 0
       let updatedResults = 0
-      for (const apiMatch of apiMatches) {
+      for (const apiMatch of apiGroupMatches) {
         const normHome = API_ALIASES[apiMatch.home_team?.toLowerCase()] ?? apiMatch.home_team?.toLowerCase()
         const normAway = API_ALIASES[apiMatch.away_team?.toLowerCase()] ?? apiMatch.away_team?.toLowerCase()
         const homeHe = EN_TO_HE_MAP[normHome] ?? apiMatch.home_team
@@ -83,18 +88,11 @@ export default function Admin() {
           (m.teamA === homeHe && m.teamB === awayHe) ||
           (m.teamA === awayHe && m.teamB === homeHe)
         )
-        if (!ourMatch) {
-          log.push(`⚠️ לא נמצא: ${apiMatch.home_team} vs ${apiMatch.away_team}`)
-          continue
-        }
+        if (!ourMatch) { log.push(`⚠️ לא נמצא: ${apiMatch.home_team} vs ${apiMatch.away_team}`); continue }
         const current = updatedMatches[ourMatch.id] ?? { ...ourMatch }
         const isReversed = ourMatch.teamA === awayHe
-        if (apiMatch.kickoff_utc) {
-          (current as any).scheduleIL = toIsraelTime(apiMatch.kickoff_utc)
-          updatedSchedule++
-        }
-        if (apiMatch.status === 'completed' &&
-            apiMatch.home_score !== null && apiMatch.away_score !== null) {
+        if (apiMatch.kickoff_utc) { (current as any).scheduleIL = toIsraelTime(apiMatch.kickoff_utc); updatedSchedule++ }
+        if (apiMatch.status === 'completed' && apiMatch.home_score !== null && apiMatch.away_score !== null) {
           current.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
           current.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
           current.isPlayed = true
@@ -102,26 +100,63 @@ export default function Admin() {
         }
         updatedMatches[ourMatch.id] = current as Match
       }
+
+      // ── Knockout stage ───────────────────────────────────────────────
+      const updatedKnockout = { ...knockoutMatches }
+      let koUpdated = 0
+      let koPenalties = 0
+      for (const apiMatch of apiKnockoutMatches) {
+        if (apiMatch.status !== 'completed') continue
+        if (apiMatch.home_score === null || apiMatch.away_score === null) continue
+        const normHome = API_ALIASES[apiMatch.home_team?.toLowerCase()] ?? apiMatch.home_team?.toLowerCase()
+        const normAway = API_ALIASES[apiMatch.away_team?.toLowerCase()] ?? apiMatch.away_team?.toLowerCase()
+        const homeHe = EN_TO_HE_MAP[normHome] ?? apiMatch.home_team
+        const awayHe = EN_TO_HE_MAP[normAway] ?? apiMatch.away_team
+        const entry = Object.entries(updatedKnockout).find(([, km]: [string, any]) =>
+          (km.teamA === homeHe && km.teamB === awayHe) ||
+          (km.teamA === awayHe && km.teamB === homeHe)
+        )
+        if (!entry) { log.push(`⚠️ נוקאאוט לא נמצא: ${apiMatch.home_team} vs ${apiMatch.away_team}`); continue }
+        const km = { ...entry[1] } as any
+        if (km.manualScore) continue // don't overwrite manual corrections
+        const isReversed = km.teamA === awayHe
+        km.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
+        km.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
+        km.isPlayed = true
+        // Auto-set advanceTeam only when result is not a draw (no penalties needed)
+        if (km.resultA !== km.resultB && !km.advanceTeam) {
+          km.advanceTeam = km.resultA > km.resultB ? km.teamA : km.teamB
+        } else if (km.resultA === km.resultB) {
+          koPenalties++
+        }
+        updatedKnockout[Number(entry[0])] = km
+        koUpdated++
+      }
+
       setMatches(updatedMatches)
+      setKnockoutMatches(updatedKnockout)
+
       log.push(`📅 עודכנו ${updatedSchedule} שעות משחק`)
-      log.push(`⚽ עודכנו ${updatedResults} תוצאות`)
-      await setDoc(doc(db, 'admin', 'results'), {
-        matches: updatedMatches, groups: actualGroups, bonus: actualBonus,
-      }, { merge: true })
+      log.push(`⚽ עודכנו ${updatedResults} תוצאות שלב בתים`)
+      log.push(`🏆 עודכנו ${koUpdated} תוצאות נוקאאוט`)
+      if (koPenalties > 0) log.push(`⚠️ ${koPenalties} משחק(ים) תיקו — יש להגדיר "מי עלה" ידנית`)
+
+      await setDoc(doc(db, 'admin', 'results'), { matches: updatedMatches, groups: actualGroups, bonus: actualBonus }, { merge: true })
+      await setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout })
       const scheduleMap: Record<number, string> = {}
       for (const [id, m] of Object.entries(updatedMatches)) {
         if ((m as any).scheduleIL) scheduleMap[Number(id)] = (m as any).scheduleIL
       }
       await setDoc(doc(db, 'admin', 'schedule'), { schedule: scheduleMap })
       log.push('💾 נשמר ב-Firestore')
-      if (updatedResults > 0) {
+      if (updatedResults > 0 || koUpdated > 0) {
         log.push('🔄 מחשב ניקוד...')
         setSyncLog([...log])
         await recalcAllScores(updatedMatches)
         log.push('🏆 ניקוד עודכן!')
       }
       log.push('✅ סנכרון הושלם!')
-      setMsg(`✓ סנכרון הצליח — ${updatedResults} תוצאות, ${updatedSchedule} שעות`)
+      setMsg(`✓ סנכרון הצליח — ${updatedResults} תוצאות בתים, ${koUpdated} נוקאאוט`)
     } catch (e) {
       log.push(`❌ שגיאה: ${(e as Error).message}`)
       setMsg('שגיאה בסנכרון: ' + (e as Error).message)

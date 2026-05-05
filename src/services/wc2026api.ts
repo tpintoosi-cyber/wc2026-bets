@@ -23,19 +23,25 @@ export interface ApiMatch {
   away_score: number | null
   home_score_ht?: number | null
   away_score_ht?: number | null
+  // Knockout-specific fields (if API provides them)
+  knockout_round?: string     // e.g. "R32", "R16", "QF", "SF", "3P", "F"
 }
 
 export async function fetchAllMatches(): Promise<ApiMatch[]> {
   const res = await fetch(`${API_BASE}/matches`, { headers })
   if (!res.ok) throw new Error(`API error: ${res.status}`)
   const data = await res.json()
-  // API may return { data: [...] } or directly [...]
   return Array.isArray(data) ? data : (data.data ?? data.matches ?? [])
 }
 
 export async function fetchGroupStageMatches(): Promise<ApiMatch[]> {
   const all = await fetchAllMatches()
   return all.filter(m => m.round === 'group')
+}
+
+export async function fetchKnockoutMatches(): Promise<ApiMatch[]> {
+  const all = await fetchAllMatches()
+  return all.filter(m => m.round === 'knockout')
 }
 
 // Convert UTC ISO string to Israel time string "d/M HH:MM"
@@ -49,3 +55,4 @@ export function toIsraelTime(utcIso: string): string {
   const min = String(il.getUTCMinutes()).padStart(2, '0')
   return `${d}/${mo} ${h}:${min}`
 }
+
