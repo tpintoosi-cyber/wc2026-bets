@@ -3,3 +3,5 @@ node_modules/
 dist/
 sim_users_data.json
 step*.js
+dist/
+node_modules/
