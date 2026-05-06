@@ -750,26 +750,31 @@ export default function Predict({ lang }: { lang: Lang }) {
                     for (const km of KNOCKOUT_MATCHES) {
                       const pred = knockoutPreds[km.id]
                       if (!pred?.prediction1X2) continue
+
+                      // Only count matches where both teams are actually known (from admin)
+                      // Use admin data directly to avoid cascade confusion
+                      const adminKm = knockoutMatches[km.id]
+                      const tA = adminKm?.teamA as string | undefined
+                      const tB = adminKm?.teamB as string | undefined
+                      if (!tA || !tB) continue  // skip matches without known teams
+
                       filledMatches++
 
-                      const tA = getTeamSafe(km.id, 'A')
-                      const tB = getTeamSafe(km.id, 'B')
-                      const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
-                      const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
+                      const ptA = TEAM_FIFA_POINTS[tA] ?? 1500
+                      const ptB = TEAM_FIFA_POINTS[tB] ?? 1500
                       const dynCat = calcCategory(ptA, ptB)
                       const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
                       const roundBase = { R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 }[km.round]
-
-                      // 1X2 — based on actual prediction (favorite vs underdog vs draw)
                       const aIsFav = ptA >= ptB
+
+                      // 1X2 based on actual prediction
                       const predIs1 = pred.prediction1X2 === '1'
                       const predIs2 = pred.prediction1X2 === '2'
                       const predIsX = pred.prediction1X2 === 'X'
                       const pickedFav = (predIs1 && aIsFav) || (predIs2 && !aIsFav)
-                      const pickedUnd = (predIs1 && !aIsFav) || (predIs2 && aIsFav)
                       if (predIsX) totalPts += roundBase + Math.max(0, catBonus - 1)
                       else if (pickedFav) totalPts += roundBase
-                      else totalPts += roundBase + catBonus  // picked underdog
+                      else totalPts += roundBase + catBonus
 
                       // Score: exact + OU
                       if (pred.scoreA !== null && pred.scoreA !== undefined) {
