@@ -259,15 +259,20 @@ export default function Predict({ lang }: { lang: Lang }) {
   }
 
   const updateKnockout = (id: number, field: keyof KnockoutMatchPrediction, value: unknown) => {
-    if (!knockoutOpen) return
-    const koDeadlinePassed = knockoutDeadline && Date.now() > knockoutDeadline
-    if (koDeadlinePassed) return
+    // Allow advance picks from bracket always (they just update local state for display)
+    // Only block score/1x2 inputs when window is closed
+    const isAdvancePick = field === 'advance'
+    if (!isAdvancePick) {
+      if (!knockoutOpen) return
+      const koDeadlinePassed = knockoutDeadline && Date.now() > knockoutDeadline
+      if (koDeadlinePassed) return
+    }
     setKnockoutPreds(prev => {
       const updated = {
         ...prev,
         [id]: { ...(prev[id] ?? { matchId: id, prediction1X2: '1' as Result1X2, scoreA: null, scoreB: null }), [field]: value } as KnockoutMatchPrediction
       }
-      scheduleSave(matchPreds, groupPreds, bonus, updated, knockoutRedCards)
+      if (knockoutOpen) scheduleSave(matchPreds, groupPreds, bonus, updated, knockoutRedCards)
       return updated
     })
   }
@@ -519,6 +524,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
           {(() => {
             const isLocked = !knockoutOpen || (knockoutDeadline != null && Date.now() > knockoutDeadline)
+            const isFormLocked = isLocked  // for form inputs only
 
             const getTeamSafe = (matchId: number, side: 'A' | 'B'): string | undefined => {
               try {
@@ -580,14 +586,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string | undefined, string | false | undefined][]).map(([side, team, isWinner]) => (
                       <div
                         key={side}
-                        onClick={() => team && !isLocked && updateKnockout(id, 'advance', team)}
+                        onClick={() => team && updateKnockout(id, 'advance', team)}
                         style={{
                           display: 'flex', alignItems: 'center',
                           padding: '5px 6px', gap: 4,
                           fontSize: 12,
                           borderBottom: side === 'A' ? '1px solid #f0f0f0' : 'none',
                           background: isWinner ? '#EAF3DE' : 'transparent',
-                          cursor: team && !isLocked ? 'pointer' : 'default',
+                          cursor: team ? 'pointer' : 'default',
                         }}
                       >
                         <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>
@@ -619,7 +625,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         </div>
                       )
                     })()}
-                    {!isLocked && tA && tB && !pred?.advance && (
+                    {tA && tB && !pred?.advance && (
                       <div style={{ textAlign: 'center', fontSize: 9, color: '#bbb', padding: '2px 0', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
                         בחר ↑
                       </div>
@@ -669,12 +675,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                         const isChamp = pred?.advance === team && team
                         return (
                           <div key={side}
-                            onClick={() => team && !isLocked && updateKnockout(104, 'advance', team)}
+                            onClick={() => team && updateKnockout(104, 'advance', team)}
                             style={{
                               display: 'flex', alignItems: 'center', padding: '5px 6px', gap: 3,
                               fontSize: 11, borderBottom: side === 'A' ? '0.5px solid #c5e8c0' : 'none',
                               background: isChamp ? '#d4edcc' : 'transparent',
-                              cursor: team && !isLocked ? 'pointer' : 'default',
+                              cursor: team ? 'pointer' : 'default',
                             }}>
                             <span style={{ fontSize: 12, width: 16 }}>{team ? (FLAGS[team] ?? '') : ''}</span>
                             <span style={{ flex: 1, color: isChamp ? '#1a5c30' : team ? '#2d5a3d' : '#aaa', fontWeight: isChamp ? 700 : 500, fontStyle: team ? 'normal' : 'italic' }}>{team ?? '...'}</span>
@@ -703,12 +709,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                         const isWinner = pred?.advance === team && team
                         return (
                           <div key={side}
-                            onClick={() => team && !isLocked && updateKnockout(103, 'advance', team)}
+                            onClick={() => team && updateKnockout(103, 'advance', team)}
                             style={{
                               display: 'flex', alignItems: 'center', padding: '3px 5px', gap: 3,
                               fontSize: 10, borderTop: '0.5px solid #eee',
                               background: isWinner ? '#EAF3DE' : 'transparent',
-                              cursor: team && !isLocked ? 'pointer' : 'default',
+                              cursor: team ? 'pointer' : 'default',
                             }}>
                             <span style={{ fontSize: 11, width: 14 }}>{team ? (FLAGS[team] ?? '') : ''}</span>
                             <span style={{ flex: 1, color: isWinner ? '#1a7a44' : team ? '#555' : '#bbb', fontWeight: isWinner ? 700 : 400, fontStyle: team ? 'normal' : 'italic' }}>{team ?? '...'}</span>
