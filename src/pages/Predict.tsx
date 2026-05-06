@@ -275,7 +275,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     setKnockoutPreds(prev => {
       const updated = {
         ...prev,
-        [id]: { ...(prev[id] ?? { matchId: id, prediction1X2: '1' as Result1X2, scoreA: null, scoreB: null }), [field]: value } as KnockoutMatchPrediction
+        [id]: { ...(prev[id] ?? { matchId: id, scoreA: null, scoreB: null }), [field]: value } as KnockoutMatchPrediction
       }
       if (knockoutOpen) scheduleSave(matchPreds, groupPreds, bonus, updated, knockoutRedCards)
       return updated
@@ -576,6 +576,37 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const hasPred = !!(pred?.prediction1X2)
                 const hasScore = pred?.scoreA !== null && pred?.scoreA !== undefined
 
+                // Compute info for prediction badges
+                const km = KNOCKOUT_MATCHES.find(m => m.id === id)
+                const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
+                const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
+                const dynCat = km ? calcCategory(ptA, ptB) : 'A'
+                const catIdx = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
+                const aIsFav = ptA >= ptB
+
+                // OU label for score
+                let ouLabel: string | null = null
+                if (hasScore && km) {
+                  const goalTotal = Number(pred!.scoreA) + Number(pred!.scoreB ?? 0)
+                  const isOU = km.round === 'F'
+                    ? (goalTotal === 0 || goalTotal >= 4)
+                    : km.round === '3P'
+                    ? (goalTotal <= 2 || goalTotal >= 5)
+                    : catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
+                  if (isOU) ouLabel = goalTotal <= (catIdx <= 1 ? 1 : 2) ? t.under : t.over
+                }
+
+                // Red card for this match
+                const roundKey = km?.round as 'R32' | 'R16' | 'QF' | undefined
+                const hasRedCard = roundKey && ['R32','R16','QF'].includes(roundKey)
+                  ? (knockoutRedCards[roundKey as 'R32'|'R16'|'QF'] ?? []).includes(id)
+                  : false
+
+                // 1X2 label
+                const label1x2 = pred?.prediction1X2 === '1' ? (tA ? `${FLAGS[tA] ?? ''} ${tA}` : '1')
+                  : pred?.prediction1X2 === '2' ? (tB ? `${tB} ${FLAGS[tB] ?? ''}` : '2')
+                  : pred?.prediction1X2 === 'X' ? t.draw : null
+
                 return (
                   <div
                     id={`bracket-match-${id}`}
@@ -584,8 +615,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                       borderRadius: 8, overflow: 'hidden',
                       background: advA || advB ? '#f2faf5' : '#fff',
                       margin: '2px 3px', flex: 1,
-                      minWidth: compact ? 60 : 82,
-                      maxWidth: compact ? 80 : 120,
+                      minWidth: compact ? 60 : 90,
+                      maxWidth: compact ? 80 : 130,
                     }}
                   >
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string | undefined, string | false | undefined][]).map(([side, team, isWinner]) => (
@@ -619,16 +650,30 @@ export default function Predict({ lang }: { lang: Lang }) {
                         {isWinner && !hasScore && <span style={{ fontSize: 10, color: '#1a7a44' }}>●</span>}
                       </div>
                     ))}
+
+                    {/* Prediction badges row */}
+                    {(hasPred || hasScore || hasRedCard) && (
+                      <div style={{ padding: '4px 5px', borderTop: '1px solid #f0f0f0', background: '#fafafa', display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                        {label1x2 && (
+                          <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
+                            {label1x2}
+                          </span>
+                        )}
+                        {hasScore && (
+                          <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: '#F1EFE8', color: '#444441', fontWeight: 600 }}>
+                            {pred!.scoreA}:{pred!.scoreB}{ouLabel ? ` · ${ouLabel}` : ''}
+                          </span>
+                        )}
+                        {hasRedCard && (
+                          <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥</span>
+                        )}
+                      </div>
+                    )}
+
                     {pred?.advance && (() => {
-                          const km = KNOCKOUT_MATCHES.find(m => m.id === id)
                           if (!km) return null
                           const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round] ?? 2
-                          const teamApts = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
-                          const teamBpts = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
-                          const dynamicCat = calcCategory(teamApts, teamBpts)
-                          const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynamicCat]
-                          // Bonus only if picked the underdog
-                          const aIsFav = teamApts >= teamBpts
+                          const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
                           const pickedUnderdog = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
                           const advPts = base + (pickedUnderdog ? catBonus : 0)
                           return (
@@ -743,7 +788,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                 <div style={{ fontSize: 13, userSelect: 'none' }}>
                   {/* ── Points summary ──────────────────────────────── */}
                   {(() => {
-                    let totalPts = 0
+                    let pts1x2 = 0
+                    let ptsScore = 0
+                    let ptsAdvance = 0
                     let filledMatches = 0
                     let advancePicked = 0
 
@@ -765,14 +812,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                       const roundBase = { R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 }[km.round]
                       const aIsFav = ptA >= ptB
 
-                      // 1X2 based on actual prediction
-                      const predIs1 = pred.prediction1X2 === '1'
-                      const predIs2 = pred.prediction1X2 === '2'
+                      // 1X2
                       const predIsX = pred.prediction1X2 === 'X'
-                      const pickedFav = (predIs1 && aIsFav) || (predIs2 && !aIsFav)
-                      if (predIsX) totalPts += roundBase + Math.max(0, catBonus - 1)
-                      else if (pickedFav) totalPts += roundBase
-                      else totalPts += roundBase + catBonus
+                      const pickedFav = (pred.prediction1X2 === '1' && aIsFav) || (pred.prediction1X2 === '2' && !aIsFav)
+                      if (predIsX) pts1x2 += roundBase + Math.max(0, catBonus - 1)
+                      else if (pickedFav) pts1x2 += roundBase
+                      else pts1x2 += roundBase + catBonus
 
                       // Score: exact + OU
                       if (pred.scoreA !== null && pred.scoreA !== undefined) {
@@ -784,7 +829,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                           : km.round === '3P'
                           ? (goalTotal <= 2 || goalTotal >= 5)
                           : catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
-                        totalPts += 2 + (isOU ? ouPts : 0)
+                        ptsScore += 2 + (isOU ? ouPts : 0)
                       }
 
                       // Advance — bonus only if picked underdog
@@ -792,10 +837,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                         const advBase = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
                         const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
                         const pickedUndAdv = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
-                        totalPts += advBase + (pickedUndAdv ? advCatBonus : 0)
+                        ptsAdvance += advBase + (pickedUndAdv ? advCatBonus : 0)
                         advancePicked++
                       }
                     }
+
+                    const totalPts = pts1x2 + ptsScore + ptsAdvance
 
                     return (
                       <div style={{ display: 'flex', gap: 8, marginBottom: 10, padding: '8px 12px', background: '#f8f9ff', borderRadius: 10, border: '1px solid #e8e8ff', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -804,11 +851,20 @@ export default function Predict({ lang }: { lang: Lang }) {
                           <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a2e' }}>{filledMatches} / {KNOCKOUT_MATCHES.length}</div>
                         </div>
                         <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: '#888' }}>{t.koIfCorrect}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: totalPts > 0 ? '#1a7a44' : '#aaa' }}>
-                            {totalPts > 0 ? `≈${totalPts}` : '—'} נק'
-                          </div>
+                        <div style={{ flex: 2 }}>
+                          <div style={{ fontSize: 11, color: '#888', marginBottom: 5 }}>{t.koIfCorrect}</div>
+                          {totalPts > 0 ? (
+                            <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#E6F1FB', color: '#0C447C', fontWeight: 600 }}>1X2: {pts1x2}</span>
+                              <span style={{ fontSize: 10, color: '#aaa' }}>+</span>
+                              <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#EAF3DE', color: '#27500A', fontWeight: 600 }}>{t.exactScore}: {ptsScore}</span>
+                              <span style={{ fontSize: 10, color: '#aaa' }}>+</span>
+                              <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FAEEDA', color: '#633806', fontWeight: 600 }}>{t.koAdvance}: {ptsAdvance}</span>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#1a7a44', marginRight: 2 }}>= ≈{totalPts} נק'</span>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: 16, fontWeight: 700, color: '#aaa' }}>—</div>
+                          )}
                         </div>
                         <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
                         <div style={{ flex: 1 }}>
@@ -958,27 +1014,57 @@ export default function Predict({ lang }: { lang: Lang }) {
                             </div>
 
                             <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>
-                              {/* Points preview — same style as group stage */}
-                              {pred?.prediction1X2 && (() => {
+                              {!pred?.prediction1X2 ? (
+                                <div style={{ background: '#FAEEDA', borderRadius: 8, padding: '7px 10px', fontSize: 12, color: '#633806', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span>⚠️</span> לא בחרת 1X2 — המשחק לא נספר בסיכום
+                                </div>
+                              ) : (() => {
                                 const catIdx = { A: 0, B: 1, C: 2, D: 3 }[km.category]
                                 const aIsFav = km.fifaPointsA >= km.fifaPointsB
                                 const isFav = (pred.prediction1X2 === '1' && aIsFav) || (pred.prediction1X2 === '2' && !aIsFav)
-                                const p1x2 = pred.prediction1X2 === 'X' ? [1,1,2,3][catIdx] : isFav ? 1 : [1,2,3,4][catIdx]
-                                const items: string[] = [`1X2: ${p1x2}`]
+                                const roundBase = { R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 }[km.round]
+                                const catBonus = { A: 0, B: 1, C: 2, D: 3 }[km.category]
+                                const p1x2 = pred.prediction1X2 === 'X'
+                                  ? roundBase + Math.max(0, catBonus - 1)
+                                  : isFav ? roundBase : roundBase + catBonus
+                                const breakdown: string[] = [`1X2: ${p1x2}`]
                                 let total = p1x2
+
                                 if (pred.scoreA !== null && pred.scoreA !== undefined) {
                                   const goalTotal = Number(pred.scoreA) + Number(pred.scoreB ?? 0)
-                                  const isOU = catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
-                                  items.push(isOU ? 'מדויק: 2 (הפרש: 1) | O/U: 1' : 'מדויק: 2 (הפרש: 1)')
-                                  total += isOU ? 3 : 2
+                                  const ouPts = { R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 }[km.round]
+                                  const isOU = km.round === 'F'
+                                    ? (goalTotal === 0 || goalTotal >= 4)
+                                    : km.round === '3P'
+                                    ? (goalTotal <= 2 || goalTotal >= 5)
+                                    : catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
+                                  if (isOU) {
+                                    const ouLabel = goalTotal <= (catIdx <= 1 ? 1 : 2) ? t.under : t.over
+                                    breakdown.push(`${t.exactScore}: 2 (הפרש: 1) | ${ouLabel}: ${ouPts}`)
+                                    total += 2 + ouPts
+                                  } else {
+                                    breakdown.push(`${t.exactScore}: 2 (הפרש: 1)`)
+                                    total += 2
+                                  }
                                 }
+
+                                const isRedCard = (() => {
+                                  const rk = km.round as string
+                                  if (!['R32','R16','QF'].includes(rk)) return false
+                                  return (knockoutRedCards[rk as 'R32'|'R16'|'QF'] ?? []).includes(km.id)
+                                })()
+                                if (isRedCard) {
+                                  breakdown.push(`🟥 ${t.redCard}: 2`)
+                                  total += 2
+                                }
+
                                 return (
                                   <div className="max-pts-bar">
                                     <span className="max-pts-label">מקסימום:</span>
                                     <span className="max-pts-value">{total}</span>
                                     <span className="max-pts-label">נק׳</span>
                                     <div className="max-pts-breakdown">
-                                      {items.map((b, i) => <span key={i} className="max-pts-item">{b}</span>)}
+                                      {breakdown.map((b, i) => <span key={i} className="max-pts-item">{b}</span>)}
                                     </div>
                                   </div>
                                 )
