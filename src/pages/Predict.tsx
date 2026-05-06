@@ -752,16 +752,30 @@ export default function Predict({ lang }: { lang: Lang }) {
                       if (!pred?.prediction1X2) continue
                       filledMatches++
 
+                      const tA = getTeamSafe(km.id, 'A')
+                      const tB = getTeamSafe(km.id, 'B')
+                      const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
+                      const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
+                      const dynCat = calcCategory(ptA, ptB)
+                      const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
                       const roundBase = { R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 }[km.round]
-                      const catBonus = { A: 0, B: 1, C: 2, D: 3 }[km.category]
-                      // Max 1X2: underdog wins (best case)
-                      totalPts += roundBase + catBonus
 
-                      // Max score: exact + OU bonus
+                      // 1X2 — based on actual prediction (favorite vs underdog vs draw)
+                      const aIsFav = ptA >= ptB
+                      const predIs1 = pred.prediction1X2 === '1'
+                      const predIs2 = pred.prediction1X2 === '2'
+                      const predIsX = pred.prediction1X2 === 'X'
+                      const pickedFav = (predIs1 && aIsFav) || (predIs2 && !aIsFav)
+                      const pickedUnd = (predIs1 && !aIsFav) || (predIs2 && aIsFav)
+                      if (predIsX) totalPts += roundBase + Math.max(0, catBonus - 1)
+                      else if (pickedFav) totalPts += roundBase
+                      else totalPts += roundBase + catBonus  // picked underdog
+
+                      // Score: exact + OU
                       if (pred.scoreA !== null && pred.scoreA !== undefined) {
                         const goalTotal = Number(pred.scoreA) + Number(pred.scoreB ?? 0)
                         const ouPts = { R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 }[km.round]
-                        const catIdx = { A: 0, B: 1, C: 2, D: 3 }[km.category]
+                        const catIdx = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
                         const isOU = km.round === 'F'
                           ? (goalTotal === 0 || goalTotal >= 4)
                           : km.round === '3P'
@@ -770,18 +784,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                         totalPts += 2 + (isOU ? ouPts : 0)
                       }
 
-                      // Advance points — bonus only if picked underdog
+                      // Advance — bonus only if picked underdog
                       if (pred.advance) {
                         const advBase = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
-                        const tA = getTeamSafe(km.id, 'A')
-                        const tB = getTeamSafe(km.id, 'B')
-                        const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
-                        const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
-                        const dynCat = calcCategory(ptA, ptB)
-                        const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
-                        const aIsFav = ptA >= ptB
-                        const pickedUnderdog = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
-                        totalPts += advBase + (pickedUnderdog ? catBonus : 0)
+                        const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
+                        const pickedUndAdv = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
+                        totalPts += advBase + (pickedUndAdv ? advCatBonus : 0)
                         advancePicked++
                       }
                     }
