@@ -611,7 +611,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             {side === 'A' ? pred!.scoreA : pred!.scoreB}
                           </span>
                         )}
-                        {isWinner && !hasScore && <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>✓</span>}
+                        {isWinner && !hasScore && <span style={{ fontSize: 10, color: '#1a7a44' }}>●</span>}
                       </div>
                     ))}
                     {pred?.advance && (() => {
@@ -623,14 +623,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                           const dynamicCat = calcCategory(teamApts, teamBpts)
                           const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynamicCat]
                           return (
-                            <div style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#1a7a44', padding: '2px 0', background: '#EAF3DE', borderTop: '1px solid #c5e8c0' }}>
-                              +{base + catBonus} נק׳
+                            <div style={{ textAlign: 'center', fontSize: 10, color: '#555', padding: '2px 0', background: '#f5f5f5', borderTop: '1px solid #e8e8e8' }}>
+                              {pred.advance} → <strong>+{base + catBonus} נק׳</strong> אם תעלה
                             </div>
                           )
                         })()}
                     {tA && tB && !pred?.advance && (
                       <div style={{ textAlign: 'center', fontSize: 9, color: '#bbb', padding: '2px 0', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
-                        בחר ↑
+                        לחץ לבחירת עולה
                       </div>
                     )}
                   </div>
