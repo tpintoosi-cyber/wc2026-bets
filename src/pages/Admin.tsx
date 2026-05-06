@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
-import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory } from '../data/matches'
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
@@ -124,6 +124,14 @@ export default function Admin() {
         km.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
         km.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
         km.isPlayed = true
+        // Auto-set fifaPoints + category when teams are known
+        if (km.teamA && km.teamB) {
+          const ptA = TEAM_FIFA_POINTS[km.teamA] ?? 1500
+          const ptB = TEAM_FIFA_POINTS[km.teamB] ?? 1500
+          km.fifaPointsA = ptA
+          km.fifaPointsB = ptB
+          km.category = calcCategory(ptA, ptB)
+        }
         // Auto-set advanceTeam only when result is not a draw (no penalties needed)
         if (km.resultA !== km.resultB && !km.advanceTeam) {
           km.advanceTeam = km.resultA > km.resultB ? km.teamA : km.teamB
@@ -219,6 +227,12 @@ export default function Admin() {
               kd.resultA = result.score90A
               kd.resultB = result.score90B
               kd.advanceTeam = result.advanceTeam
+              // Auto category
+              const ptA = TEAM_FIFA_POINTS[kd.teamA] ?? 1500
+              const ptB = TEAM_FIFA_POINTS[kd.teamB] ?? 1500
+              kd.fifaPointsA = ptA
+              kd.fifaPointsB = ptB
+              kd.category = calcCategory(ptA, ptB)
               advanceFix++
             }
 
@@ -346,7 +360,16 @@ export default function Admin() {
   const updateKnockoutMatch = (id: number, field: string, value: unknown) => {
     setKnockoutMatches(prev => {
       const base = prev[id] ?? KNOCKOUT_MATCHES.find(m => m.id === id)!
-      return { ...prev, [id]: { ...base, [field]: value } as KnockoutMatch }
+      const updated = { ...base, [field]: value } as any
+      // Auto-calculate fifaPoints + category when teamA or teamB is set
+      if ((field === 'teamA' || field === 'teamB') && updated.teamA && updated.teamB) {
+        const ptA = TEAM_FIFA_POINTS[updated.teamA] ?? 1500
+        const ptB = TEAM_FIFA_POINTS[updated.teamB] ?? 1500
+        updated.fifaPointsA = ptA
+        updated.fifaPointsB = ptB
+        updated.category = calcCategory(ptA, ptB)
+      }
+      return { ...prev, [id]: updated }
     })
   }
 
