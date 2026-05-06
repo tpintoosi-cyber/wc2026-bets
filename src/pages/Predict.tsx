@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
-import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, KNOCKOUT_BRACKET } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, KNOCKOUT_BRACKET, TEAM_FIFA_POINTS, calcCategory } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category, KnockoutMatchPrediction, Result1X2 } from '../types'
 import { calc1X2Points, calcOverUnder, calcAdvancePoints } from '../scoring'
 import { T, Lang, Translations, BONUS_QUESTIONS_EN } from '../i18n'
@@ -615,16 +615,19 @@ export default function Predict({ lang }: { lang: Lang }) {
                       </div>
                     ))}
                     {pred?.advance && (() => {
-                      const km = KNOCKOUT_MATCHES.find(m => m.id === id)
-                      if (!km) return null
-                      const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round] ?? 2
-                      const catBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
-                      return (
-                        <div style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#1a7a44', padding: '2px 0', background: '#EAF3DE', borderTop: '1px solid #c5e8c0' }}>
-                          +{base + catBonus} נק׳
-                        </div>
-                      )
-                    })()}
+                          const km = KNOCKOUT_MATCHES.find(m => m.id === id)
+                          if (!km) return null
+                          const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round] ?? 2
+                          const teamApts = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
+                          const teamBpts = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
+                          const dynamicCat = calcCategory(teamApts, teamBpts)
+                          const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynamicCat]
+                          return (
+                            <div style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#1a7a44', padding: '2px 0', background: '#EAF3DE', borderTop: '1px solid #c5e8c0' }}>
+                              +{base + catBonus} נק׳
+                            </div>
+                          )
+                        })()}
                     {tA && tB && !pred?.advance && (
                       <div style={{ textAlign: 'center', fontSize: 9, color: '#bbb', padding: '2px 0', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
                         בחר ↑
@@ -758,10 +761,15 @@ export default function Predict({ lang }: { lang: Lang }) {
                         totalPts += 2 + (isOU ? ouPts : 0)
                       }
 
-                      // Advance points
+                      // Advance points — use actual teams for dynamic category
                       if (pred.advance) {
                         const advBase = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
-                        const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
+                        const tA = getTeamSafe(km.id, 'A')
+                        const tB = getTeamSafe(km.id, 'B')
+                        const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
+                        const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
+                        const dynCat = calcCategory(ptA, ptB)
+                        const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
                         totalPts += advBase + advCatBonus
                         advancePicked++
                       }
