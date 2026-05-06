@@ -311,7 +311,15 @@ export default function AllPredictions() {
         setActualGroups(resultsSnap.data().groups ?? {})
         setActualBonus(resultsSnap.data().bonus ?? {})
       }
-      if (koSnap.exists()) setKnockoutAdminMatches(koSnap.data().matches ?? {})
+      if (koSnap.exists()) {
+        // Firestore stores keys as strings — convert to numbers
+        const raw = koSnap.data().matches ?? {}
+        const normalized: Record<number, any> = {}
+        for (const [k, v] of Object.entries(raw)) {
+          normalized[Number(k)] = v
+        }
+        setKnockoutAdminMatches(normalized)
+      }
 
       if (predsSnap) {
         const data: UserData[] = predsSnap.docs.map(d => ({
