@@ -296,7 +296,7 @@ export default function Admin() {
         (d.matches ?? {}) as Record<number, MatchPrediction>,
         (d.groups ?? {}) as Record<Group, GroupPrediction>,
         d.bonus ?? {}, playedMatches, actualGroups, actualBonus,
-        d.knockout ?? {}, playedKO
+        d.knockout ?? {}, playedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] }
       )
       batch.set(doc(db, 'scores', userDoc.id), score)
     }

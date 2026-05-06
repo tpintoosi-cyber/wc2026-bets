@@ -1,10 +1,9 @@
-import { Category, Match, MatchPrediction, GroupPrediction, BonusPredictions, UserScore, MatchScore, KnockoutMatch, KnockoutMatchPrediction, KnockoutRound } from './types'
+import { Category, Match, MatchPrediction, GroupPrediction, BonusPredictions, UserScore, MatchScore, KnockoutMatch, KnockoutMatchPrediction, KnockoutRound, KnockoutRedCardPicks } from './types'
 
-// ── 1X2 ──────────────────────────────────────────────────────────────────────
-// Implements the Excel formula exactly:
-//   Favorite wins → 1pt always
-//   Draw: A=1, B=1, C=2, D=3
-//   Underdog wins: A=1, B=2, C=3, D=4
+// ── GROUP STAGE 1X2 ───────────────────────────────────────────────────────────
+// Favorite wins → 1pt always
+// Draw: A=1, B=1, C=2, D=3
+// Underdog wins: A=1, B=2, C=3, D=4
 export function calc1X2Points(
   prediction: '1' | 'X' | '2',
   resultA: number,
@@ -16,34 +15,87 @@ export function calc1X2Points(
   const actualResult = resultA > resultB ? '1' : resultA < resultB ? '2' : 'X'
   if (prediction !== actualResult) return 0
 
-  const catIdx = { A: 0, B: 1, C: 2, D: 3 }[category]
+  const catBonus = { A: 0, B: 1, C: 2, D: 3 }[category]
 
   if (actualResult === 'X') {
-    return [1, 1, 2, 3][catIdx]
+    return 1 + Math.max(0, catBonus - 1)  // A=1, B=1, C=2, D=3
   }
 
-  // Win — is it the favorite?
   const aIsFavorite = fifaPointsA >= fifaPointsB
   const favoriteWon =
     (actualResult === '1' && aIsFavorite) ||
     (actualResult === '2' && !aIsFavorite)
 
   if (favoriteWon) return 1
-  return [1, 2, 3, 4][catIdx] // underdog won
+  return 1 + catBonus  // underdog: A=1, B=2, C=3, D=4
 }
 
-// ── EXACT SCORE ───────────────────────────────────────────────────────────────
-// Exact: 2pts + 1 bonus margin = 3pts total
-// Over/under bonus (per category): extra +1
-//   A/B: total goals <=1 or >=4
-//   C/D: total goals <=2 or >=5
-// Correct margin only: 1pt
-// Wrong: 0
+// ── KNOCKOUT 1X2 ─────────────────────────────────────────────────────────────
+// Base scales up by round: R32/R16=1, QF/3P=2, SF/F=3
+// Favorite wins → base
+// Draw → base + max(0, catBonus-1)
+// Underdog → base + catBonus
+// Cat A: catBonus=0 | B: +1 | C: +2 | D: +3 (D only in R32/R16)
+export function calc1X2KnockoutPoints(
+  prediction: '1' | 'X' | '2',
+  resultA: number,
+  resultB: number,
+  fifaPointsA: number,
+  fifaPointsB: number,
+  category: Category,
+  round: KnockoutRound
+): number {
+  const actualResult = resultA > resultB ? '1' : resultA < resultB ? '2' : 'X'
+  if (prediction !== actualResult) return 0
+
+  const base = ({ R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 } as Record<KnockoutRound, number>)[round]
+  const catBonus = { A: 0, B: 1, C: 2, D: 3 }[category]
+
+  if (actualResult === 'X') {
+    return base + Math.max(0, catBonus - 1)
+  }
+
+  const aIsFavorite = fifaPointsA >= fifaPointsB
+  const favoriteWon =
+    (actualResult === '1' && aIsFavorite) ||
+    (actualResult === '2' && !aIsFavorite)
+
+  if (favoriteWon) return base
+  return base + catBonus
+}
+
+// ── GROUP STAGE OVER/UNDER ───────────────────────────────────────────────────
 export function calcOverUnder(total: number, category: Category): boolean {
   if (category === 'A' || category === 'B') return total <= 1 || total >= 4
   return total <= 2 || total >= 5
 }
 
+// ── KNOCKOUT OVER/UNDER ───────────────────────────────────────────────────────
+// Points: R32/R16/3P=1, QF/SF/F=2
+// Thresholds:
+//   R32/R16/QF/SF: same as group stage by category
+//   3P: ≤2 or ≥5 (C/D thresholds for all)
+//   Final: under=0-0 only, over=≥4
+export function calcOverUnderKnockout(
+  total: number,
+  category: Category,
+  round: KnockoutRound
+): { qualifies: boolean; points: number } {
+  const points = ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round]
+
+  let qualifies: boolean
+  if (round === 'F') {
+    qualifies = total === 0 || total >= 4
+  } else if (round === '3P') {
+    qualifies = total <= 2 || total >= 5
+  } else {
+    qualifies = calcOverUnder(total, category)
+  }
+
+  return { qualifies, points }
+}
+
+// ── GROUP STAGE SCORE ─────────────────────────────────────────────────────────
 export function calcScorePoints(
   predA: number,
   predB: number,
@@ -60,14 +112,52 @@ export function calcScorePoints(
   return 0
 }
 
+// ── KNOCKOUT SCORE ────────────────────────────────────────────────────────────
+export function calcScoreKnockoutPoints(
+  predA: number,
+  predB: number,
+  resultA: number,
+  resultB: number,
+  category: Category,
+  round: KnockoutRound
+): number {
+  if (predA === resultA && predB === resultB) {
+    const total = resultA + resultB
+    const { qualifies, points } = calcOverUnderKnockout(total, category, round)
+    return 2 + (qualifies ? points : 0)
+  }
+  if ((predA - predB) === (resultA - resultB)) return 1
+  return 0
+}
+
 // ── RED CARD ─────────────────────────────────────────────────────────────────
-// +1 if predicted red card and match had one; no penalty for wrong prediction
 export function calcRedCardPoints(predicted: boolean, hadRedCard: boolean): number {
   return predicted && hadRedCard ? 2 : 0
 }
 
+// ── KNOCKOUT RED CARDS ────────────────────────────────────────────────────────
+// User picks N match IDs per round that they think will have red cards
+// R32: 3 picks, R16: 2 picks, QF: 1 pick, SF/3P/F: none
+// 2 pts per correct pick
+export function calcKnockoutRedCardPoints(
+  picks: KnockoutRedCardPicks,
+  playedMatches: KnockoutMatch[]
+): number {
+  let pts = 0
+  const maxPicks: Partial<Record<KnockoutRound, number>> = { R32: 3, R16: 2, QF: 1 }
+
+  for (const [round, max] of Object.entries(maxPicks) as [KnockoutRound, number][]) {
+    const roundPicks = picks[round] ?? []
+    const valid = roundPicks.slice(0, max)
+    for (const matchId of valid) {
+      const match = playedMatches.find(m => m.id === matchId)
+      if (match?.isPlayed && match.hadRedCard) pts += 2
+    }
+  }
+  return pts
+}
+
 // ── GROUP ADVANCING ──────────────────────────────────────────────────────────
-// Exact position: 2pts | Correct team wrong position: 1pt
 export function calcGroupPoints(
   predictions: [string, string, string],
   actual: [string, string, string]
@@ -87,7 +177,6 @@ const BONUS_POINTS: Record<string, number> = {
   q110: 6, q111: 5, q112: 5, q113: 5, q114: 5,
   q115: 5, q116: 3, q117: 3,
 }
-// France, Spain, England get 17 pts instead of 20 for world champion
 const REDUCED_CHAMPION = ['צרפת', 'ספרד', 'אנגליה']
 
 export function calcBonusPoints(
@@ -100,7 +189,6 @@ export function calcBonusPoints(
     const actual = actuals[key]
     if (!pred || !actual) continue
     if (pred.trim().toLowerCase() !== actual.trim().toLowerCase()) continue
-
     let base = BONUS_POINTS[key]
     if (key === 'q105' && REDUCED_CHAMPION.includes(pred)) base = 17
     pts += base
@@ -109,10 +197,8 @@ export function calcBonusPoints(
 }
 
 // ── KNOCKOUT ADVANCE ─────────────────────────────────────────────────────────
-// Points for correctly predicting which team advances in knockout stage
-// Formula: round_base + category_bonus
-//   R32: base=2, R16: base=3, QF: base=4, SF/F: base=5, 3P: base=4
-//   Cat A: +0, B: +1, C/D: +2
+// R32: base=2, R16: base=3, QF/3P: base=4, SF/F: base=5
+// Cat A: +0, B: +1, C: +2, D: +2
 export function calcAdvancePoints(
   predicted: string,
   actual: string,
@@ -120,7 +206,7 @@ export function calcAdvancePoints(
   category: Category
 ): number {
   if (!predicted || !actual || predicted !== actual) return 0
-  const base = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[round]
+  const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<KnockoutRound, number>)[round]
   const catBonus = { A: 0, B: 1, C: 2, D: 2 }[category]
   return base + catBonus
 }
@@ -136,7 +222,8 @@ export function computeUserScore(
   actualGroups: Record<string, [string, string, string]>,
   actualBonus: Partial<BonusPredictions>,
   knockoutPredictions?: Record<number, KnockoutMatchPrediction>,
-  playedKnockout?: KnockoutMatch[]
+  playedKnockout?: KnockoutMatch[],
+  knockoutRedCards?: KnockoutRedCardPicks
 ): UserScore {
   const matchDetails: Record<number, MatchScore> = {}
   let matchPoints = 0
@@ -178,41 +265,40 @@ export function computeUserScore(
       const pred = knockoutPredictions[km.id]
       if (!pred) continue
 
-      // 1X2 at 90 min
+      // 1X2 — round-aware
       if (pred.prediction1X2) {
-        knockoutPoints += calc1X2Points(
+        knockoutPoints += calc1X2KnockoutPoints(
           pred.prediction1X2, km.resultA, km.resultB,
-          km.fifaPointsA, km.fifaPointsB, km.category
+          km.fifaPointsA, km.fifaPointsB, km.category, km.round
         )
       }
 
-      // Exact score + over/under
-      if (pred.scoreA !== null && pred.scoreA !== undefined && pred.scoreB !== null && pred.scoreB !== undefined) {
-        knockoutPoints += calcScorePoints(Number(pred.scoreA), Number(pred.scoreB), km.resultA, km.resultB, km.category)
+      // Score — round-aware over/under
+      if (pred.scoreA !== null && pred.scoreA !== undefined &&
+          pred.scoreB !== null && pred.scoreB !== undefined) {
+        knockoutPoints += calcScoreKnockoutPoints(
+          Number(pred.scoreA), Number(pred.scoreB),
+          km.resultA, km.resultB, km.category, km.round
+        )
       }
 
-      // Red card (R32 + R16 only)
-      if ((km.round === 'R32' || km.round === 'R16') && pred.redCard !== undefined) {
-        knockoutPoints += calcRedCardPoints(pred.redCard, km.hadRedCard ?? false)
-      }
-
-      // Advance — who goes through
+      // Advance
       if (km.advanceTeam) {
-        // For R32: use pred.advance directly
         if (km.round === 'R32' && pred.advance) {
           knockoutPoints += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category)
         }
-        // For R16+: find R32 prediction where user picked this team to advance
         if (km.round !== 'R32' && km.teamA && km.teamB) {
-          // Find R32 match where the actual advancing team came from
-          const r32AdvancePred = findR32AdvancePrediction(
-            km.teamA, km.teamB, knockoutPredictions, km.advanceTeam
-          )
-          if (r32AdvancePred) {
-            knockoutPoints += calcAdvancePoints(r32AdvancePred, km.advanceTeam, km.round, km.category)
+          const advancePred = findAdvancePrediction(km.teamA, km.teamB, knockoutPredictions)
+          if (advancePred) {
+            knockoutPoints += calcAdvancePoints(advancePred, km.advanceTeam, km.round, km.category)
           }
         }
       }
+    }
+
+    // Red cards — per-round picks
+    if (knockoutRedCards) {
+      knockoutPoints += calcKnockoutRedCardPoints(knockoutRedCards, playedKnockout)
     }
   }
 
@@ -230,18 +316,14 @@ export function computeUserScore(
   }
 }
 
-// Find which team the user predicted to advance based on their R32 predictions
-function findR32AdvancePrediction(
+function findAdvancePrediction(
   teamA: string,
   teamB: string,
-  knockoutPreds: Record<number, KnockoutMatchPrediction>,
-  actualAdvance: string
+  knockoutPreds: Record<number, KnockoutMatchPrediction>
 ): string | null {
-  // Look through R32 predictions to find if user predicted one of these teams
   for (const pred of Object.values(knockoutPreds)) {
-    if (pred.advance === teamA || pred.advance === teamB) {
-      return pred.advance
-    }
+    if (pred.advance === teamA || pred.advance === teamB) return pred.advance
   }
   return null
 }
+

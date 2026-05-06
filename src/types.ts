@@ -43,14 +43,18 @@ export interface MatchPrediction {
   redCard: boolean
 }
 
-// R32: user fills 1X2 + score + advance + redCard
-// R16+: user fills 1X2 + score (+ redCard for R16), advance comes from R32
+// R32: user picks 3 matches, R16: 2 matches, QF: 1 match
+export interface KnockoutRedCardPicks {
+  R32: number[]
+  R16: number[]
+  QF: number[]
+}
+
 export interface KnockoutMatchPrediction {
   matchId: number
   prediction1X2: Result1X2
   scoreA: number | null
   scoreB: number | null
-  redCard?: boolean      // R32 + R16 only
   advance?: string       // R32 only: which team advances
 }
 
@@ -84,6 +88,7 @@ export interface UserPredictions {
   groups: Record<Group, GroupPrediction>
   bonus: Partial<BonusPredictions>
   knockout?: Record<number, KnockoutMatchPrediction>
+  knockoutRedCards?: KnockoutRedCardPicks
 }
 
 export interface MatchScore {

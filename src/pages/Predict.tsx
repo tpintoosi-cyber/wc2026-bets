@@ -118,6 +118,7 @@ export default function Predict({ lang }: { lang: Lang }) {
   const [groupPreds, setGroupPreds] = useState<Record<Group, GroupPrediction>>({} as any)
   const [bonus, setBonus] = useState<Partial<BonusPredictions>>({})
   const [knockoutPreds, setKnockoutPreds] = useState<Record<number, KnockoutMatchPrediction>>({})
+  const [knockoutRedCards, setKnockoutRedCards] = useState<{ R32: number[]; R16: number[]; QF: number[] }>({ R32: [], R16: [], QF: [] })
   const [knockoutOpen, setKnockoutOpen] = useState(false)
   const [knockoutDeadline, setKnockoutDeadline] = useState<number | null>(null)
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, any>>({})
@@ -189,6 +190,9 @@ export default function Predict({ lang }: { lang: Lang }) {
       if (snap.exists() && snap.data().knockout) {
         setKnockoutPreds(snap.data().knockout)
       }
+      if (snap.exists() && snap.data().knockoutRedCards) {
+        setKnockoutRedCards(snap.data().knockoutRedCards)
+      }
     })()
   }, [user])
 
@@ -196,7 +200,8 @@ export default function Predict({ lang }: { lang: Lang }) {
     mp: Record<number, MatchPrediction>,
     gp: Record<Group, GroupPrediction>,
     bn: Partial<BonusPredictions>,
-    ko?: Record<number, KnockoutMatchPrediction>
+    ko?: Record<number, KnockoutMatchPrediction>,
+    koRed?: { R32: number[]; R16: number[]; QF: number[] }
   ) => {
     if (!user || !isOpen) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
@@ -206,6 +211,7 @@ export default function Predict({ lang }: { lang: Lang }) {
         userId: user.uid, userName: user.displayName,
         matches: mp, groups: gp, bonus: bn,
         ...(ko !== undefined ? { knockout: ko } : {}),
+        ...(koRed !== undefined ? { knockoutRedCards: koRed } : {}),
         lastUpdated: Date.now(),
       }, { merge: true })
       setSaving(false)
@@ -257,13 +263,32 @@ export default function Predict({ lang }: { lang: Lang }) {
     const koDeadlinePassed = knockoutDeadline && Date.now() > knockoutDeadline
     if (koDeadlinePassed) return
     setKnockoutPreds(prev => {
-      const ko = KNOCKOUT_MATCHES.find(m => m.id === id)!
       const updated = {
         ...prev,
         [id]: { ...(prev[id] ?? { matchId: id, prediction1X2: '1' as Result1X2, scoreA: null, scoreB: null }), [field]: value } as KnockoutMatchPrediction
       }
-      scheduleSave(matchPreds, groupPreds, bonus, updated)
+      scheduleSave(matchPreds, groupPreds, bonus, updated, knockoutRedCards)
       return updated
+    })
+  }
+
+  const toggleKnockoutRedCard = (round: 'R32' | 'R16' | 'QF', matchId: number) => {
+    if (!knockoutOpen) return
+    if (knockoutDeadline && Date.now() > knockoutDeadline) return
+    const maxPicks = { R32: 3, R16: 2, QF: 1 }[round]
+    setKnockoutRedCards(prev => {
+      const current = prev[round] ?? []
+      let updated: number[]
+      if (current.includes(matchId)) {
+        updated = current.filter(id => id !== matchId)
+      } else if (current.length < maxPicks) {
+        updated = [...current, matchId]
+      } else {
+        return prev // already at max
+      }
+      const newRed = { ...prev, [round]: updated }
+      scheduleSave(matchPreds, groupPreds, bonus, knockoutPreds, newRed)
+      return newRed
     })
   }
 
@@ -756,11 +781,50 @@ export default function Predict({ lang }: { lang: Lang }) {
             // ── FORM VIEW ───────────────────────────────────────────────────
             return (['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
               const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
+              const redCardRounds = { R32: 3, R16: 2, QF: 1 } as Record<string, number>
+              const maxRedCards = redCardRounds[round]
+              const redCardPicks = maxRedCards ? (knockoutRedCards[round as 'R32' | 'R16' | 'QF'] ?? []) : []
               const hasRedCard = round === 'R32' || round === 'R16'
 
               return (
                 <div key={round}>
                   <h2 className="round-title">{KNOCKOUT_ROUND_LABELS[round]}</h2>
+
+                  {/* Red card picks — per round */}
+                  {maxRedCards && (
+                    <div style={{ margin: '0 0 12px', padding: '10px 14px', background: '#fff5f5', border: '1px solid #fdd', borderRadius: 10 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: '#A32D2D', marginBottom: 8 }}>
+                        🟥 בחר {maxRedCards} {maxRedCards === 1 ? 'משחק' : 'משחקים'} שיהיה בהם כרטיס אדום
+                        <span style={{ fontWeight: 400, color: '#999', marginRight: 6 }}>({redCardPicks.length}/{maxRedCards} נבחרו | 2 נק׳ לכל ניחוש נכון)</span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {roundMatches.map(km => {
+                          const tA = getTeamSafe(km.id, 'A')
+                          const tB = getTeamSafe(km.id, 'B')
+                          if (!tA || !tB) return null
+                          const isPicked = redCardPicks.includes(km.id)
+                          const canPick = !isLocked && (!isPicked ? redCardPicks.length < maxRedCards : true)
+                          return (
+                            <button key={km.id}
+                              onClick={() => !isLocked && toggleKnockoutRedCard(round as 'R32' | 'R16' | 'QF', km.id)}
+                              disabled={isLocked || (!isPicked && redCardPicks.length >= maxRedCards)}
+                              style={{
+                                padding: '5px 10px', borderRadius: 8, border: '1.5px solid',
+                                borderColor: isPicked ? '#A32D2D' : '#ddd',
+                                background: isPicked ? '#FCEBEB' : '#fff',
+                                color: isPicked ? '#A32D2D' : '#555',
+                                fontWeight: isPicked ? 700 : 400, fontSize: 12,
+                                cursor: canPick ? 'pointer' : 'not-allowed',
+                                fontFamily: 'inherit', opacity: (!isPicked && redCardPicks.length >= maxRedCards) ? 0.4 : 1,
+                              }}>
+                              {FLAGS[tA] ?? ''} {tA} vs {FLAGS[tB] ?? ''} {tB}
+                              {isPicked && ' 🟥'}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                   {roundMatches.map(km => {
                     const teamA = getTeamSafe(km.id, 'A')
                     const teamB = getTeamSafe(km.id, 'B')
@@ -821,13 +885,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   </button>
                                 ))}
                               </div>
-                              {hasRedCard && (
-                                <label className={`red-card-label ${pred?.redCard ? 'checked' : ''} ${isLocked ? 'disabled' : ''}`}>
-                                  <input type="checkbox" checked={pred?.redCard ?? false} disabled={isLocked}
-                                    onChange={e => updateKnockout(km.id, 'redCard', e.target.checked)} />
-                                  &nbsp;🟥 כרטיס אדום
-                                </label>
-                              )}
+
                             </div>
 
                             <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>
@@ -870,7 +928,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   items.push(isOU ? 'מדויק: 2 (הפרש: 1) | O/U: 1' : 'מדויק: 2 (הפרש: 1)')
                                   total += isOU ? 3 : 2
                                 }
-                                if ((round === 'R32' || round === 'R16') && pred.redCard) { items.push('🟥: 2'); total += 2 }
                                 if (pred.advance) { items.push(`מעלה: +${advPts}`); total += advPts }
                                 return (
                                   <div className="max-pts-bar">

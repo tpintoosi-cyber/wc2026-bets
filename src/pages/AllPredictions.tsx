@@ -864,7 +864,7 @@ export default function AllPredictions() {
                               }}>
                                 {pred.prediction1X2 === '1' ? (tA ?? '1') : pred.prediction1X2 === '2' ? (tB ?? '2') : 'תיקו'}
                               </span>
-                              {(round === 'R32' || round === 'R16') && pred.redCard && <span>🟥</span>}
+
                             </div>
                             {pred.advance && (
                               <div style={{
