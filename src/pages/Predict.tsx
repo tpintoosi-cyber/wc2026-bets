@@ -605,19 +605,20 @@ export default function Predict({ lang }: { lang: Lang }) {
                             {side === 'A' ? pred!.scoreA : pred!.scoreB}
                           </span>
                         )}
-                        {isWinner && (() => {
-                          const km = KNOCKOUT_MATCHES.find(m => m.id === id)
-                          if (!km) return null
-                          const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round] ?? 2
-                          const catBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
-                          return (
-                            <span style={{ fontSize: 10, fontWeight: 700, color: '#1a7a44', background: '#d4edcc', borderRadius: 4, padding: '1px 4px', whiteSpace: 'nowrap' }}>
-                              +{base + catBonus}
-                            </span>
-                          )
-                        })()}
+                        {isWinner && !hasScore && <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>✓</span>}
                       </div>
                     ))}
+                    {pred?.advance && (() => {
+                      const km = KNOCKOUT_MATCHES.find(m => m.id === id)
+                      if (!km) return null
+                      const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round] ?? 2
+                      const catBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
+                      return (
+                        <div style={{ textAlign: 'center', fontSize: 10, fontWeight: 700, color: '#1a7a44', padding: '2px 0', background: '#EAF3DE', borderTop: '1px solid #c5e8c0' }}>
+                          +{base + catBonus} נק׳
+                        </div>
+                      )
+                    })()}
                     {!isLocked && tA && tB && !pred?.advance && (
                       <div style={{ textAlign: 'center', fontSize: 9, color: '#bbb', padding: '2px 0', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
                         בחר ↑
@@ -724,34 +725,59 @@ export default function Predict({ lang }: { lang: Lang }) {
                 <div style={{ fontSize: 13, userSelect: 'none' }}>
                   {/* ── Points summary ──────────────────────────────── */}
                   {(() => {
-                    let totalAdvancePts = 0
+                    let totalPts = 0
                     let filledMatches = 0
+                    let advancePicked = 0
+
                     for (const km of KNOCKOUT_MATCHES) {
                       const pred = knockoutPreds[km.id]
-                      if (!pred?.advance) continue
-                      const base = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
-                      const catBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
-                      totalAdvancePts += base + catBonus
+                      if (!pred?.prediction1X2) continue
                       filledMatches++
+
+                      const roundBase = { R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 }[km.round]
+                      const catBonus = { A: 0, B: 1, C: 2, D: 3 }[km.category]
+                      // Max 1X2: underdog wins (best case)
+                      totalPts += roundBase + catBonus
+
+                      // Max score: exact + OU bonus
+                      if (pred.scoreA !== null && pred.scoreA !== undefined) {
+                        const goalTotal = Number(pred.scoreA) + Number(pred.scoreB ?? 0)
+                        const ouPts = { R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 }[km.round]
+                        const catIdx = { A: 0, B: 1, C: 2, D: 3 }[km.category]
+                        const isOU = km.round === 'F'
+                          ? (goalTotal === 0 || goalTotal >= 4)
+                          : km.round === '3P'
+                          ? (goalTotal <= 2 || goalTotal >= 5)
+                          : catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
+                        totalPts += 2 + (isOU ? ouPts : 0)
+                      }
+
+                      // Advance points
+                      if (pred.advance) {
+                        const advBase = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
+                        const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
+                        totalPts += advBase + advCatBonus
+                        advancePicked++
+                      }
                     }
-                    const totalFilled = KNOCKOUT_MATCHES.filter(km => knockoutPreds[km.id]?.prediction1X2).length
+
                     return (
                       <div style={{ display: 'flex', gap: 8, marginBottom: 10, padding: '8px 12px', background: '#f8f9ff', borderRadius: 10, border: '1px solid #e8e8ff', alignItems: 'center', flexWrap: 'wrap' }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 11, color: '#888' }}>{t.koFilled}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a2e' }}>{totalFilled} / {KNOCKOUT_MATCHES.length}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a2e' }}>{filledMatches} / {KNOCKOUT_MATCHES.length}</div>
                         </div>
                         <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 11, color: '#888' }}>{t.koIfCorrect}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: totalAdvancePts > 0 ? '#1a7a44' : '#aaa' }}>
-                            {totalAdvancePts > 0 ? `≈${totalAdvancePts}` : '—'} נק'
+                          <div style={{ fontSize: 16, fontWeight: 700, color: totalPts > 0 ? '#1a7a44' : '#aaa' }}>
+                            {totalPts > 0 ? `≈${totalPts}` : '—'} נק'
                           </div>
                         </div>
                         <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 11, color: '#888' }}>{t.koAdvancePicked}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: '#555' }}>{filledMatches}</div>
+                          <div style={{ fontSize: 16, fontWeight: 700, color: '#555' }}>{advancePicked}</div>
                         </div>
                       </div>
                     )

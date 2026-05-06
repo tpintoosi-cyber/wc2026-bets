@@ -288,6 +288,7 @@ export default function AllPredictions() {
   const [scores, setScores] = useState<Record<string, number>>({})
   const [knockoutAdminMatches, setKnockoutAdminMatches] = useState<Record<number, any>>({})
   const [koSubTab, setKoSubTab] = useState<'byUser' | 'byMatch'>('byUser')
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     if (authLoading) return
@@ -333,7 +334,7 @@ export default function AllPredictions() {
       }
       setLoading(false)
     })()
-  }, [isAdmin, authLoading])
+  }, [isAdmin, authLoading, refreshKey])
 
   // ── Scoring helpers ──────────────────────────────────────────────
   function getMatchPts(matchId: number, pred: MatchPrediction | undefined) {
@@ -421,7 +422,14 @@ export default function AllPredictions() {
 
   return (
     <div className="page">
-      <h1>הימורי כולם {isAdmin && isOpen && <span className="badge badge-red">מצב אדמין</span>}</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <h1 style={{ margin: 0 }}>הימורי כולם {isAdmin && isOpen && <span className="badge badge-red">מצב אדמין</span>}</h1>
+        <button onClick={() => { setLoading(true); setRefreshKey(k => k + 1) }} style={{
+          padding: '6px 12px', borderRadius: 8, border: '1px solid #ddd',
+          background: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+          color: '#555',
+        }}>🔄 רענן</button>
+      </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--bg-card,#fff)', borderRadius: 12, padding: 4, border: '1px solid var(--border,#e5e5e5)' }}>
         {TAB_LABELS.map(t => (
