@@ -751,12 +751,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                       const pred = knockoutPreds[km.id]
                       if (!pred?.prediction1X2) continue
 
-                      // Only count matches where both teams are actually known (from admin)
-                      // Use admin data directly to avoid cascade confusion
-                      const adminKm = knockoutMatches[km.id]
-                      const tA = adminKm?.teamA as string | undefined
-                      const tB = adminKm?.teamB as string | undefined
-                      if (!tA || !tB) continue  // skip matches without known teams
+                      // Resolve teams via cascade (user picks) — same logic as bracket view
+                      const tA = getTeamSafe(km.id, 'A')
+                      const tB = getTeamSafe(km.id, 'B')
+                      if (!tA || !tB) continue  // skip matches where teams aren't yet determined
 
                       filledMatches++
 
