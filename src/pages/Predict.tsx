@@ -600,14 +600,24 @@ export default function Predict({ lang }: { lang: Lang }) {
                           fontSize: compact ? 12 : 13,
                           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         }}>{team ?? '...'}</span>
-                        {isWinner && <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>✓</span>}
+                        {hasScore && (
+                          <span style={{ fontSize: 13, fontWeight: 700, color: isWinner ? '#1a7a44' : '#555', minWidth: 14, textAlign: 'right' }}>
+                            {side === 'A' ? pred!.scoreA : pred!.scoreB}
+                          </span>
+                        )}
+                        {isWinner && (() => {
+                          const km = KNOCKOUT_MATCHES.find(m => m.id === id)
+                          if (!km) return null
+                          const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round] ?? 2
+                          const catBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
+                          return (
+                            <span style={{ fontSize: 10, fontWeight: 700, color: '#1a7a44', background: '#d4edcc', borderRadius: 4, padding: '1px 4px', whiteSpace: 'nowrap' }}>
+                              +{base + catBonus}
+                            </span>
+                          )
+                        })()}
                       </div>
                     ))}
-                    {hasScore && (
-                      <div style={{ textAlign: 'center', fontSize: 10, color: '#888', padding: '2px 0', background: '#fafafa', borderTop: '1px solid #f0f0f0', fontWeight: 600 }}>
-                        {pred!.scoreA}–{pred!.scoreB}
-                      </div>
-                    )}
                     {!isLocked && tA && tB && !pred?.advance && (
                       <div style={{ textAlign: 'center', fontSize: 9, color: '#bbb', padding: '2px 0', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
                         בחר ↑
@@ -830,9 +840,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                     const teamB = getTeamSafe(km.id, 'B')
                     const pred = knockoutPreds[km.id]
                     const teamsReady = !!(teamA && teamB)
-                    const base = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[round]
-                    const catBonus = { A: 0, B: 1, C: 2, D: 2 }[km.category]
-                    const advPts = base + catBonus
                     const isFocused = focusMatchId === km.id
 
                     return (
@@ -889,31 +896,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                             </div>
 
                             <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: '#555', marginBottom: 6 }}>
-                                {round === 'F' ? t.koChampion : round === '3P' ? t.koThirdPlace : t.koWhoAdvances}
-                                <span style={{ fontSize: 11, color: '#888', fontWeight: 400, marginRight: 6 }}>
-                                  (+{advPts} נק׳ לכל שלב)
-                                </span>
-                              </div>
-                              <div style={{ display: 'flex', gap: 8 }}>
-                                {[teamA!, teamB!].map(team => (
-                                  <button key={team}
-                                    onClick={() => updateKnockout(km.id, 'advance', team)}
-                                    disabled={isLocked}
-                                    style={{
-                                      flex: 1, padding: '9px 8px', border: '2px solid',
-                                      borderColor: pred?.advance === team ? '#1a7a44' : '#e0e0e0',
-                                      borderRadius: 10,
-                                      background: pred?.advance === team ? '#EAF3DE' : '#fff',
-                                      color: pred?.advance === team ? '#1a7a44' : '#555',
-                                      cursor: isLocked ? 'not-allowed' : 'pointer',
-                                      fontWeight: 700, fontSize: 13, fontFamily: 'inherit',
-                                    }}>
-                                    {FLAGS[team] ?? ''} {team}
-                                  </button>
-                                ))}
-                              </div>
-
                               {/* Points preview — same style as group stage */}
                               {pred?.prediction1X2 && (() => {
                                 const catIdx = { A: 0, B: 1, C: 2, D: 3 }[km.category]
@@ -928,7 +910,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   items.push(isOU ? 'מדויק: 2 (הפרש: 1) | O/U: 1' : 'מדויק: 2 (הפרש: 1)')
                                   total += isOU ? 3 : 2
                                 }
-                                if (pred.advance) { items.push(`מעלה: +${advPts}`); total += advPts }
                                 return (
                                   <div className="max-pts-bar">
                                     <span className="max-pts-label">מקסימום:</span>
