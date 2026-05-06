@@ -79,7 +79,7 @@ describe('Full sync flow — group stage to final', () => {
     expect(pScore).toBe(2)  // exact (1+0=1 goals each — no, 2+1=3 goals Cat A ≠ OU)
     // Actually 3 total goals, Cat A neither ≤1 nor ≥4 → 2pt exact only
 
-    const pAdvance = calcAdvancePoints('France', 'France', 'R32', 'A')
+    const pAdvance = calcAdvancePoints('France', 'France', 'R32', 'A', 1877, 1877, 'France', 'England')
     expect(pAdvance).toBe(2)  // R32 Cat A = 2pt
 
     expect(p1x2 + pScore + pAdvance).toBe(5)
@@ -99,7 +99,7 @@ describe('Full sync flow — group stage to final', () => {
     const p1x2 = calc1X2Points('X', 2, 2, 1877, 1874, 'A')
     expect(p1x2).toBe(1)  // draw Cat A = 1pt
 
-    const pAdvance = calcAdvancePoints('Argentina', 'Argentina', 'QF', 'A')
+    const pAdvance = calcAdvancePoints('Argentina', 'Argentina', 'QF', 'A', 1877, 1877, 'France', 'Argentina')
     expect(pAdvance).toBe(4)  // QF Cat A = 4pt
   })
 
@@ -127,7 +127,7 @@ describe('Full sync flow — group stage to final', () => {
     const p1x2 = calc1X2Points('2', 0, 1, 1800, 1300, 'D')  // underdog wins
     const pScore = calcScorePoints(0, 1, 0, 1, 'D')  // exact, 1 goal total ≤2 = under
     const pRed = calcRedCardPoints(true, true)
-    const pAdv = calcAdvancePoints('TeamB', 'TeamB', 'R32', 'D')
+    const pAdv = calcAdvancePoints('TeamB', 'TeamB', 'R32', 'D', 1800, 1300, 'TeamA', 'TeamB')
     expect(p1x2).toBe(4)
     expect(pScore).toBe(3)  // 2 + 1 under
     expect(pRed).toBe(2)
@@ -214,7 +214,7 @@ describe('Edge cases', () => {
     const rounds = ['R32', 'R16', 'QF', 'SF', 'F'] as const
     const expected = [2, 3, 4, 5, 5] // Cat A points
     rounds.forEach((round, i) => {
-      expect(calcAdvancePoints('France', 'France', round, 'A')).toBe(expected[i])
+      expect(calcAdvancePoints('France', 'France', round, 'A', 1877, 1877, 'France', 'England')).toBe(expected[i])
     })
   })
 

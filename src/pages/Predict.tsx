@@ -627,9 +627,13 @@ export default function Predict({ lang }: { lang: Lang }) {
                           const teamBpts = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
                           const dynamicCat = calcCategory(teamApts, teamBpts)
                           const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynamicCat]
+                          // Bonus only if picked the underdog
+                          const aIsFav = teamApts >= teamBpts
+                          const pickedUnderdog = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
+                          const advPts = base + (pickedUnderdog ? catBonus : 0)
                           return (
                             <div style={{ textAlign: 'center', fontSize: 10, color: '#555', padding: '2px 0', background: '#f5f5f5', borderTop: '1px solid #e8e8e8' }}>
-                              {pred.advance} → <strong>+{base + catBonus} נק׳</strong> אם תעלה
+                              {pred.advance} → <strong>+{advPts} נק׳</strong> אם תעלה
                             </div>
                           )
                         })()}
@@ -766,7 +770,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         totalPts += 2 + (isOU ? ouPts : 0)
                       }
 
-                      // Advance points — use actual teams for dynamic category
+                      // Advance points — bonus only if picked underdog
                       if (pred.advance) {
                         const advBase = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
                         const tA = getTeamSafe(km.id, 'A')
@@ -774,8 +778,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                         const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
                         const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
                         const dynCat = calcCategory(ptA, ptB)
-                        const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
-                        totalPts += advBase + advCatBonus
+                        const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
+                        const aIsFav = ptA >= ptB
+                        const pickedUnderdog = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
+                        totalPts += advBase + (pickedUnderdog ? catBonus : 0)
                         advancePicked++
                       }
                     }

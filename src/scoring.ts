@@ -197,18 +197,29 @@ export function calcBonusPoints(
 }
 
 // ── KNOCKOUT ADVANCE ─────────────────────────────────────────────────────────
-// R32: base=2, R16: base=3, QF/3P: base=4, SF/F: base=5
-// Cat A: +0, B: +1, C: +2, D: +2
+// Points for correctly predicting which team advances
+// Base points scale by round. Bonus ONLY if you picked the underdog.
+// Picking the favorite → always base points (Cat A = no bonus)
+// Picking the underdog → base + catBonus
 export function calcAdvancePoints(
   predicted: string,
   actual: string,
   round: KnockoutRound,
-  category: Category
+  category: Category,
+  fifaPointsA: number,
+  fifaPointsB: number,
+  teamA: string,
+  teamB: string
 ): number {
   if (!predicted || !actual || predicted !== actual) return 0
   const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<KnockoutRound, number>)[round]
   const catBonus = { A: 0, B: 1, C: 2, D: 2 }[category]
-  return base + catBonus
+  // Was the predicted team the underdog?
+  const aIsFavorite = fifaPointsA >= fifaPointsB
+  const pickedUnderdog =
+    (predicted === teamA && !aIsFavorite) ||
+    (predicted === teamB && aIsFavorite)
+  return base + (pickedUnderdog ? catBonus : 0)
 }
 
 // ── FULL USER SCORE ───────────────────────────────────────────────────────────
@@ -285,12 +296,12 @@ export function computeUserScore(
       // Advance
       if (km.advanceTeam) {
         if (km.round === 'R32' && pred.advance) {
-          knockoutPoints += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category)
+          knockoutPoints += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
         }
         if (km.round !== 'R32' && km.teamA && km.teamB) {
           const advancePred = findAdvancePrediction(km.teamA, km.teamB, knockoutPredictions)
           if (advancePred) {
-            knockoutPoints += calcAdvancePoints(advancePred, km.advanceTeam, km.round, km.category)
+            knockoutPoints += calcAdvancePoints(advancePred, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
           }
         }
       }

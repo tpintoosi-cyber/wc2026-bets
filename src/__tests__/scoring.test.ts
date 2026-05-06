@@ -212,15 +212,15 @@ describe('calcAdvancePoints', () => {
   ]
   cases.forEach(([round, cat, expected]) => {
     it(`${round} Cat ${cat} → ${expected}pt`, () => {
-      expect(calcAdvancePoints('France', 'France', round, cat)).toBe(expected)
+      expect(calcAdvancePoints('France', 'France', round, cat, 1200, 1500, 'France', 'Brazil')).toBe(expected)
     })
   })
 
   it('wrong prediction → 0pt', () => {
-    expect(calcAdvancePoints('France', 'Brazil', 'QF', 'A')).toBe(0)
+    expect(calcAdvancePoints('France', 'Brazil', 'QF', 'A', 1877, 1877, 'France', 'Brazil')).toBe(0)
   })
   it('empty prediction → 0pt', () => {
-    expect(calcAdvancePoints('', 'Brazil', 'R32', 'B')).toBe(0)
+    expect(calcAdvancePoints('', 'Brazil', 'R32', 'B', 1877, 1700, 'France', 'Brazil')).toBe(0)
   })
 })
 
