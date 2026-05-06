@@ -179,7 +179,12 @@ export default function Predict({ lang }: { lang: Lang }) {
           getDoc(doc(db, 'admin', 'knockout')),
           getDoc(doc(db, 'settings', 'app')),
         ])
-        if (koSnap.exists()) setKnockoutMatches(koSnap.data().matches ?? {})
+        if (koSnap.exists()) {
+          const raw = koSnap.data().matches ?? {}
+          const normalized: Record<number, any> = {}
+          for (const [k, v] of Object.entries(raw)) normalized[Number(k)] = v
+          setKnockoutMatches(normalized)
+        }
         if (settingsSnap.exists()) {
           const d = settingsSnap.data()
           setKnockoutOpen(d.knockoutOpen ?? false)
