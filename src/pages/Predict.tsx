@@ -615,8 +615,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                       borderRadius: 8, overflow: 'hidden',
                       background: advA || advB ? '#f2faf5' : '#fff',
                       margin: '2px 3px', flex: 1,
-                      minWidth: compact ? 60 : 90,
-                      maxWidth: compact ? 80 : 130,
+                      minWidth: compact ? 70 : 110,
+                      maxWidth: compact ? 90 : 150,
                     }}
                   >
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string | undefined, string | false | undefined][]).map(([side, team, isWinner]) => (
@@ -677,14 +677,19 @@ export default function Predict({ lang }: { lang: Lang }) {
                           const pickedUnderdog = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
                           const advPts = base + (pickedUnderdog ? catBonus : 0)
                           return (
-                            <div style={{ textAlign: 'center', fontSize: 10, color: '#555', padding: '2px 0', background: '#f5f5f5', borderTop: '1px solid #e8e8e8' }}>
-                              {pred.advance} → <strong>+{advPts} נק׳</strong> אם תעלה
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 6px', background: '#f5f5f5', borderTop: '1px solid #e8e8e8', gap: 4 }}>
+                              <span style={{ fontSize: 10, color: '#555', fontWeight: 600 }}>{pred.advance}</span>
+                              <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                                <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: '#EAF3DE', color: '#27500A', fontWeight: 700 }}>+{advPts} נק׳</span>
+                                <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 700 }}>{dynCat}</span>
+                              </div>
                             </div>
                           )
                         })()}
                     {tA && tB && !pred?.advance && (
-                      <div style={{ textAlign: 'center', fontSize: 9, color: '#bbb', padding: '2px 0', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
-                        לחץ לבחירת עולה
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '3px 6px', background: '#fafafa', borderTop: '1px solid #f0f0f0' }}>
+                        <span style={{ fontSize: 9, color: '#bbb' }}>לחץ לבחירת עולה</span>
+                        <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 700 }}>{dynCat}</span>
                       </div>
                     )}
                   </div>
@@ -1010,7 +1015,32 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   </button>
                                 ))}
                               </div>
+                            </div>
 
+                            {/* Advance picker */}
+                            <div style={{ padding: '8px 14px', borderTop: '1px solid #f0f0f0' }}>
+                              <div style={{ fontSize: 11, color: '#888', marginBottom: 5 }}>מי עולה?</div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                {([teamA!, teamB!] as string[]).map(team => {
+                                  const isSelected = pred?.advance === team
+                                  return (
+                                    <button key={team}
+                                      disabled={isLocked}
+                                      onClick={() => updateKnockout(km.id, 'advance', team)}
+                                      style={{
+                                        flex: 1, padding: '7px 6px',
+                                        border: isSelected ? '2px solid #1a7a44' : '1px solid #ddd',
+                                        borderRadius: 8, background: isSelected ? '#EAF3DE' : '#fff',
+                                        color: isSelected ? '#1a7a44' : '#555',
+                                        fontWeight: isSelected ? 700 : 400,
+                                        fontSize: 12, cursor: isLocked ? 'not-allowed' : 'pointer',
+                                        fontFamily: 'inherit', opacity: isLocked ? 0.5 : 1,
+                                      }}>
+                                      {FLAGS[team] ?? ''} {team}
+                                    </button>
+                                  )
+                                })}
+                              </div>
                             </div>
 
                             <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>

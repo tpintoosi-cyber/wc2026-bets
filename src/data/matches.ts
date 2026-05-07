@@ -222,20 +222,17 @@ export const TEAM_FIFA_POINTS: Record<string, number> = {
 import type { Category } from '../types'
 
 // ── CATEGORY CALCULATION ──────────────────────────────────────────────────────
-// 48 WC2026 teams divided into 4 tiers of 12 by FIFA points.
-// Category = absolute tier gap between the two teams.
-// Change TIER_SIZE to adjust sensitivity.
-export const TIER_SIZE = 12
-
+// Based on the natural-log ratio of FIFA points between the two teams:
+//   |ln(A) - ln(B)| ≤ 0.06  → Category A
+//   |ln(A) - ln(B)| ≤ 0.12  → Category B
+//   |ln(A) - ln(B)| ≤ 0.195 → Category C
+//   otherwise               → Category D
 export function calcCategory(fifaA: number, fifaB: number): Category {
-  const allPts = Object.values(TEAM_FIFA_POINTS).sort((a, b) => b - a)
-  const getTier = (pts: number): number => {
-    const rank = allPts.findIndex(p => p <= pts)
-    const idx = rank === -1 ? allPts.length - 1 : rank
-    return Math.floor(idx / TIER_SIZE) + 1
-  }
-  const diff = Math.abs(getTier(fifaA) - getTier(fifaB))
-  return (['A', 'B', 'C', 'D'][Math.min(diff, 3)]) as Category
+  const diff = Math.abs(Math.log(fifaA) - Math.log(fifaB))
+  if (diff <= 0.06)  return 'A'
+  if (diff <= 0.12)  return 'B'
+  if (diff <= 0.195) return 'C'
+  return 'D'
 }
 // ── KNOCKOUT MATCHES ─────────────────────────────────────────────────────────
 // Teams are TBD — filled by admin after group stage
