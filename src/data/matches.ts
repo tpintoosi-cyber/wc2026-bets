@@ -110,7 +110,7 @@ export const MATCHES: Match[] = [
   { id: 49, group:'B', round:3, teamA:'שווייץ',          teamB:'קנדה',           category:'A', fifaPointsA:1649.40, fifaPointsB:1556.48 },
   { id: 50, group:'B', round:3, teamA:'בוסניה',          teamB:'קטר',            category:'A', fifaPointsA:1385.84, fifaPointsB:1454.96 },
   { id: 51, group:'C', round:3, teamA:'סקוטלנד',         teamB:'ברזיל',           category:'C', fifaPointsA:1498.35, fifaPointsB:1761.16 },
-  { id: 52, group:'C', round:3, teamA:'מרוקו',           teamB:'האיטי',           category:'D', fifaPointsA:1755.87, fifaPointsB:1291.71 },
+  { id: 52, group:'C', round:3, teamA:'מרוקו',           teamB:'האיטי',           category:'C', fifaPointsA:1755.87, fifaPointsB:1291.71 },
   { id: 53, group:'A', round:3, teamA:'צ׳כיה',           teamB:'מקסיקו',          category:'B', fifaPointsA:1501.38, fifaPointsB:1681.03 },
   { id: 54, group:'A', round:3, teamA:'דרום אפריקה',    teamB:'קוריאה הדרומית',  category:'B', fifaPointsA:1429.73, fifaPointsB:1588.66 },
   { id: 55, group:'E', round:3, teamA:'אקוודור',          teamB:'גרמניה',          category:'B', fifaPointsA:1594.78, fifaPointsB:1730.37 },
@@ -124,13 +124,13 @@ export const MATCHES: Match[] = [
   { id: 63, group:'H', round:3, teamA:'כף ורדה',          teamB:'סעודיה',          category:'A', fifaPointsA:1366.13, fifaPointsB:1421.43 },
   { id: 64, group:'H', round:3, teamA:'אורוגוואי',        teamB:'ספרד',            category:'B', fifaPointsA:1673.07, fifaPointsB:1876.40 },
   { id: 65, group:'G', round:3, teamA:'מצרים',            teamB:'איראן',           category:'A', fifaPointsA:1563.24, fifaPointsB:1615.30 },
-  { id: 66, group:'G', round:3, teamA:'ניו זילנד',        teamB:'בלגיה',           category:'D', fifaPointsA:1281.57, fifaPointsB:1734.71 },
+  { id: 66, group:'G', round:3, teamA:'ניו זילנד',        teamB:'בלגיה',           category:'C', fifaPointsA:1281.57, fifaPointsB:1734.71 },
   { id: 67, group:'L', round:3, teamA:'פנמה',             teamB:'אנגליה',          category:'C', fifaPointsA:1540.64, fifaPointsB:1825.97 },
-  { id: 68, group:'L', round:3, teamA:'קרואטיה',          teamB:'גאנה',            category:'D', fifaPointsA:1717.07, fifaPointsB:1346.31 },
+  { id: 68, group:'L', round:3, teamA:'קרואטיה',          teamB:'גאנה',            category:'C', fifaPointsA:1717.07, fifaPointsB:1346.31 },
   { id: 69, group:'K', round:3, teamA:'קולומביה',         teamB:'פורטוגל',         category:'A', fifaPointsA:1693.09, fifaPointsB:1763.83 },
   { id: 70, group:'K', round:3, teamA:'קונגו',            teamB:'אוזבקיסטן',       category:'A', fifaPointsA:1478.35, fifaPointsB:1465.34 },
   { id: 71, group:'J', round:3, teamA:'אלג׳יריה',         teamB:'אוסטריה',         category:'A', fifaPointsA:1564.26, fifaPointsB:1593.45 },
-  { id: 72, group:'J', round:3, teamA:'ירדן',             teamB:'ארגנטינה',         category:'D', fifaPointsA:1391.45, fifaPointsB:1874.81 },
+  { id: 72, group:'J', round:3, teamA:'ירדן',             teamB:'ארגנטינה',         category:'C', fifaPointsA:1391.45, fifaPointsB:1874.81 },
 ]
 
 export const GROUPS_TEAMS: Record<string, string[]> = {
@@ -233,6 +233,14 @@ export function calcCategory(fifaA: number, fifaB: number): Category {
   if (diff <= 0.12)  return 'B'
   if (diff <= 0.195) return 'C'
   return 'D'
+}
+
+// Round 3 uses tighter thresholds and has no Category D
+export function calcCategoryR3(fifaA: number, fifaB: number): Category {
+  const diff = Math.abs(Math.log(fifaA) - Math.log(fifaB))
+  if (diff <= 0.07) return 'A'
+  if (diff <= 0.14) return 'B'
+  return 'C'
 }
 // ── KNOCKOUT MATCHES ─────────────────────────────────────────────────────────
 // Teams are TBD — filled by admin after group stage
