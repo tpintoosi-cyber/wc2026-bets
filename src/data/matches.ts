@@ -235,12 +235,35 @@ export function calcCategory(fifaA: number, fifaB: number): Category {
   return 'D'
 }
 
-// Round 3 uses tighter thresholds and has no Category D
+// Round 3 (group stage): tighter thresholds, no D
 export function calcCategoryR3(fifaA: number, fifaB: number): Category {
   const diff = Math.abs(Math.log(fifaA) - Math.log(fifaB))
   if (diff <= 0.07) return 'A'
   if (diff <= 0.14) return 'B'
   return 'C'
+}
+
+// R16: slightly wider thresholds, still has D
+export function calcCategoryR16(fifaA: number, fifaB: number): Category {
+  const diff = Math.abs(Math.log(fifaA) - Math.log(fifaB))
+  if (diff <= 0.07)  return 'A'
+  if (diff <= 0.13)  return 'B'
+  if (diff <= 0.21)  return 'C'
+  return 'D'
+}
+
+// QF / SF / 3P / F: no D
+export function calcCategoryLate(fifaA: number, fifaB: number): Category {
+  const diff = Math.abs(Math.log(fifaA) - Math.log(fifaB))
+  if (diff <= 0.075) return 'A'
+  if (diff <= 0.15)  return 'B'
+  return 'C'
+}
+
+export function calcCategoryByRound(fifaA: number, fifaB: number, round: string): Category {
+  if (round === 'R16') return calcCategoryR16(fifaA, fifaB)
+  if (round === 'QF' || round === 'SF' || round === '3P' || round === 'F') return calcCategoryLate(fifaA, fifaB)
+  return calcCategory(fifaA, fifaB)  // R32 = same as group R1/R2
 }
 // ── KNOCKOUT MATCHES ─────────────────────────────────────────────────────────
 // Teams are TBD — filled by admin after group stage

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
-import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
@@ -130,7 +130,7 @@ export default function Admin() {
           const ptB = TEAM_FIFA_POINTS[km.teamB] ?? 1500
           km.fifaPointsA = ptA
           km.fifaPointsB = ptB
-          km.category = calcCategory(ptA, ptB)
+          km.category = calcCategoryByRound(ptA, ptB, km.round)
         }
         // Auto-set advanceTeam only when result is not a draw (no penalties needed)
         if (km.resultA !== km.resultB && !km.advanceTeam) {
@@ -232,7 +232,7 @@ export default function Admin() {
               const ptB = TEAM_FIFA_POINTS[kd.teamB] ?? 1500
               kd.fifaPointsA = ptA
               kd.fifaPointsB = ptB
-              kd.category = calcCategory(ptA, ptB)
+              kd.category = calcCategoryByRound(ptA, ptB, kd.round)
               advanceFix++
             }
 
@@ -367,7 +367,7 @@ export default function Admin() {
         const ptB = TEAM_FIFA_POINTS[updated.teamB] ?? 1500
         updated.fifaPointsA = ptA
         updated.fifaPointsB = ptB
-        updated.category = calcCategory(ptA, ptB)
+        updated.category = calcCategoryByRound(ptA, ptB, updated.round)
       }
       return { ...prev, [id]: updated }
     })

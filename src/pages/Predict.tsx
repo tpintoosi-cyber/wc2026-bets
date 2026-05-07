@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
-import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, KNOCKOUT_BRACKET, TEAM_FIFA_POINTS, calcCategory } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, KNOCKOUT_BRACKET, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category, KnockoutMatchPrediction, Result1X2 } from '../types'
 import { calc1X2Points, calcOverUnder, calcAdvancePoints } from '../scoring'
 import { T, Lang, Translations, BONUS_QUESTIONS_EN } from '../i18n'
@@ -580,7 +580,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const km = KNOCKOUT_MATCHES.find(m => m.id === id)
                 const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
                 const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
-                const dynCat = km ? calcCategory(ptA, ptB) : 'A'
+                const dynCat = km ? calcCategoryByRound(ptA, ptB, km.round) : 'A'
                 const catIdx = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
                 const aIsFav = ptA >= ptB
 
@@ -812,7 +812,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                       const ptA = TEAM_FIFA_POINTS[tA] ?? 1500
                       const ptB = TEAM_FIFA_POINTS[tB] ?? 1500
-                      const dynCat = calcCategory(ptA, ptB)
+                      const dynCat = calcCategoryByRound(ptA, ptB, km.round)
                       const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
                       const roundBase = { R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 }[km.round]
                       const aIsFav = ptA >= ptB
