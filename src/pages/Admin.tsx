@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, query, where, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { computeUserScore } from '../scoring'
@@ -34,7 +34,9 @@ export default function Admin() {
   const [msg, setMsg] = useState('')
   const [syncLog, setSyncLog] = useState<string[]>([])
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, KnockoutMatch>>({})
-  const [adminTab, setAdminTab] = useState<'group' | 'knockout'>('group')
+  const [adminTab, setAdminTab] = useState<'group' | 'knockout' | 'users'>('group')
+  const [pendingUsers, setPendingUsers] = useState<{ uid: string; displayName: string; email: string; requestedAt: number; status: string }[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
 
   useEffect(() => {
     ;(async () => {
@@ -306,6 +308,26 @@ export default function Admin() {
     setTimeout(() => setMsg(''), 5000)
   }
 
+  const loadPendingUsers = async () => {
+    setUsersLoading(true)
+    const snap = await getDocs(collection(db, 'pendingUsers'))
+    const users = snap.docs.map(d => d.data() as { uid: string; displayName: string; email: string; requestedAt: number; status: string })
+    users.sort((a, b) => a.requestedAt - b.requestedAt)
+    setPendingUsers(users)
+    setUsersLoading(false)
+  }
+
+  const approveUser = async (uid: string, displayName: string, email: string) => {
+    await updateDoc(doc(db, 'pendingUsers', uid), { status: 'approved' })
+    await setDoc(doc(db, 'users', uid), { name: displayName, email, joinedAt: Date.now() })
+    setPendingUsers(prev => prev.map(u => u.uid === uid ? { ...u, status: 'approved' } : u))
+  }
+
+  const rejectUser = async (uid: string) => {
+    await updateDoc(doc(db, 'pendingUsers', uid), { status: 'rejected' })
+    setPendingUsers(prev => prev.map(u => u.uid === uid ? { ...u, status: 'rejected' } : u))
+  }
+
   const recalcAllScores = async (matchData?: Record<number, Match>) => {
     const data = matchData ?? matches
     const usersSnap = await getDocs(collection(db, 'predictions'))
@@ -401,6 +423,12 @@ export default function Admin() {
           background: adminTab === 'knockout' ? '#1a1a2e' : 'transparent',
           color: adminTab === 'knockout' ? '#fff' : '#666',
         }}>🏆 נוקאאוט</button>
+        <button onClick={() => { setAdminTab('users'); loadPendingUsers() }} style={{
+          flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
+          background: adminTab === 'users' ? '#1a1a2e' : 'transparent',
+          color: adminTab === 'users' ? '#fff' : '#666',
+        }}>👥 משתמשים</button>
       </div>
 
       {/* API Sync */}
@@ -639,6 +667,70 @@ export default function Admin() {
           </button>
         </section>
       </>}
+
+      {adminTab === 'users' && (
+        <section className="admin-section">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0 }}>👥 ניהול משתמשים</h3>
+            <button className="btn-secondary" onClick={loadPendingUsers} disabled={usersLoading}>
+              {usersLoading ? 'טוען...' : '🔄 רענן'}
+            </button>
+          </div>
+
+          {pendingUsers.length === 0 && !usersLoading && (
+            <p style={{ color: '#888', textAlign: 'center', padding: 24 }}>אין בקשות כרגע</p>
+          )}
+
+          {['pending', 'approved', 'rejected'].map(status => {
+            const group = pendingUsers.filter(u => u.status === status)
+            if (group.length === 0) return null
+            const label = status === 'pending' ? '⏳ ממתינים לאישור' : status === 'approved' ? '✅ מאושרים' : '❌ נדחו'
+            return (
+              <div key={status} style={{ marginBottom: 24 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#888', marginBottom: 8 }}>{label}</div>
+                {group.map(u => (
+                  <div key={u.uid} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 14px', borderRadius: 10,
+                    background: status === 'pending' ? '#fffdf0' : status === 'approved' ? '#f0faf4' : '#fff5f5',
+                    border: `1px solid ${status === 'pending' ? '#f0e68c' : status === 'approved' ? '#b7e4c7' : '#ffc0b5'}`,
+                    marginBottom: 8,
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{u.displayName || 'ללא שם'}</div>
+                      <div style={{ fontSize: 12, color: '#888' }}>{u.email}</div>
+                      <div style={{ fontSize: 11, color: '#aaa' }}>
+                        {new Date(u.requestedAt).toLocaleString('he-IL')}
+                      </div>
+                    </div>
+                    {status === 'pending' && (
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => approveUser(u.uid, u.displayName, u.email)}
+                          style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#1a7a44', color: '#fff', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          אשר
+                        </button>
+                        <button
+                          onClick={() => rejectUser(u.uid)}
+                          style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          דחה
+                        </button>
+                      </div>
+                    )}
+                    {status === 'approved' && (
+                      <button
+                        onClick={() => rejectUser(u.uid)}
+                        style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#888', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                        בטל אישור
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          })}
+        </section>
+      )}
     </div>
   )
 }

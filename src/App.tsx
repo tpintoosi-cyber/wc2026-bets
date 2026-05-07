@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
@@ -46,10 +46,27 @@ function Nav({ dark, toggleDark, lang, toggleLang }: {
   )
 }
 
+function PendingApproval({ logout }: { logout: () => void }) {
+  return (
+    <div className="center-screen" style={{ flexDirection: 'column', gap: 16, textAlign: 'center', padding: 32 }}>
+      <div style={{ fontSize: 48 }}>⏳</div>
+      <h2 style={{ margin: 0 }}>הבקשה שלך בטיפול</h2>
+      <p style={{ color: 'var(--text-secondary)', maxWidth: 320, margin: 0 }}>
+        ברגע שמנהל יאשר את בקשתך תוכל להיכנס לאפליקציה.
+        <br />ניתן לרענן את הדף לאחר קבלת אישור.
+      </p>
+      <button className="btn-secondary" onClick={logout} style={{ marginTop: 8 }}>
+        התנתק
+      </button>
+    </div>
+  )
+}
+
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, isApproved, loading, logout } = useAuth()
   if (loading) return <div className="center-screen">טוען...</div>
   if (!user) return <Navigate to="/login" replace />
+  if (!isApproved) return <PendingApproval logout={logout} />
   return <>{children}</>
 }
 
