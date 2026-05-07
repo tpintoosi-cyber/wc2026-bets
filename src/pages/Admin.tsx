@@ -6,6 +6,7 @@ import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
 import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
+import { populateR32Teams } from '../utils/syncLogic'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
 
@@ -103,7 +104,7 @@ export default function Admin() {
       }
 
       // ── Knockout stage ───────────────────────────────────────────────
-      const updatedKnockout = { ...knockoutMatches }
+      let updatedKnockout = { ...knockoutMatches }
       let koUpdated = 0
       let koPenalties = 0
       for (const apiMatch of apiKnockoutMatches) {
@@ -248,7 +249,7 @@ export default function Admin() {
 
           // ── Group qualifiers from standings ─────────────────────────
           if (standings.length > 0) {
-            const { groupQualifiers } = parseStandings(standings, enToHe)
+            const { groupQualifiers, best8Thirds } = parseStandings(standings, enToHe)
             const hasData = Object.keys(groupQualifiers).length > 0
             if (hasData) {
               // Merge with existing — don't overwrite if already set
@@ -261,6 +262,14 @@ export default function Admin() {
                 bonus: actualBonus,
               }, { merge: true })
               log.push(`🏅 עודכנו עולות מהבתים (${Object.keys(groupQualifiers).length} בתים)`)
+
+              // Auto-populate R32 teams from group results
+              const { updatedKnockout: koWithR32, populated, log: r32Log } =
+                populateR32Teams(groupQualifiers, best8Thirds, updatedKnockout, TEAM_FIFA_POINTS, calcCategoryByRound)
+              if (populated > 0) {
+                updatedKnockout = koWithR32
+                r32Log.forEach(l => log.push(l))
+              }
             }
           }
 
