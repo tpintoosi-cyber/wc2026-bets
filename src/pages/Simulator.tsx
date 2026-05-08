@@ -1276,6 +1276,9 @@ export default function Simulator() {
                 fontFamily: 'inherit', fontSize: 14 }}>
               {running === 'full-gs' ? '⏳ רץ...' : '▶ הרץ סימולציה מלאה — שלב בתים'}
             </button>
+            <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center', marginTop: 5 }}>
+              ⚠️ כותב על admin/results + כל 12 הבתים. מוחק נתוני סימולציה קיימים.
+            </div>
             {fullGsResults && (
               <div style={{ marginTop: 12 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -1349,6 +1352,9 @@ export default function Simulator() {
                 fontFamily: 'inherit', fontSize: 14 }}>
               {running === 'full-ko' ? '⏳ רץ...' : '▶ הרץ סימולציה מלאה — נוקאאוט'}
             </button>
+            <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center', marginTop: 5 }}>
+              ⚠️ כותב על admin/knockout + R32 population. מוחק נתוני נוקאאוט קיימים.
+            </div>
             {fullKoResults && (
               <div style={{ marginTop: 12 }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -1431,6 +1437,9 @@ export default function Simulator() {
               }}>
               {running === s.id ? '⏳ רץ...' : 'הרץ תרחיש'}
             </button>
+            <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center', marginTop: 5 }}>
+              ⚠️ כותב על admin/results ועל sim-u1…sim-u5 — הרצה חדשה תדרוס את הקודמת
+            </div>
           </div>
         ))}
       </div>
@@ -1521,6 +1530,9 @@ export default function Simulator() {
                 fontWeight: 600, cursor: running ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
               {running === 'r32' ? '⏳ רץ...' : 'הרץ R32 Population'}
             </button>
+            <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center', marginTop: 5 }}>
+              ⚠️ כותב על admin/knockout. אפשר לשלב עם סימולציית נוקאאוט.
+            </div>
 
             {r32Result && (
               <div style={{ marginTop: 12, maxHeight: 220, overflowY: 'auto' }}>
@@ -1579,6 +1591,9 @@ export default function Simulator() {
                 fontWeight: 600, cursor: running ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
               {running === 'ko-scoring' ? '⏳ רץ...' : 'הרץ ניקוד נוקאאוט'}
             </button>
+            <div style={{ fontSize: 10, color: '#aaa', textAlign: 'center', marginTop: 5 }}>
+              ⚠️ כותב על admin/knockout ועל ko-u1…ko-u3. לא דורס נתוני שלב הבתים.
+            </div>
 
             {koResults && (
               <div style={{ marginTop: 12 }}>
