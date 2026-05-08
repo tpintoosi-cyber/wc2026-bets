@@ -4,7 +4,8 @@ import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
 import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, KNOCKOUT_BRACKET } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Match, KnockoutMatchPrediction } from '../types'
-import { calc1X2Points, calcScorePoints, calcRedCardPoints, calcGroupPoints, calcBonusPoints, calcAdvancePoints } from '../scoring'
+import { calc1X2Points, calcScorePoints, calcRedCardPoints, calcGroupPoints, calcBonusPoints, calcAdvancePoints, calc1X2KnockoutPoints, calcScoreKnockoutPoints } from '../scoring'
+import { TEAM_FIFA_POINTS, calcCategoryByRound } from '../data/matches'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
 
@@ -286,6 +287,7 @@ export default function AllPredictions() {
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
   const [scores, setScores] = useState<Record<string, number>>({})
+  const [knockoutScores, setKnockoutScores] = useState<Record<string, number>>({})
   const [knockoutAdminMatches, setKnockoutAdminMatches] = useState<Record<number, any>>({})
   const [koSubTab, setKoSubTab] = useState<'byUser' | 'byMatch'>('byUser')
   const [refreshKey, setRefreshKey] = useState(0)
@@ -337,8 +339,13 @@ export default function AllPredictions() {
 
       if (scoresSnap) {
         const sc: Record<string, number> = {}
-        scoresSnap.docs.forEach(d => { sc[d.id] = d.data().total ?? 0 })
+        const koSc: Record<string, number> = {}
+        scoresSnap.docs.forEach(d => {
+          sc[d.id] = d.data().total ?? 0
+          koSc[d.id] = d.data().knockoutPoints ?? 0
+        })
         setScores(sc)
+        setKnockoutScores(koSc)
       }
       setLoading(false)
     })()
@@ -828,6 +835,13 @@ export default function AllPredictions() {
                 ))}
               </div>
 
+              {current && knockoutScores[current.userId] > 0 && (
+                <div style={{ display: 'flex', gap: 12, padding: '8px 14px', background: '#f0faf4', borderRadius: 10, border: '1px solid #b7e4c7', marginBottom: 12, alignItems: 'center' }}>
+                  <span style={{ fontSize: 13, color: '#888' }}>ניקוד נוקאאוט:</span>
+                  <span style={{ fontSize: 18, fontWeight: 700, color: '#1a7a44' }}>{knockoutScores[current.userId]} נק׳</span>
+                </div>
+              )}
+
               {current && (() => {
                 const getTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
                   try {
@@ -880,7 +894,22 @@ export default function AllPredictions() {
                               }}>
                                 {pred.prediction1X2 === '1' ? (tA ?? '1') : pred.prediction1X2 === '2' ? (tB ?? '2') : 'תיקו'}
                               </span>
-
+                              {(() => {
+                                if (!isPlayed || adminKm?.resultA == null) return null
+                                const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
+                                const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
+                                const cat = calcCategoryByRound(ptA, ptB, km.round) as any
+                                const p1x2 = calc1X2KnockoutPoints(pred.prediction1X2, Number(adminKm.resultA), Number(adminKm.resultB), ptA, ptB, cat, km.round)
+                                const pScore = pred.scoreA != null ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), Number(adminKm.resultA), Number(adminKm.resultB), cat, km.round) : 0
+                                const pAdv = pred.advance && adminKm.advanceTeam ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, tA ?? '', tB ?? '') : 0
+                                const total = p1x2 + pScore + pAdv
+                                if (total === 0) return null
+                                return (
+                                  <span style={{ marginRight: 'auto', fontSize: 12, fontWeight: 700, color: '#1a7a44', background: '#EAF3DE', padding: '2px 8px', borderRadius: 10 }}>
+                                    +{total} נק׳
+                                  </span>
+                                )
+                              })()}
                             </div>
                             {pred.advance && (
                               <div style={{
