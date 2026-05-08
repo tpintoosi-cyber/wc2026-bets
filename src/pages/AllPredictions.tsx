@@ -436,7 +436,7 @@ export default function AllPredictions() {
           padding: '6px 12px', borderRadius: 8, border: '1px solid #ddd',
           background: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
           color: '#555',
-        }}>🔄 רענן</button>
+        }} title="טוען מחדש את כל ההימורים והתוצאות מהשרת">🔄 רענן</button>
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--bg-card,#fff)', borderRadius: 12, padding: 4, border: '1px solid var(--border,#e5e5e5)' }}>

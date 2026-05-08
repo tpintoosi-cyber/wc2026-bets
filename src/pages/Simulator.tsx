@@ -787,20 +787,35 @@ function buildUserPreds(
     const favPick = (aIsFav ? '1' : '2') as '1'|'2'
     const undPick = (aIsFav ? '2' : '1') as '1'|'2'
 
-    let x: '1'|'X'|'2', sA: number|null = null, sB: number|null = null, rc = false
+    let x: '1'|'X'|'2', sA: number, sB: number, rc = false
     switch(type) {
       case 'perfect':
         x = actual1x2
         sA = r.resultA!; sB = r.resultB!
         rc = !!r.hadRedCard
         break
-      case 'favorites':  x = favPick; break
-      case 'underdogs':  x = undPick; break
-      case 'draws':      x = 'X'; break
+      case 'favorites':
+        x = favPick
+        // Score: always predict 2:0 in favor of the favorite
+        sA = aIsFav ? 2 : 0; sB = aIsFav ? 0 : 2
+        rc = false
+        break
+      case 'underdogs':
+        x = undPick
+        // Score: always predict 1:0 in favor of the underdog
+        sA = aIsFav ? 0 : 1; sB = aIsFav ? 1 : 0
+        rc = true // always marks red card
+        break
+      case 'draws':
+        x = 'X'
+        sA = 1; sB = 1 // always predicts 1:1
+        rc = false
+        break
       case 'exact':
         x = actual1x2
-        // Pick exact score +1 goal on resultA (wrong but same margin = 1pt)
-        sA = (r.resultA! > 0 ? r.resultA! : 1); sB = r.resultB!
+        // Correct margin, different exact score (shift by 1 goal)
+        sA = r.resultA! + 1; sB = r.resultB! + 1
+        rc = !!r.hadRedCard
         break
     }
     preds[m.id] = { matchId: m.id, prediction1X2: x as any, scoreA: sA as any, scoreB: sB as any, redCard: rc }
@@ -923,16 +938,14 @@ export default function Simulator() {
     setActiveScenario(null)
     try {
       const batch = writeBatch(db)
-      // Delete all sim users predictions + scores
-      for (let i = 1; i <= 5; i++) {
-        const uid = `sim-u${i}`
-        batch.delete(doc(db, 'predictions', uid))
-        batch.delete(doc(db, 'scores', uid))
-        batch.delete(doc(db, 'users', uid))
-      }
-      // Delete knockout sim users
-      for (let i = 1; i <= 3; i++) {
-        const uid = `ko-u${i}`
+      // All possible sim user UIDs
+      const allUids = [
+        ...Array.from({length: 5}, (_, i) => `sim-u${i+1}`),   // focused scenarios
+        ...Array.from({length: 3}, (_, i) => `ko-u${i+1}`),    // focused knockout
+        ...Array.from({length: 5}, (_, i) => `full-u${i+1}`),  // full group stage
+        ...Array.from({length: 3}, (_, i) => `fko-u${i+1}`),   // full knockout
+      ]
+      for (const uid of allUids) {
         batch.delete(doc(db, 'predictions', uid))
         batch.delete(doc(db, 'scores', uid))
         batch.delete(doc(db, 'users', uid))
