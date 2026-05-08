@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { doc, setDoc, writeBatch, deleteDoc, getDocs, collection } from 'firebase/firestore'
+import { doc, setDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
 import { computeUserScore } from '../scoring'
-import { MATCHES } from '../data/matches'
-import type { Match, MatchPrediction, GroupPrediction } from '../types'
+import { MATCHES, TEAM_FIFA_POINTS, calcCategoryByRound } from '../data/matches'
+import { populateR32Teams } from '../utils/syncLogic'
+import type { Match, MatchPrediction, GroupPrediction, KnockoutMatch, KnockoutMatchPrediction, KnockoutRedCardPicks } from '../types'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface SimUser {
@@ -12,6 +13,14 @@ interface SimUser {
   description: string
   predictions: Record<number, MatchPrediction>
   groupPredictions: Record<string, GroupPrediction>
+}
+
+interface KnockoutSimUser {
+  uid: string
+  name: string
+  description: string
+  knockoutPreds: Record<number, KnockoutMatchPrediction>
+  redCards: KnockoutRedCardPicks
 }
 
 interface ScenarioResult {
@@ -312,6 +321,102 @@ const SCENARIOS: {
 
 ]
 
+// ── Knockout test data ────────────────────────────────────────────────────────
+// Realistic knockout matches with teams and results for scoring tests
+
+// Spain(1876) vs Mexico(1681) → Cat B (|ln|=0.108), Spain fav, Spain wins 1:0 FT
+const KM_73: KnockoutMatch = {
+  id: 73, round: 'R32', teamA: 'ספרד', teamB: 'מקסיקו',
+  category: 'B', fifaPointsA: 1876.40, fifaPointsB: 1681.03,
+  resultA: 1, resultB: 0, isPlayed: true, advanceTeam: 'ספרד',
+}
+
+// Germany(1730) vs Haiti(1292) → Cat D (|ln|=0.29), Germany fav, Haiti wins (big upset)
+const KM_74: KnockoutMatch = {
+  id: 74, round: 'R32', teamA: 'גרמניה', teamB: 'האיטי',
+  category: 'D', fifaPointsA: 1730.37, fifaPointsB: 1291.71,
+  resultA: 0, resultB: 1, isPlayed: true, advanceTeam: 'האיטי', hadRedCard: true,
+}
+
+// Brazil(1761) vs Australia(1581) → Cat B (|ln|=0.108), Brazil fav, draw → AET, Australia advances
+const KM_75: KnockoutMatch = {
+  id: 75, round: 'R32', teamA: 'ברזיל', teamB: 'אוסטרליה',
+  category: 'B', fifaPointsA: 1761.16, fifaPointsB: 1580.67,
+  resultA: 1, resultB: 1, isPlayed: true, advanceTeam: 'אוסטרליה', // AET: underdog advances
+}
+
+// France(1877) vs Colombia(1693) → Cat B (|ln|=0.103), France fav, France wins 2:1 FT → R16
+const KM_89: KnockoutMatch = {
+  id: 89, round: 'R16', teamA: 'צרפת', teamB: 'קולומביה',
+  category: 'B', fifaPointsA: 1877.32, fifaPointsB: 1693.09,
+  resultA: 2, resultB: 1, isPlayed: true, advanceTeam: 'צרפת',
+}
+
+// Argentina(1875) vs Belgium(1735) → Cat A (|ln|=0.077), Argentina fav, Belgium wins (Cat A upset)
+const KM_97: KnockoutMatch = {
+  id: 97, round: 'QF', teamA: 'ארגנטינה', teamB: 'בלגיה',
+  category: 'A', fifaPointsA: 1874.81, fifaPointsB: 1734.71,
+  resultA: 0, resultB: 2, isPlayed: true, advanceTeam: 'בלגיה',
+}
+
+const KNOCKOUT_PLAYED = [KM_73, KM_74, KM_75, KM_89, KM_97]
+
+// Users with knockout predictions
+const KO_USERS: KnockoutSimUser[] = [
+  {
+    uid: 'ko-u1', name: 'מועדפים נוקאאוט', description: 'בוחר מועדפים, עם advance pick נכון לכולם',
+    redCards: { R32: [], R16: [], QF: [] },
+    knockoutPreds: {
+      73: { matchId: 73, prediction1X2: '1', scoreA: 1, scoreB: 0, advance: 'ספרד' },  // 1X2✓+exact✓+OU✓+advance✓
+      74: { matchId: 74, prediction1X2: '1', scoreA: 2, scoreB: 0, advance: 'גרמניה' }, // 1X2✗+advance✗ (Haiti wins)
+      75: { matchId: 75, prediction1X2: '1', scoreA: 2, scoreB: 0, advance: 'ברזיל' },  // 1X2✗+advance✗ (draw/AET)
+      89: { matchId: 89, prediction1X2: '1', scoreA: 2, scoreB: 1, advance: 'צרפת' },   // 1X2✓+exact✓+advance✓
+      97: { matchId: 97, prediction1X2: '1', scoreA: 1, scoreB: 0, advance: 'ארגנטינה' }, // 1X2✗+advance✗
+    },
+  },
+  {
+    uid: 'ko-u2', name: 'מפתיעים נוקאאוט', description: 'בוחר אנדרדוגים וניחושים מפתיעים',
+    redCards: { R32: [74], R16: [], QF: [] }, // R32 red card pick: match 74 ✓
+    knockoutPreds: {
+      73: { matchId: 73, prediction1X2: '2', scoreA: 0, scoreB: 1, advance: 'מקסיקו' }, // 1X2✗ (Spain wins)
+      74: { matchId: 74, prediction1X2: '2', scoreA: 0, scoreB: 1, advance: 'האיטי' },   // 1X2✓ Cat D=1+exact+advance Cat D und=4
+      75: { matchId: 75, prediction1X2: 'X', scoreA: 1, scoreB: 1, advance: 'אוסטרליה' }, // 1X2✓ draw Cat B=1+exact+advance und Cat B=3
+      89: { matchId: 89, prediction1X2: '2', scoreA: 1, scoreB: 2, advance: 'קולומביה' }, // 1X2✗
+      97: { matchId: 97, prediction1X2: '2', scoreA: 0, scoreB: 2, advance: 'בלגיה' },   // 1X2✓ Cat A=1+exact+advance Cat A=2
+    },
+  },
+  {
+    uid: 'ko-u3', name: 'ניחוש X תמיד', description: 'מנחש תיקו לכל משחק + כרטיסי אדום לכולם',
+    redCards: { R32: [73, 74, 75], R16: [89, 96], QF: [97] },
+    knockoutPreds: {
+      73: { matchId: 73, prediction1X2: 'X', scoreA: null, scoreB: null, advance: 'ספרד' },
+      74: { matchId: 74, prediction1X2: 'X', scoreA: null, scoreB: null, advance: 'גרמניה' },
+      75: { matchId: 75, prediction1X2: 'X', scoreA: 1, scoreB: 1, advance: 'ברזיל' }, // X correct! Cat B draw R32 base=1
+      89: { matchId: 89, prediction1X2: 'X', scoreA: null, scoreB: null, advance: 'צרפת' },
+      97: { matchId: 97, prediction1X2: 'X', scoreA: null, scoreB: null, advance: 'ארגנטינה' },
+    },
+  },
+]
+
+// Full 12-group standings for R32 population test
+const FULL_GROUP_QUALIFIERS: Record<string, [string,string,string]> = {
+  A: ['מקסיקו',       'קוריאה הדרומית', 'דרום אפריקה'],
+  B: ['שווייץ',       'קנדה',           'בוסניה'],
+  C: ['ברזיל',        'האיטי',          'מרוקו'],
+  D: ['ארה"ב',        'פרגוואי',        'קטר'],
+  E: ['ספרד',         'בלגיה',          'מצרים'],
+  F: ['פורטוגל',      'אנגליה',         'גאנה'],
+  G: ['גרמניה',       'הולנד',          'כף ורדה'],
+  H: ['צרפת',         'איראן',          'עיראק'],
+  I: ['ארה"ב',        'אוסטרליה',       'נורווגיה'],
+  J: ['ברזיל',        'קולומביה',       'פנמה'],
+  K: ['יפן',          'קוריאה הדרומית', 'ירדן'],
+  L: ['אורוגוואי',    'שוודיה',         'בוסניה'],
+}
+// Best 8 thirds: groups C,F,G,H,I,J,K,L (Annex C row 1 → CFGHIJKL)
+const BEST_8_THIRDS = ['מרוקו','גאנה','כף ורדה','עיראק','נורווגיה','פנמה','ירדן','בוסניה']
+
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Simulator() {
   const [running, setRunning] = useState<string | null>(null)
@@ -319,6 +424,8 @@ export default function Simulator() {
   const [log, setLog] = useState<string[]>([])
   const [resetting, setResetting] = useState(false)
   const [activeScenario, setActiveScenario] = useState<string | null>(null)
+  const [r32Result, setR32Result] = useState<Record<number,any> | null>(null)
+  const [koResults, setKoResults] = useState<ScenarioResult[] | null>(null)
 
   const addLog = (msg: string) => setLog(prev => [...prev, msg])
 
@@ -336,8 +443,18 @@ export default function Simulator() {
         batch.delete(doc(db, 'scores', uid))
         batch.delete(doc(db, 'users', uid))
       }
+      // Delete knockout sim users
+      for (let i = 1; i <= 3; i++) {
+        const uid = `ko-u${i}`
+        batch.delete(doc(db, 'predictions', uid))
+        batch.delete(doc(db, 'scores', uid))
+        batch.delete(doc(db, 'users', uid))
+      }
       batch.delete(doc(db, 'admin', 'results'))
+      batch.delete(doc(db, 'admin', 'knockout'))
       await batch.commit()
+      setR32Result(null)
+      setKoResults(null)
       addLog('✅ כל הנתונים נמחקו')
     } catch (e: any) {
       addLog(`❌ שגיאה: ${e.message}`)
@@ -434,6 +551,80 @@ export default function Simulator() {
       addLog(`❌ שגיאה: ${e.message}`)
     }
 
+    setRunning(null)
+  }
+
+  const runR32Population = async () => {
+    setRunning('r32')
+    setLog([])
+    setR32Result(null)
+    try {
+      const { updatedKnockout, populated, log: r32Log } = populateR32Teams(
+        FULL_GROUP_QUALIFIERS, BEST_8_THIRDS, {}, TEAM_FIFA_POINTS, calcCategoryByRound
+      )
+      r32Log.forEach(l => addLog(l))
+      await setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout })
+      setR32Result(updatedKnockout)
+      addLog(`✅ R32 אוכלס: ${populated} משחקים נשמרו ב-Firestore`)
+    } catch (e: any) { addLog(`❌ ${e.message}`) }
+    setRunning(null)
+  }
+
+  const runKnockoutScoring = async () => {
+    setRunning('ko-scoring')
+    setLog([])
+    setKoResults(null)
+    try {
+      // Save knockout admin data
+      const knockoutMap: Record<number, KnockoutMatch> = {}
+      for (const km of KNOCKOUT_PLAYED) knockoutMap[km.id] = km
+      await setDoc(doc(db, 'admin', 'knockout'), { matches: knockoutMap })
+      addLog(`💾 תוצאות נוקאאוט נשמרו (${KNOCKOUT_PLAYED.length} משחקים)`)
+
+      const scoreResults: ScenarioResult[] = []
+      for (const user of KO_USERS) {
+        await setDoc(doc(db, 'users', user.uid), { name: user.name, email: `${user.uid}@sim.test`, joinedAt: Date.now() })
+        await setDoc(doc(db, 'predictions', user.uid), {
+          matches: {}, groups: {}, bonus: {},
+          knockout: user.knockoutPreds,
+          knockoutRedCards: user.redCards,
+          userName: user.name, lastUpdated: Date.now(),
+        })
+
+        const score = computeUserScore(
+          user.uid, user.name, {}, {}, {}, [],
+          {}, {},
+          user.knockoutPreds,
+          KNOCKOUT_PLAYED,
+          user.redCards,
+        )
+        await setDoc(doc(db, 'scores', user.uid), score)
+
+        const breakdown: string[] = []
+        for (const km of KNOCKOUT_PLAYED) {
+          const pred = user.knockoutPreds[km.id]
+          if (!pred) continue
+          const parts: string[] = []
+          // recompute for display
+          const aIsFav = (km.fifaPointsA ?? 1500) >= (km.fifaPointsB ?? 1500)
+          const predFav = (pred.prediction1X2 === '1' && aIsFav) || (pred.prediction1X2 === '2' && !aIsFav)
+          const actual1X2 = km.resultA! > km.resultB! ? '1' : km.resultA! < km.resultB! ? '2' : 'X'
+          if (pred.prediction1X2 === actual1X2) parts.push(`1X2✓`)
+          if (pred.advance === km.advanceTeam) parts.push(`advance✓`)
+          if (km.hadRedCard) parts.push(user.redCards.R32?.includes(km.id) ? '🟥✓' : '🟥✗')
+          breakdown.push(`משחק ${km.id} [${km.round}]: ${km.teamA} vs ${km.teamB} → ${parts.join(' ')}`)
+        }
+        scoreResults.push({
+          uid: user.uid, name: user.name,
+          matchPoints: score.matchPoints, redCardPoints: score.redCardPoints,
+          groupPoints: 0, total: score.total,
+          breakdown,
+        })
+        addLog(`✅ ${user.name}: ${score.total} נק' (נוקאאוט: ${score.knockoutPoints})`)
+      }
+      setKoResults(scoreResults)
+      addLog('🎉 ניקוד נוקאאוט הושלם!')
+    } catch (e: any) { addLog(`❌ ${e.message}`) }
     setRunning(null)
   }
 
@@ -534,6 +725,100 @@ export default function Simulator() {
           </div>
         </div>
       )}
+
+      {/* ── Knockout scenarios ──────────────────────────────────────────── */}
+      <div style={{ borderTop: '2px solid #e0e0e0', paddingTop: 24, marginTop: 8 }}>
+        <h3 style={{ margin: '0 0 6px' }}>🏆 שלב נוקאאוט</h3>
+        <p style={{ color: '#888', fontSize: 13, margin: '0 0 16px' }}>
+          בדיקת מעבר לנוקאאוט (R32 population) וניקוד שלב הנוקאאוט
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+
+          {/* R32 Population */}
+          <div style={{ border: `2px solid ${r32Result ? '#1a7a44' : '#e0e0e0'}`, borderRadius: 12, padding: 16, background: r32Result ? '#f0faf4' : '#fff' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>🗂️ מעבר לנוקאאוט</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+              מזין standings ל-12 בתים, מריץ Annex C, ומציג את ה-R32 שנוצר
+            </div>
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 12 }}>
+              12 בתים · 8 שלישיות · 495 תרחישי Annex C
+            </div>
+            <button onClick={runR32Population} disabled={!!running}
+              style={{ width: '100%', padding: '8px', borderRadius: 8, border: 'none',
+                background: running === 'r32' ? '#aaa' : '#1a1a2e', color: '#fff',
+                fontWeight: 600, cursor: running ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
+              {running === 'r32' ? '⏳ רץ...' : 'הרץ R32 Population'}
+            </button>
+
+            {r32Result && (
+              <div style={{ marginTop: 12, maxHeight: 220, overflowY: 'auto' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#888', marginBottom: 6 }}>תוצאת R32:</div>
+                {Object.entries(r32Result).filter(([,km]: any) => km.teamA || km.teamB).map(([id, km]: any) => (
+                  <div key={id} style={{ fontSize: 11, padding: '3px 6px', borderRadius: 6,
+                    background: km.teamA && km.teamB ? '#EAF3DE' : '#FFF9E6',
+                    border: '1px solid ' + (km.teamA && km.teamB ? '#b7e4c7' : '#f0e0a0'),
+                    marginBottom: 3, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>#{id}: {km.teamA ?? '?'} vs {km.teamB ?? '?'}</span>
+                    <span style={{ color: '#888' }}>{km.category}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Knockout Scoring */}
+          <div style={{ border: `2px solid ${koResults ? '#1a7a44' : '#e0e0e0'}`, borderRadius: 12, padding: 16, background: koResults ? '#f0faf4' : '#fff' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>⚽ ניקוד נוקאאוט</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+              5 משחקי נוקאאוט (R32/R16/QF) עם FT, AET, upset ·  3 משתמשים עם advance picks שונים + כרטיסי אדום
+            </div>
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>
+              <b>R32 (base=1):</b> ספרד-מקסיקו Cat B (FT) · גרמניה-האיטי Cat D upset (🟥) · ברזיל-אוסטרליה Cat B (AET)
+            </div>
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 12 }}>
+              <b>R16 (base=1):</b> צרפת-קולומביה Cat B · <b>QF (base=2):</b> ארגנטינה-בלגיה Cat A upset
+            </div>
+            <button onClick={runKnockoutScoring} disabled={!!running}
+              style={{ width: '100%', padding: '8px', borderRadius: 8, border: 'none',
+                background: running === 'ko-scoring' ? '#aaa' : '#1a1a2e', color: '#fff',
+                fontWeight: 600, cursor: running ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
+              {running === 'ko-scoring' ? '⏳ רץ...' : 'הרץ ניקוד נוקאאוט'}
+            </button>
+
+            {koResults && (
+              <div style={{ marginTop: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#f5f5f5' }}>
+                      <th style={{ padding: '5px 8px', textAlign: 'right', border: '1px solid #e0e0e0' }}>משתמש</th>
+                      <th style={{ padding: '5px 8px', textAlign: 'center', border: '1px solid #e0e0e0' }}>🟥</th>
+                      <th style={{ padding: '5px 8px', textAlign: 'center', border: '1px solid #e0e0e0', fontWeight: 700 }}>סה"כ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {koResults.sort((a,b) => b.total - a.total).map(r => (
+                      <tr key={r.uid}>
+                        <td style={{ padding: '5px 8px', border: '1px solid #e0e0e0', fontWeight: 500 }}>{r.name}</td>
+                        <td style={{ padding: '5px 8px', border: '1px solid #e0e0e0', textAlign: 'center' }}>{r.redCardPoints}</td>
+                        <td style={{ padding: '5px 8px', border: '1px solid #e0e0e0', textAlign: 'center', fontWeight: 700, color: '#1a7a44' }}>{r.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {koResults.map(r => r.breakdown.length > 0 && (
+                  <details key={r.uid} style={{ marginTop: 6, background: '#f9f9f9', borderRadius: 6, padding: '6px 10px', border: '1px solid #e0e0e0' }}>
+                    <summary style={{ cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>{r.name} — פירוט</summary>
+                    <ul style={{ margin: '6px 0 0 0', paddingRight: 16, fontSize: 11, color: '#555' }}>
+                      {r.breakdown.map((b, i) => <li key={i} style={{ marginBottom: 2 }}>{b}</li>)}
+                    </ul>
+                  </details>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Log */}
       {log.length > 0 && (
