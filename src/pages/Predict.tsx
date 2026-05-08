@@ -229,7 +229,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     setMatchPreds(prev => {
       const updated = {
         ...prev,
-        [id]: { ...(prev[id] ?? { matchId: id, prediction1X2: '1' as const, scoreA: null, scoreB: null, redCard: false }), [field]: value } as MatchPrediction
+        [id]: { ...(prev[id] ?? { matchId: id, scoreA: null, scoreB: null, redCard: false }), [field]: value } as MatchPrediction
       }
       if (field === 'redCard' && value === true) {
         const newCount = Object.values(updated).filter(p => p.redCard).length
@@ -364,7 +364,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                   <div key={group} className="group-block">
                     <div className="group-label">{t.group} {group}</div>
                     {ms.map(match => {
-                      const p: MatchPrediction = matchPreds[match.id] ?? { matchId: match.id, prediction1X2: '1' as const, scoreA: null, scoreB: null, redCard: false }
+                      const p: MatchPrediction = matchPreds[match.id] ?? { matchId: match.id, scoreA: null, scoreB: null, redCard: false }
+                      if (!p.prediction1X2) {
+                        return (
+                          <div className="max-pts-bar" key={match.id} style={{ opacity: 0.4 }}>
+                            <span className="max-pts-label">בחר 1X2 לניקוד</span>
+                          </div>
+                        )
+                      }
                       const { total: maxPts, breakdown } = calcMaxPoints(p, match.category, match.fifaPointsA, match.fifaPointsB, t)
                       return (
                         <div key={match.id} className="match-row">

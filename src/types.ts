@@ -37,7 +37,7 @@ export interface KnockoutMatch {
 
 export interface MatchPrediction {
   matchId: number
-  prediction1X2: Result1X2
+  prediction1X2?: Result1X2
   scoreA: number
   scoreB: number
   redCard: boolean
