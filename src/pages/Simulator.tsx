@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { doc, setDoc, writeBatch } from 'firebase/firestore'
 import { db } from '../firebase'
 import { computeUserScore } from '../scoring'
-import { MATCHES, TEAM_FIFA_POINTS, calcCategoryByRound } from '../data/matches'
+import { MATCHES, KNOCKOUT_MATCHES, KNOCKOUT_BRACKET, TEAM_FIFA_POINTS, calcCategoryByRound } from '../data/matches'
 import { populateR32Teams } from '../utils/syncLogic'
 import type { Match, MatchPrediction, GroupPrediction, KnockoutMatch, KnockoutMatchPrediction, KnockoutRedCardPicks } from '../types'
 
@@ -729,6 +729,179 @@ const FULL_KO_USERS: KnockoutSimUser[] = [
   },
 ]
 
+// ── Algorithmic data generators ─────────────────────────────────────────────
+
+// Generates results for ALL 72 group stage matches
+// Pattern per (id % 6): ensures O/U bonus coverage across all categories
+function generateAllGroupResults(): Record<number, Partial<Match>> {
+  const out: Record<number, Partial<Match>> = {}
+  for (const m of MATCHES) {
+    const mod = m.id % 6
+    // Determine outcome
+    let rA: number, rB: number
+    if (mod === 0) { rA = 1; rB = 0 }       // fav wins 1:0   — Under A/B(≤1)✓ C/D(≤2)✓
+    else if (mod === 1) { rA = 5; rB = 0 }   // fav wins 5:0   — Over  A/B(≥4)✓ C/D(≥5)✓
+    else if (mod === 2) { rA = 0; rB = 0 }   // draw 0:0       — Under A/B(≤1)✓ C/D(≤2)✓
+    else if (mod === 3) { rA = 0; rB = 2 }   // upset 0:2      — Under C/D(≤2)✓ no bonus A/B
+    else if (mod === 4) { rA = 2; rB = 1 }   // fav wins 2:1   — no O/U bonus
+    else               { rA = 4; rB = 0 }   // fav wins 4:0   — Over A/B(≥4)✓ no C/D
+    out[m.id] = { id: m.id, resultA: rA, resultB: rB, isPlayed: true, hadRedCard: m.id % 3 === 0 }
+  }
+  return out
+}
+
+// Compute simplified group standings from generated results
+function computeGroupQualifiers(results: Record<number, Partial<Match>>): Record<string, [string,string,string]> {
+  // Points tally per team per group
+  const pts: Record<string, Record<string, number>> = {}
+  for (const m of MATCHES) {
+    const r = results[m.id]
+    if (!r || !m.teamA || !m.teamB) continue
+    const g = m.group
+    if (!pts[g]) pts[g] = {}
+    if (!pts[g][m.teamA]) pts[g][m.teamA] = 0
+    if (!pts[g][m.teamB]) pts[g][m.teamB] = 0
+    if ((r.resultA ?? 0) > (r.resultB ?? 0)) { pts[g][m.teamA] += 3 }
+    else if ((r.resultA ?? 0) < (r.resultB ?? 0)) { pts[g][m.teamB] += 3 }
+    else { pts[g][m.teamA] += 1; pts[g][m.teamB] += 1 }
+  }
+  const qualifiers: Record<string, [string,string,string]> = {}
+  for (const [g, teams] of Object.entries(pts)) {
+    const sorted = Object.entries(teams).sort((a,b) => b[1]-a[1]).map(([t]) => t)
+    qualifiers[g] = [sorted[0] ?? '', sorted[1] ?? '', sorted[2] ?? ''] as [string,string,string]
+  }
+  return qualifiers
+}
+
+// Generates predictions for a user type given all results
+function buildUserPreds(
+  results: Record<number, Partial<Match>>,
+  type: 'perfect'|'favorites'|'underdogs'|'draws'|'exact'
+): Record<number, MatchPrediction> {
+  const preds: Record<number, MatchPrediction> = {}
+  for (const m of MATCHES) {
+    const r = results[m.id]
+    if (!r) continue
+    const aIsFav = m.fifaPointsA >= m.fifaPointsB
+    const actual1x2 = (r.resultA! > r.resultB! ? '1' : r.resultA! < r.resultB! ? '2' : 'X') as '1'|'X'|'2'
+    const favPick = (aIsFav ? '1' : '2') as '1'|'2'
+    const undPick = (aIsFav ? '2' : '1') as '1'|'2'
+
+    let x: '1'|'X'|'2', sA: number|null = null, sB: number|null = null, rc = false
+    switch(type) {
+      case 'perfect':
+        x = actual1x2
+        sA = r.resultA!; sB = r.resultB!
+        rc = !!r.hadRedCard
+        break
+      case 'favorites':  x = favPick; break
+      case 'underdogs':  x = undPick; break
+      case 'draws':      x = 'X'; break
+      case 'exact':
+        x = actual1x2
+        // Pick exact score +1 goal on resultA (wrong but same margin = 1pt)
+        sA = (r.resultA! > 0 ? r.resultA! : 1); sB = r.resultB!
+        break
+    }
+    preds[m.id] = { matchId: m.id, prediction1X2: x as any, scoreA: sA as any, scoreB: sB as any, redCard: rc }
+  }
+  return preds
+}
+
+// ── Full Knockout generator ───────────────────────────────────────────────────
+function generateFullKnockoutData(r32base: Record<number, any>): {
+  matches: Record<number, KnockoutMatch>
+  preds: {
+    perfect: Record<number, KnockoutMatchPrediction>
+    favorites: Record<number, KnockoutMatchPrediction>
+    underdogs: Record<number, KnockoutMatchPrediction>
+  }
+} {
+  const matches: Record<number, KnockoutMatch> = { ...r32base }
+  // Fill in teams for non-R32 from bracket
+  for (const km of KNOCKOUT_MATCHES) {
+    if (!matches[km.id]) matches[km.id] = { ...km }
+  }
+
+  const advance: Record<number, string> = {}  // matchId → advanceTeam
+  const loser:   Record<number, string> = {}  // matchId → loser team
+
+  // Process in bracket order
+  const order = [73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,
+                 89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104]
+
+  for (const id of order) {
+    const bracket = KNOCKOUT_BRACKET[id]
+    if (!bracket) continue
+
+    // Resolve teams for non-R32 matches
+    if (bracket.feederA !== null && bracket.feederB !== null) {
+      const srcA = bracket.feederA < 0 ? Math.abs(bracket.feederA) : bracket.feederA
+      const srcB = bracket.feederB < 0 ? Math.abs(bracket.feederB) : bracket.feederB
+      const tA = bracket.feederA < 0 ? loser[srcA] : advance[srcA]
+      const tB = bracket.feederB < 0 ? loser[srcB] : advance[srcB]
+      if (tA) matches[id] = { ...matches[id], teamA: tA }
+      if (tB) matches[id] = { ...matches[id], teamB: tB }
+    }
+
+    const km = matches[id]
+    if (!km?.teamA || !km?.teamB) continue
+
+    // Compute category dynamically
+    const ptA = TEAM_FIFA_POINTS[km.teamA] ?? 1500
+    const ptB = TEAM_FIFA_POINTS[km.teamB] ?? 1500
+    const cat = calcCategoryByRound(ptA, ptB, km.round ?? 'R32')
+    matches[id] = { ...km, category: cat as any, fifaPointsA: ptA, fifaPointsB: ptB }
+
+    // Determine result (varied pattern based on id)
+    const aIsFav = ptA >= ptB
+    const mod = id % 4
+    let rA: number, rB: number, adv: string, los: string
+    if (mod === 0) {        // favorite wins FT 2:0
+      rA = aIsFav ? 2 : 0; rB = aIsFav ? 0 : 2
+      adv = aIsFav ? km.teamA : km.teamB
+      los = aIsFav ? km.teamB : km.teamA
+    } else if (mod === 1) { // underdog wins FT 1:0
+      rA = aIsFav ? 0 : 1; rB = aIsFav ? 1 : 0
+      adv = aIsFav ? km.teamB : km.teamA
+      los = aIsFav ? km.teamA : km.teamB
+    } else if (mod === 2) { // draw → AET → teamA advances
+      rA = 1; rB = 1
+      adv = km.teamA
+      los = km.teamB
+    } else {                // favorite wins 1:0 (Under bonus)
+      rA = aIsFav ? 1 : 0; rB = aIsFav ? 0 : 1
+      adv = aIsFav ? km.teamA : km.teamB
+      los = aIsFav ? km.teamB : km.teamA
+    }
+    const hadRedCard = id % 5 === 0
+    matches[id] = { ...matches[id], resultA: rA, resultB: rB, isPlayed: true, advanceTeam: adv, hadRedCard }
+    advance[id] = adv
+    loser[id]   = los
+  }
+
+  // Build predictions
+  const perfect:   Record<number, KnockoutMatchPrediction> = {}
+  const favorites: Record<number, KnockoutMatchPrediction> = {}
+  const underdogs: Record<number, KnockoutMatchPrediction> = {}
+
+  for (const [idStr, km] of Object.entries(matches)) {
+    const id = Number(idStr)
+    if (!km.teamA || !km.teamB || !km.isPlayed) continue
+    const ptA = km.fifaPointsA ?? 1500
+    const ptB = km.fifaPointsB ?? 1500
+    const aIsFav = ptA >= ptB
+    const actual = km.resultA! > km.resultB! ? '1' : km.resultA! < km.resultB! ? '2' : 'X'
+    const favPick = aIsFav ? '1' : '2'
+    const undPick = aIsFav ? '2' : '1'
+    perfect[id]   = { matchId: id, prediction1X2: actual as any, scoreA: km.resultA!, scoreB: km.resultB!, advance: km.advanceTeam }
+    favorites[id] = { matchId: id, prediction1X2: favPick as any, scoreA: null, scoreB: null, advance: aIsFav ? km.teamA : km.teamB }
+    underdogs[id] = { matchId: id, prediction1X2: undPick as any, scoreA: null, scoreB: null, advance: aIsFav ? km.teamB : km.teamA }
+  }
+
+  return { matches, preds: { perfect, favorites, underdogs } }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Simulator() {
   const [running, setRunning] = useState<string | null>(null)
@@ -873,34 +1046,39 @@ export default function Simulator() {
     setLog([])
     setFullGsResults(null)
     try {
+      // Generate results for ALL 72 matches
+      const results = generateAllGroupResults()
       const matchMap: Record<number, Match> = {}
-      for (const m of MATCHES) matchMap[m.id] = { ...m }
-      for (const r of FULL_GS_MATCHES) matchMap[r.id!] = { ...matchMap[r.id!], ...r }
-      await setDoc(doc(db, 'admin', 'results'), { matches: matchMap, groups: FULL_GS_GROUPS, bonus: {} })
-      addLog(`💾 תוצאות מלאות נשמרו (${FULL_GS_MATCHES.length} משחקים, ${Object.keys(FULL_GS_GROUPS).length} בתים)`)
+      for (const m of MATCHES) matchMap[m.id] = { ...m, ...results[m.id] }
+
+      // Compute group qualifiers from generated results
+      const groups = computeGroupQualifiers(results)
+      addLog(`📋 נוצרו תוצאות ל-${MATCHES.length} משחקים, ${Object.keys(groups).length} בתים`)
+
+      await setDoc(doc(db, 'admin', 'results'), { matches: matchMap, groups, bonus: {} })
+      addLog('💾 נשמר ב-Firestore')
+
       const playedMatches = Object.values(matchMap).filter(m => m.isPlayed)
+      const userDefs: { uid: string; name: string; type: 'perfect'|'favorites'|'underdogs'|'draws'|'exact' }[] = [
+        { uid: 'full-u1', name: '🏆 הכל נכון', type: 'perfect' },
+        { uid: 'full-u2', name: '📊 מועדפים תמיד', type: 'favorites' },
+        { uid: 'full-u3', name: '💥 אנדרדוגים תמיד', type: 'underdogs' },
+        { uid: 'full-u4', name: '🤝 תיקו תמיד', type: 'draws' },
+        { uid: 'full-u5', name: '⚽ תוצאות (מרווח)', type: 'exact' },
+      ]
+
       const scoreResults: ScenarioResult[] = []
-      for (const user of FULL_GS_USERS) {
-        await setDoc(doc(db, 'users', user.uid), { name: user.name, email: `${user.uid}@sim.test`, joinedAt: Date.now() })
-        await setDoc(doc(db, 'predictions', user.uid), { matches: user.predictions, groups: user.groupPredictions, bonus: {}, userName: user.name, lastUpdated: Date.now() })
-        const score = computeUserScore(user.uid, user.name, user.predictions, user.groupPredictions, {}, playedMatches, FULL_GS_GROUPS, {})
-        await setDoc(doc(db, 'scores', user.uid), score)
-        const breakdown: string[] = []
-        for (const [mid, detail] of Object.entries(score.matchDetails ?? {})) {
-          const match = matchMap[Number(mid)]
-          if (!match) continue
-          const parts = []
-          if ((detail as any).points1X2 > 0) parts.push(`1X2:+${(detail as any).points1X2}`)
-          if ((detail as any).pointsScore > 0) parts.push(`תוצאה:+${(detail as any).pointsScore}`)
-          if ((detail as any).pointsRedCard > 0) parts.push(`🟥:+${(detail as any).pointsRedCard}`)
-          if (parts.length) breakdown.push(`#${mid}(${match.teamA}vs${match.teamB}): ${parts.join(' ')}=[${(detail as any).total}]`)
-        }
-        if (score.groupPoints > 0) breakdown.push(`קבוצות: +${score.groupPoints}`)
-        scoreResults.push({ uid: user.uid, name: user.name, matchPoints: score.matchPoints, redCardPoints: score.redCardPoints, groupPoints: score.groupPoints, total: score.total, breakdown })
-        addLog(`✅ ${user.name}: ${score.total}נק (משחקים:${score.matchPoints} כרטיסים:${score.redCardPoints} קבוצות:${score.groupPoints})`)
+      for (const u of userDefs) {
+        const preds = buildUserPreds(results, u.type)
+        await setDoc(doc(db, 'users', u.uid), { name: u.name, email: `${u.uid}@sim.test`, joinedAt: Date.now() })
+        await setDoc(doc(db, 'predictions', u.uid), { matches: preds, groups: u.type === 'perfect' ? Object.fromEntries(Object.entries(groups).map(([g, t]) => [g, { group: g as any, advancing: t }])) : {}, bonus: {}, userName: u.name, lastUpdated: Date.now() })
+        const score = computeUserScore(u.uid, u.name, preds, u.type === 'perfect' ? Object.fromEntries(Object.entries(groups).map(([g, t]) => [g, { group: g as any, advancing: t }])) : {}, {}, playedMatches, groups, {})
+        await setDoc(doc(db, 'scores', u.uid), score)
+        scoreResults.push({ uid: u.uid, name: u.name, matchPoints: score.matchPoints, redCardPoints: score.redCardPoints, groupPoints: score.groupPoints, total: score.total, breakdown: [`משחקים:${score.matchPoints} | כרטיסים:${score.redCardPoints} | קבוצות:${score.groupPoints}`] })
+        addLog(`✅ ${u.name}: ${score.total}נק (${score.matchPoints}+${score.redCardPoints}+${score.groupPoints})`)
       }
       setFullGsResults(scoreResults)
-      addLog('🎉 סימולציה מלאה של שלב בתים הושלמה!')
+      addLog(`🎉 הושלם! 72 משחקים, 12 בתים, 5 משתמשים`)
     } catch (e: any) { addLog(`❌ ${e.message}`) }
     setRunning(null)
   }
@@ -910,33 +1088,38 @@ export default function Simulator() {
     setLog([])
     setFullKoResults(null)
     try {
-      const knockoutMap: Record<number, KnockoutMatch> = {}
-      for (const km of FULL_KO_PLAYED) knockoutMap[km.id] = km
-      await setDoc(doc(db, 'admin', 'knockout'), { matches: knockoutMap })
-      addLog(`💾 תוצאות נוקאאוט מלאות נשמרו (${FULL_KO_PLAYED.length} משחקים)`)
+      // 1. Populate R32 teams from group standings
+      const { updatedKnockout: r32base } = populateR32Teams(
+        FULL_GROUP_QUALIFIERS, BEST_8_THIRDS, {}, TEAM_FIFA_POINTS, calcCategoryByRound
+      )
+      addLog('✅ R32 אוכלס מ-standings')
+
+      // 2. Generate all 32 knockout matches algorithmically (cascading)
+      const { matches, preds } = generateFullKnockoutData(r32base)
+      const playedKO = Object.values(matches).filter(km => km.isPlayed) as KnockoutMatch[]
+      addLog(`📋 נוצרו תוצאות ל-${playedKO.length} משחקי נוקאאוט`)
+
+      await setDoc(doc(db, 'admin', 'knockout'), { matches })
+      addLog('💾 נשמר ב-Firestore')
+
+      // 3. Score 3 users
+      const userDefs = [
+        { uid: 'fko-u1', name: '🏆 הכל נכון', preds: preds.perfect,   reds: { R32: playedKO.filter(km => km.round==='R32' && km.hadRedCard).map(km=>km.id).slice(0,3), R16: playedKO.filter(km=>km.round==='R16' && km.hadRedCard).map(km=>km.id).slice(0,2), QF: playedKO.filter(km=>km.round==='QF' && km.hadRedCard).map(km=>km.id).slice(0,1) } },
+        { uid: 'fko-u2', name: '📊 מועדפים', preds: preds.favorites, reds: { R32: [], R16: [], QF: [] } },
+        { uid: 'fko-u3', name: '💥 אנדרדוגים', preds: preds.underdogs, reds: { R32: playedKO.filter(km=>km.round==='R32').map(km=>km.id).slice(0,3), R16: playedKO.filter(km=>km.round==='R16').map(km=>km.id).slice(0,2), QF: playedKO.filter(km=>km.round==='QF').map(km=>km.id).slice(0,1) } },
+      ]
+
       const scoreResults: ScenarioResult[] = []
-      for (const user of FULL_KO_USERS) {
-        await setDoc(doc(db, 'users', user.uid), { name: user.name, email: `${user.uid}@sim.test`, joinedAt: Date.now() })
-        await setDoc(doc(db, 'predictions', user.uid), { matches: {}, groups: {}, bonus: {}, knockout: user.knockoutPreds, knockoutRedCards: user.redCards, userName: user.name, lastUpdated: Date.now() })
-        const score = computeUserScore(user.uid, user.name, {}, {}, {}, [], {}, {}, user.knockoutPreds, FULL_KO_PLAYED, user.redCards)
-        await setDoc(doc(db, 'scores', user.uid), score)
-        const breakdown: string[] = []
-        for (const km of FULL_KO_PLAYED) {
-          const pred = user.knockoutPreds[km.id]
-          if (!pred) continue
-          const actual = km.resultA! > km.resultB! ? '1' : km.resultA! < km.resultB! ? '2' : 'X'
-          const parts: string[] = []
-          if (pred.prediction1X2 === actual) parts.push('1X2✓')
-          if (pred.advance === km.advanceTeam) parts.push('advance✓')
-          if (km.hadRedCard && user.redCards[km.round as 'R32'|'R16'|'QF']?.includes(km.id)) parts.push('🟥✓')
-          if (parts.length) breakdown.push(`#${km.id}[${km.round}] ${km.teamA}vs${km.teamB}: ${parts.join(' ')}`)
-        }
-        if (score.redCardPoints > 0) breakdown.push(`סה"כ כרטיסים: +${score.redCardPoints}`)
-        scoreResults.push({ uid: user.uid, name: user.name, matchPoints: score.matchPoints, redCardPoints: score.redCardPoints, groupPoints: 0, total: score.total, breakdown })
-        addLog(`✅ ${user.name}: ${score.total}נק (נוקאאוט:${score.knockoutPoints} כרטיסים:${score.redCardPoints})`)
+      for (const u of userDefs) {
+        await setDoc(doc(db, 'users', u.uid), { name: u.name, email: `${u.uid}@sim.test`, joinedAt: Date.now() })
+        await setDoc(doc(db, 'predictions', u.uid), { matches: {}, groups: {}, bonus: {}, knockout: u.preds, knockoutRedCards: u.reds, userName: u.name, lastUpdated: Date.now() })
+        const score = computeUserScore(u.uid, u.name, {}, {}, {}, [], {}, {}, u.preds, playedKO, u.reds as KnockoutRedCardPicks)
+        await setDoc(doc(db, 'scores', u.uid), score)
+        scoreResults.push({ uid: u.uid, name: u.name, matchPoints: score.matchPoints, redCardPoints: score.redCardPoints, groupPoints: 0, total: score.total, breakdown: [`נוקאאוט:${score.knockoutPoints} | כרטיסים:${score.redCardPoints}`] })
+        addLog(`✅ ${u.name}: ${score.total}נק (נוקאאוט:${score.knockoutPoints} כרטיסים:${score.redCardPoints})`)
       }
       setFullKoResults(scoreResults)
-      addLog('🎉 סימולציה מלאה של נוקאאוט הושלמה!')
+      addLog(`🎉 הושלם! ${playedKO.length} משחקים, 3 משתמשים`)
     } catch (e: any) { addLog(`❌ ${e.message}`) }
     setRunning(null)
   }
