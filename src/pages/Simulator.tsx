@@ -1236,20 +1236,24 @@ export default function Simulator() {
             <details style={{ marginBottom: 12 }}>
               <summary style={{ fontSize: 12, color: '#555', cursor: 'pointer', fontWeight: 600, userSelect: 'none' }}>📖 הסבר מפורט</summary>
               <div style={{ marginTop: 8, padding: '8px 10px', background: '#f8f8f8', borderRadius: 8, border: '1px solid #e8e8e8', fontSize: 11, lineHeight: 1.8 }}>
-                <div style={{ fontWeight: 700, color: '#333' }}>📋 10 משחקים המכסים:</div>
-                <div style={{ color: '#666' }}>Cat A: Brazil 1:0 Morocco (מועדף+Under✓) | S.Korea 0:0 Czechia (תיקו+Under✓+🟥)</div>
-                <div style={{ color: '#666' }}>Cat B: Belgium 4:1 Egypt (מועדף+Over✓) | Bosnia 1:0 Canada (אנדרדוג+Under✓+🟥)</div>
-                <div style={{ color: '#666' }}>Cat C: Mexico 2:0 S.Africa (מועדף+Under✓) | Haiti 1:0 Scotland (אנדרדוג Cat C=3נק)</div>
-                <div style={{ color: '#666' }}>Cat D: Germany 5:0 Curaçao (מועדף+Over✓) | Cape Verde 1:0 Spain (אנדרדוג Cat D=4נק+Under✓)</div>
-                <div style={{ color: '#666' }}>Cat A draw: Netherlands 1:1 Japan (תיקו, 2 שערים=ללא O/U)</div>
-                <div style={{ color: '#666' }}>Cat B: France 2:1 Senegal (מועדף, מרווח=1)</div>
-                <div style={{ fontWeight: 700, color: '#333', marginTop: 4 }}>📋 4 משתמשים:</div>
-                <div style={{ color: '#666' }}>🏆 "המנצח המלא" — הכל נכון → צפוי ~60נק</div>
-                <div style={{ color: '#666' }}>⚽ "משתמש ממוצע" — 1X2 נכון + חלק תוצאות → צפוי ~34נק</div>
-                <div style={{ color: '#666' }}>💥 "מחפש אנדרדוגים" — אפסטים נכון → צפוי ~37נק</div>
-                <div style={{ color: '#666' }}>📊 "מועדפים בלבד" — רק 1X2 ומועדפים → צפוי ~10נק</div>
-                <div style={{ fontWeight: 700, color: '#1a7a44', marginTop: 4 }}>✅ ציפייה: מנצח(60) {'>'} אנדרדוגים(37) {'>'} ממוצע(34) {'>'} מועדפים(10)</div>
-                <div style={{ color: '#0C447C', fontWeight: 600 }}>📌 בדוק: O/U Cat C ≤2 שערים (#1, #8) ≥5 (#9) | Cat A draw=#2(6נק) vs #10(3נק)</div>
+                <div style={{ fontWeight: 700, color: '#333' }}>📋 72 משחקים — נוצרים אוטומטית לפי דפוס (id % 6):</div>
+                <div style={{ color: '#666' }}>id%6=0 → מועדף מנצח 1:0 — Under A/B(≤1)✓ Under C/D(≤2)✓</div>
+                <div style={{ color: '#666' }}>id%6=1 → מועדף מנצח 5:0 — Over A/B(≥4)✓ Over C/D(≥5)✓</div>
+                <div style={{ color: '#666' }}>id%6=2 → תיקו 0:0 — Under A/B(≤1)✓ Under C/D(≤2)✓</div>
+                <div style={{ color: '#666' }}>id%6=3 → אנדרדוג מנצח 0:2 — Under C/D(≤2)✓ ללא בונוס A/B</div>
+                <div style={{ color: '#666' }}>id%6=4 → מועדף מנצח 2:1 — ללא O/U בשום קטגוריה</div>
+                <div style={{ color: '#666' }}>id%6=5 → מועדף מנצח 4:0 — Over A/B(≥4)✓ ללא C/D</div>
+                <div style={{ color: '#666', marginTop: 4 }}>🟥 כרטיס אדום: כל משחק שה-id שלו מתחלק ב-3</div>
+                <div style={{ fontWeight: 700, color: '#333', marginTop: 6 }}>📋 עולות מהבתים:</div>
+                <div style={{ color: '#666' }}>מחושבות אוטומטית מהתוצאות (נקודות 3/1/0) — כל 12 הבתים</div>
+                <div style={{ fontWeight: 700, color: '#333', marginTop: 6 }}>📋 5 משתמשים:</div>
+                <div style={{ color: '#666' }}>🏆 "הכל נכון" — 1X2+תוצאה מדויקת+כרטיסים+קבוצות מדויקים</div>
+                <div style={{ color: '#666' }}>📊 "מועדפים תמיד" — תמיד מנחש את הנבחרת החזקה יותר</div>
+                <div style={{ color: '#666' }}>💥 "אנדרדוגים תמיד" — תמיד מנחש את הנבחרת החלשה יותר</div>
+                <div style={{ color: '#666' }}>🤝 "תיקו תמיד" — תמיד מנחש X</div>
+                <div style={{ color: '#666' }}>⚽ "תוצאות (מרווח)" — 1X2 נכון + תוצאה עם מרווח נכון</div>
+                <div style={{ fontWeight: 700, color: '#1a7a44', marginTop: 6 }}>✅ ציפייה: הכל נכון {'>'} אנדרדוגים/מרווח {'>'} מועדפים {'>'} תיקו</div>
+                <div style={{ color: '#0C447C', fontWeight: 600 }}>📌 בדוק: O/U לפי קטגוריה | תיקו Cat C/D נותן יותר | עולות כל 12 הבתים</div>
               </div>
             </details>
             <button onClick={runFullGroupStage} disabled={!!running}
@@ -1304,24 +1308,25 @@ export default function Simulator() {
             <details style={{ marginBottom: 12 }}>
               <summary style={{ fontSize: 12, color: '#555', cursor: 'pointer', fontWeight: 600, userSelect: 'none' }}>📖 הסבר מפורט</summary>
               <div style={{ marginTop: 8, padding: '8px 10px', background: '#f8f8f8', borderRadius: 8, border: '1px solid #e8e8e8', fontSize: 11, lineHeight: 1.8 }}>
-                <div style={{ fontWeight: 700, color: '#333' }}>📋 R32 (base=1):</div>
-                <div style={{ color: '#666' }}>#73 ספרד vs מקסיקו Cat B — ספרד FT 1:0 (Under✓)</div>
-                <div style={{ color: '#666' }}>#74 גרמניה vs האיטי Cat D — האיטי (אפסט! adv=4נק) 🟥</div>
-                <div style={{ color: '#666' }}>#75 ברזיל vs אוסטרליה Cat B — AET 1:1 → אוסטרליה (adv und=3נק)</div>
-                <div style={{ color: '#666' }}>#76 צרפת vs אקוודור Cat B — PEN 0:0 → צרפת (adv fav=2נק)</div>
-                <div style={{ fontWeight: 700, color: '#333' }}>📋 R16 (base=1), QF (base=2), SF (base=3), Final (base=3):</div>
-                <div style={{ color: '#666' }}>#89 ספרד vs האיטי Cat C R16 — 2:0 (Under✓) 🟥</div>
-                <div style={{ color: '#666' }}>#90 צרפת vs אוסטרליה Cat B R16 — 3:1 (Over✓)</div>
-                <div style={{ color: '#666' }}>#97 ספרד vs צרפת Cat A QF — צרפת 2:1 (אפסט Cat A, base=2)</div>
-                <div style={{ color: '#666' }}>#98 ארגנטינה vs פורטוגל Cat A QF — 2:0 (מועדף, base=2)</div>
-                <div style={{ color: '#666' }}>#101 צרפת vs ארגנטינה Cat A SF — 2:1 (base=3)</div>
-                <div style={{ color: '#666' }}>#104 צרפת vs פורטוגל Cat A Final — 1:0 (Under✓, base=3)</div>
-                <div style={{ fontWeight: 700, color: '#333', marginTop: 4 }}>📋 3 משתמשים:</div>
-                <div style={{ color: '#666' }}>🏆 "מנצח נוקאאוט" — הכל נכון → צפוי ~81נק</div>
-                <div style={{ color: '#666' }}>📊 "מועדפים נוקאאוט" — רק מועדפים → צפוי ~35נק</div>
-                <div style={{ color: '#666' }}>💥 "מפתיעים נוקאאוט" — אנדרדוגים + כרטיסים → צפוי ~30נק</div>
-                <div style={{ fontWeight: 700, color: '#1a7a44', marginTop: 4 }}>✅ ציפייה: מנצח {'>'} מועדפים {'>'} מפתיעים</div>
-                <div style={{ color: '#0C447C', fontWeight: 600 }}>📌 בדוק: QF base=2 (#97=8נק advance) | SF base=3 (#101) | Final base=3 (#104)</div>
+                <div style={{ fontWeight: 700, color: '#333' }}>📋 32 משחקים — נוצרים אוטומטית בשרשרת:</div>
+                <div style={{ color: '#666' }}>1. R32 (73-88): מאוכלס מ-standings האמיתיים דרך Annex C</div>
+                <div style={{ color: '#666' }}>2. R16 (89-96): קבוצות מהעולות מ-R32, תוצאות אוטומטיות</div>
+                <div style={{ color: '#666' }}>3. QF (97-100), SF (101-102), גמר (104), 3ה מקום (103)</div>
+                <div style={{ color: '#666', marginTop: 4 }}>דפוס תוצאות (id % 4):</div>
+                <div style={{ color: '#666' }}>id%4=0 → מועדף מנצח 2:0</div>
+                <div style={{ color: '#666' }}>id%4=1 → אנדרדוג מנצח 0:1</div>
+                <div style={{ color: '#666' }}>id%4=2 → תיקו 1:1 → AET → teamA עולה</div>
+                <div style={{ color: '#666' }}>id%4=3 → מועדף מנצח 1:0 (Under✓)</div>
+                <div style={{ color: '#666', marginTop: 4 }}>🟥 כרטיס אדום: כל משחק שה-id מתחלק ב-5</div>
+                <div style={{ fontWeight: 700, color: '#333', marginTop: 6 }}>📋 base points לפי שלב:</div>
+                <div style={{ color: '#666' }}>R32/R16 = 1נק | QF/3P = 2נק | SF/F = 3נק</div>
+                <div style={{ color: '#666', marginTop: 4 }}>Advance catBonus: Cat A=0, B=+1, C=+2, D=+2 (לאנדרדוג בלבד)</div>
+                <div style={{ fontWeight: 700, color: '#333', marginTop: 6 }}>📋 3 משתמשים:</div>
+                <div style={{ color: '#666' }}>🏆 "הכל נכון" — 1X2+advance+תוצאות+כרטיסים נכונים</div>
+                <div style={{ color: '#666' }}>📊 "מועדפים" — תמיד מנחש מועדף לנצח ולעלות</div>
+                <div style={{ color: '#666' }}>💥 "אנדרדוגים" — תמיד מנחש אנדרדוג לנצח ולעלות + כל הכרטיסים</div>
+                <div style={{ fontWeight: 700, color: '#1a7a44', marginTop: 6 }}>✅ ציפייה: הכל נכון {'>'} מועדפים {'>'} אנדרדוגים</div>
+                <div style={{ color: '#0C447C', fontWeight: 600 }}>📌 בדוק: base עולה עם השלב | catBonus לאנדרדוג | AET נספר כתיקו ב-1X2</div>
               </div>
             </details>
             <button onClick={runFullKnockout} disabled={!!running}
