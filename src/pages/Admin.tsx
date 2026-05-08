@@ -46,7 +46,24 @@ export default function Admin() {
         getDoc(doc(db, 'admin', 'knockout')),
       ])
       if (resultsSnap.exists()) {
-        setMatches(resultsSnap.data().matches ?? {})
+        const stored = resultsSnap.data().matches ?? {}
+        // Always use fresh category + fifaPoints from MATCHES array
+        // Only take result fields (resultA/B, isPlayed, hadRedCard, manualScore) from Firestore
+        const fresh: Record<number, Match> = {}
+        for (const m of MATCHES) {
+          const s = stored[m.id]
+          fresh[m.id] = {
+            ...m,  // fresh team data, category, fifaPoints from MATCHES
+            ...(s ? {
+              resultA:    s.resultA,
+              resultB:    s.resultB,
+              isPlayed:   s.isPlayed,
+              hadRedCard: s.hadRedCard,
+              manualScore: s.manualScore,
+            } : {})
+          }
+        }
+        setMatches(fresh)
         setActualGroups(resultsSnap.data().groups ?? {})
         setActualBonus(resultsSnap.data().bonus ?? {})
       }
@@ -80,7 +97,15 @@ export default function Admin() {
       setSyncLog([...log])
 
       // ── Group stage ─────────────────────────────────────────────────
-      const updatedMatches = { ...matches }
+      // Always initialize from MATCHES to guarantee fresh category/fifaPoints
+      const updatedMatches: Record<number, Match> = {}
+      for (const m of MATCHES) {
+        updatedMatches[m.id] = { ...m, ...(matches[m.id] ? {
+          resultA: matches[m.id].resultA, resultB: matches[m.id].resultB,
+          isPlayed: matches[m.id].isPlayed, hadRedCard: matches[m.id].hadRedCard,
+          manualScore: matches[m.id].manualScore,
+        } : {}) }
+      }
       let updatedSchedule = 0
       let updatedResults = 0
       for (const apiMatch of apiGroupMatches) {
