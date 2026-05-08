@@ -48,7 +48,7 @@ export default function Admin() {
       if (resultsSnap.exists()) {
         const stored = resultsSnap.data().matches ?? {}
         // Always use fresh category + fifaPoints from MATCHES array
-        // Only take result fields (resultA/B, isPlayed, hadRedCard, manualScore) from Firestore
+        // Only take result fields (resultA/B, isPlayed, hadRedCard) from Firestore
         const fresh: Record<number, Match> = {}
         for (const m of MATCHES) {
           const s = stored[m.id]
@@ -59,7 +59,6 @@ export default function Admin() {
               resultB:    s.resultB,
               isPlayed:   s.isPlayed,
               hadRedCard: s.hadRedCard,
-              manualScore: s.manualScore,
             } : {})
           }
         }
@@ -103,7 +102,6 @@ export default function Admin() {
         updatedMatches[m.id] = { ...m, ...(matches[m.id] ? {
           resultA: matches[m.id].resultA, resultB: matches[m.id].resultB,
           isPlayed: matches[m.id].isPlayed, hadRedCard: matches[m.id].hadRedCard,
-          manualScore: matches[m.id].manualScore,
         } : {}) }
       }
       let updatedSchedule = 0
