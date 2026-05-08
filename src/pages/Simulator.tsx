@@ -66,6 +66,7 @@ const SCENARIOS: {
   name: string
   description: string
   icon: string
+  details: string[]
   results: Partial<Match>[]
   users: SimUser[]
   groupResults?: Record<string, [string,string,string]>
@@ -77,6 +78,22 @@ const SCENARIOS: {
     name: 'קטגוריות ו-1X2',
     icon: '🎯',
     description: 'בודק ניקוד 1X2 לכל 4 הקטגוריות: מועדף מנצח, אנדרדוג מנצח, תיקו',
+    details: [
+      '📋 משחקים בשימוש:',
+      '  #7 ברזיל vs מרוקו — Cat A (FIFA: 1761 vs 1756) — ברזיל מנצח 2:0',
+      '  #2 קוריאה הדרומית vs צ׳כיה — Cat A (1589 vs 1501) — צ׳כיה מנצח (קטגוריה A, עדיין 1נק)',
+      '  #14 בלגיה vs מצרים — Cat B (1735 vs 1563) — בלגיה מנצח 2:1',
+      '  #3 קנדה vs בוסניה — Cat B (1556 vs 1386) — בוסניה מנצח (אנדרדוג Cat B = 2נק)',
+      '  #1 מקסיקו vs דרום אפריקה — Cat C (1681 vs 1430) — מקסיקו מנצח 2:0',
+      '  #8 האיטי vs סקוטלנד — Cat C (1292 vs 1498) — האיטי מנצח (אנדרדוג Cat C = 3נק)',
+      '  #9 גרמניה vs קוראסאו — Cat D (1730 vs 1295) — גרמניה מנצח 3:0',
+      '  #13 ספרד vs כף ורדה — Cat D (1876 vs 1366) — כף ורדה מנצח (אנדרדוג Cat D = 4נק)',
+      '👤 "מועדפים תמיד" — בוחר מועדף: ✓ 4 פעמים × 1נק = 4נק',
+      '👤 "מפתיעים תמיד" — בוחר אנדרדוג: Cat A=1, Cat B=2, Cat C=3, Cat D=4 = 10נק',
+      '👤 "תיקו תמיד" — בוחר X: 0נק (אין תיקו בתוצאות)',
+      '👤 "הכל שגוי" — הפוך מהתוצאה: ~0נק',
+      '✅ ציפייה: מפתיעים (10) > מועדפים (4) > תיקו (0)',
+    ],
     results: [
       // Cat A: Brazil wins (favorite)
       { id: 7,  resultA: 2, resultB: 0, isPlayed: true },
@@ -144,6 +161,21 @@ const SCENARIOS: {
     name: 'תוצאה ו-O/U בונוס',
     icon: '⚽',
     description: 'בודק ניקוד תוצאה מדויקת (2נק), מרווח נכון (1נק), ובונוס אנדר/אובר',
+    details: [
+      '📋 משחקים בשימוש:',
+      '  #7 ברזיל vs מרוקו — Cat A — תוצאה 1:0 (סה"כ 1 שער = Under ✓ Cat A/B: ≤1)',
+      '  #17 צרפת vs סנגל — Cat B — תוצאה 4:1 (סה"כ 5 שערים = Over ✓ Cat A/B: ≥4)',
+      '  #1 מקסיקו vs דרום אפריקה — Cat C — תוצאה 3:0 (סה"כ 3 שערים = אין בונוס Cat C/D: ≤2 או ≥5)',
+      '  #9 גרמניה vs קוראסאו — Cat D — תוצאה 5:0 (סה"כ 5 שערים = Over ✓ Cat C/D: ≥5)',
+      '  #10 הולנד vs יפן — Cat A — תיקו 0:0 (סה"כ 0 שערים = Under ✓)',
+      '👤 "תוצאה מדויקת" — מנחש בדיוק: 1X2(1) + תוצאה(2) + O/U(1) = 4נק לרוב',
+      '    ציפייה: 4+4+3+4+4 = 19נק',
+      '👤 "מרווח נכון" — מנחש מרווח נכון אבל לא תוצאה: 1X2(1) + מרווח(1) = 2נק לרוב',
+      '    ציפייה: ~9נק',
+      '👤 "1X2 בלבד" — רק 1X2, בלי תוצאה: 1נק למשחק',
+      '    ציפייה: 5נק',
+      '✅ כלל חשוב: O/U בונוס ניתן רק על תוצאה מדויקת!',
+    ],
     results: [
       // Cat A: 1:0 → 1 goal → Under bonus ✓ (Cat A/B: ≤1 goal)
       { id: 7, resultA: 1, resultB: 0, isPlayed: true },
@@ -198,6 +230,19 @@ const SCENARIOS: {
     name: 'כרטיסי אדום',
     icon: '🟥',
     description: 'בודק ניקוד כרטיס אדום: חיזוי נכון (+2נק), חיזוי שגוי (0)',
+    details: [
+      '📋 משחקים בשימוש:',
+      '  #9 גרמניה vs קוראסאו — היה כרטיס אדום ✓',
+      '  #14 בלגיה vs מצרים — לא היה כרטיס אדום ✗',
+      '  #1 מקסיקו vs דרום אפריקה — היה כרטיס אדום ✓',
+      '👤 "כרטיס נכון" — מסמן כרטיס רק לאלו שהיה: +2 × 2 = 4נק מכרטיסים',
+      '    ציפייה: 1X2(3) + כרטיסים(4) = 7נק',
+      '👤 "כרטיס שגוי" — מסמן הפוך (כרטיס כשלא היה, ולא מסמן כשהיה): 0נק מכרטיסים',
+      '    ציפייה: 1X2(3) + כרטיסים(0) = 3נק',
+      '👤 "כרטיס לכולם" — מסמן כרטיס לכל משחק: +2 × 2 (שני הנכונים) = 4נק',
+      '    ציפייה: 7נק (זהה ל"כרטיס נכון" כי אין קנס על סימון שגוי)',
+      '✅ כלל חשוב: כרטיס אדום שגוי לא מוריד נקודות — רק כרטיס נכון מוסיף',
+    ],
     results: [
       { id: 9,  resultA: 3, resultB: 0, isPlayed: true, hadRedCard: true  }, // red card occurred
       { id: 14, resultA: 2, resultB: 1, isPlayed: true, hadRedCard: false }, // no red card
@@ -243,6 +288,17 @@ const SCENARIOS: {
     name: 'עולות מהבתים',
     icon: '🏅',
     description: 'בודק ניקוד עולות: מקום מדויק (2נק), קבוצה נכונה מקום שגוי (1נק)',
+    details: [
+      '📋 תוצאות עולות שנקבעו:',
+      '  בית A: מקסיקו 1ה, קוריאה הדרומית 2ה, צ׳כיה 3ה',
+      '  בית B: קנדה 1ה, שווייץ 2ה, בוסניה 3ה',
+      '👤 "קבוצות מדויק" — מקום מדויק לשתי הקבוצות: 2נק × 2 × 2 בתים = 8נק',
+      '👤 "קבוצות הפוכות" — קבוצות נכונות אבל מקום הפוך (1ה↔2ה): 1נק × 2 × 2 = 4נק',
+      '👤 "קבוצה אחת נכונה" — מנחש נכון רק את ה-1ה: 2נק × 2 בתים = 4נק',
+      '👤 "הכל שגוי" — קבוצות שלא עלו כלל: 0נק',
+      '✅ ציפייה: מדויק(8) > הפוכות(4) = קבוצה אחת(4) > שגוי(0)',
+      '📌 הגיון: ניחוש נכון של 1ה במדויק (2נק) = ניחוש שתי קבוצות בהפוכות (1+1)',
+    ],
     results: [
       { id: 1, resultA: 3, resultB: 0, isPlayed: true },
       { id: 2, resultA: 2, resultB: 1, isPlayed: true },
@@ -293,6 +349,17 @@ const SCENARIOS: {
     name: 'תיקו לפי קטגוריה',
     icon: '🤝',
     description: 'בודק ניקוד תיקו: Cat A/B=1נק, Cat C=2נק, Cat D=3נק',
+    details: [
+      '📋 כל 4 המשחקים מסתיימים בתיקו:',
+      '  #10 הולנד vs יפן — Cat A תיקו → X = 1נק',
+      '  #4 ארה"ב vs פרגוואי — Cat B תיקו → X = 1נק',
+      '  #1 מקסיקו vs דרום אפריקה — Cat C תיקו → X = 2נק',
+      '  #9 גרמניה vs קוראסאו — Cat D תיקו → X = 3נק',
+      '👤 "תיקו לכולם" — בוחר X לכל המשחקים: 1+1+2+3 = 7נק',
+      '👤 "1X2 רגיל" — בוחר מועדף לנצח (1): 0נק (כולם הסתיימו בתיקו)',
+      '✅ ציפייה: תיקו(7) >> 1X2(0)',
+      '📌 הגיון: תיקו שווה יותר נקודות ככל שהקטגוריה גבוהה יותר (הפתעה גדולה יותר)',
+    ],
     results: [
       { id: 10, resultA: 1, resultB: 1, isPlayed: true }, // Cat A draw
       { id: 4,  resultA: 0, resultB: 0, isPlayed: true }, // Cat B draw
@@ -417,6 +484,251 @@ const FULL_GROUP_QUALIFIERS: Record<string, [string,string,string]> = {
 const BEST_8_THIRDS = ['מרוקו','גאנה','כף ורדה','עיראק','נורווגיה','פנמה','ירדן','בוסניה']
 
 
+// ── Full Group Stage Simulation data ─────────────────────────────────────────
+// 10 matches covering ALL rules simultaneously:
+// Cat A/B/C/D × fav/upset/draw × exact/margin × O/U bonus × red card × groups
+
+const FULL_GS_MATCHES: Partial<Match>[] = [
+  // Cat A: Brazil wins 1:0 FT — fav win, exact, Under(1 goal ≤1) ✓
+  { id: 7,  resultA: 1, resultB: 0, isPlayed: true, hadRedCard: false },
+  // Cat A: draw 0:0 — Cat A draw=1pt, exact, Under ✓, has red card
+  { id: 2,  resultA: 0, resultB: 0, isPlayed: true, hadRedCard: true },
+  // Cat B: Belgium wins 4:1 — fav, Over(5 goals ≥4) ✓, no exact
+  { id: 14, resultA: 4, resultB: 1, isPlayed: true, hadRedCard: false },
+  // Cat B: Bosnia wins 1:0 — upset Cat B=2pt, Under(1 goal ≤1) ✓
+  { id: 3,  resultA: 0, resultB: 1, isPlayed: true, hadRedCard: true },
+  // Cat C: Mexico wins 2:0 — fav, exact, Under(2 goals ≤2) ✓
+  { id: 1,  resultA: 2, resultB: 0, isPlayed: true, hadRedCard: false },
+  // Cat C: Haiti wins 1:0 over Scotland — upset Cat C=3pt, Under ✓
+  { id: 8,  resultA: 1, resultB: 0, isPlayed: true, hadRedCard: false },
+  // Cat D: Germany wins 5:0 — fav, exact, Over(5 goals ≥5) ✓
+  { id: 9,  resultA: 5, resultB: 0, isPlayed: true, hadRedCard: false },
+  // Cat D: Cape Verde wins 1:0 over Spain — massive upset Cat D=4pt, Under ✓
+  { id: 13, resultA: 0, resultB: 1, isPlayed: true, hadRedCard: false },
+  // Cat A draw: Netherlands vs Japan 1:1 — draw Cat A=1pt, no O/U (2 goals)
+  { id: 10, resultA: 1, resultB: 1, isPlayed: true, hadRedCard: false },
+  // Cat B: France wins 2:1 over Senegal — fav, correct margin, no O/U
+  { id: 17, resultA: 2, resultB: 1, isPlayed: true, hadRedCard: false },
+]
+
+const FULL_GS_GROUPS: Record<string, [string,string,string]> = {
+  A: ['ברזיל',   'קוריאה הדרומית', 'צ׳כיה'],
+  B: ['בלגיה',   'בוסניה',         'קנדה'],
+  C: ['האיטי',   'מקסיקו',         'סקוטלנד'],
+}
+
+const p = (matchId: number, x: '1'|'X'|'2', sA: number|null = null, sB: number|null = null, rc = false): MatchPrediction =>
+  ({ matchId, prediction1X2: x as any, scoreA: sA as any, scoreB: sB as any, redCard: rc })
+
+const FULL_GS_USERS: SimUser[] = [
+  {
+    uid: 'full-u1', name: '🏆 המנצח המלא', description: 'מנחש הכל נכון — 1X2, תוצאה מדויקת, כרטיסים, קבוצות',
+    predictions: {
+      7:  p(7,  '1', 1, 0, false),  // Cat A fav✓ + exact✓ + Under✓ = 1+2+1=4
+      2:  p(2,  'X', 0, 0, true),   // Cat A draw✓ + exact✓ + Under✓ + red✓ = 1+2+1+2=6
+      14: p(14, '1', 4, 1, false),  // Cat B fav✓ + exact✓ + Over✓ = 1+2+1=4
+      3:  p(3,  '2', 0, 1, true),   // Cat B upset✓ + exact✓ + Under✓ + red✓ = 2+2+1+2=7
+      1:  p(1,  '1', 2, 0, false),  // Cat C fav✓ + exact✓ + Under✓ = 1+2+1=4
+      8:  p(8,  '1', 1, 0, false),  // Cat C upset✓ + exact✓ + Under✓ = 3+2+1=6
+      9:  p(9,  '1', 5, 0, false),  // Cat D fav✓ + exact✓ + Over✓ = 1+2+1=4
+      13: p(13, '2', 0, 1, false),  // Cat D upset✓ + exact✓ + Under✓ = 4+2+1=7
+      10: p(10, 'X', 1, 1, false),  // Cat A draw✓ + exact✓ no-OU(2 goals) = 1+2=3
+      17: p(17, '1', 2, 1, false),  // Cat B fav✓ + exact✓ no-OU = 1+2=3
+    },
+    // Groups: all correct positions
+    groupPredictions: {
+      A: { group: 'A' as any, advancing: ['ברזיל',  'קוריאה הדרומית', 'צ׳כיה'] },   // 2+2=4
+      B: { group: 'B' as any, advancing: ['בלגיה',  'בוסניה', 'קנדה'] },             // 2+2=4
+      C: { group: 'C' as any, advancing: ['האיטי',  'מקסיקו', 'סקוטלנד'] },         // 2+2=4
+    },
+    // Expected: matches=4+6+4+7+4+6+4+7+3+3=48 + groups=4+4+4=12 = 60נק
+  },
+  {
+    uid: 'full-u2', name: '⚽ משתמש ממוצע', description: '1X2 נכון תמיד, חצי תוצאות, אין כרטיסים, קבוצות חלקי',
+    predictions: {
+      7:  p(7,  '1', 2, 0, false),  // 1X2✓, wrong score (2:0≠1:0) margin=2≠1 → just 1
+      2:  p(2,  'X', 0, 0, false),  // 1X2✓, exact✓ Under✓, no red = 1+2+1=4 (missed red)
+      14: p(14, '1', 2, 0, false),  // 1X2✓, score 2:0≠4:1, margin 2≠3 → just 1
+      3:  p(3,  '2', 0, 1, false),  // 1X2✓, exact✓ Under✓, no red = 2+2+1=5 (missed red)
+      1:  p(1,  '1', 2, 0, false),  // 1X2✓ + exact✓ + Under✓ = 1+2+1=4
+      8:  p(8,  '1', 2, 0, false),  // 1X2✓, 2:0≠1:0 margin=2≠1 → just 3
+      9:  p(9,  '1', 3, 0, false),  // 1X2✓, 3:0≠5:0 margin=3≠5 → just 1
+      13: p(13, '2', 0, 2, false),  // 1X2✓, 0:2≠0:1 margin=2≠1 → just 4
+      10: p(10, 'X', 1, 1, false),  // 1X2✓ + exact✓ = 1+2=3
+      17: p(17, '1', 3, 1, false),  // 1X2✓, 3:1≠2:1 margin=2=1? No → just 1
+    },
+    groupPredictions: {
+      A: { group: 'A' as any, advancing: ['ברזיל', 'צ׳כיה', 'קוריאה הדרומית'] },     // 1st exact(2), 2nd wrong order(1) = 3
+      B: { group: 'B' as any, advancing: ['בלגיה', 'קנדה', 'בוסניה'] },               // 1st exact(2), 2nd wrong(0) = 2
+      C: { group: 'C' as any, advancing: ['מקסיקו', 'האיטי', 'סקוטלנד'] },           // 1st wrong pos(1), 2nd wrong pos(1) = 2
+    },
+    // Expected: ~1+4+1+5+4+3+1+4+3+1=27 + groups=3+2+2=7 = ~34נק
+  },
+  {
+    uid: 'full-u3', name: '💥 מחפש אנדרדוגים', description: 'בוחר אנדרדוגים ותיקו, גם כרטיסים',
+    predictions: {
+      7:  p(7,  '2', 0, 1, false),  // Cat A — Brazil wins, wrong = 0
+      2:  p(2,  'X', 0, 0, true),   // Cat A draw✓ + exact✓ + Under✓ + red✓ = 1+2+1+2=6
+      14: p(14, '2', 1, 4, false),  // Cat B — Belgium wins, wrong = 0
+      3:  p(3,  '2', 0, 1, true),   // Cat B upset✓ + exact✓ + Under✓ + red✓ = 2+2+1+2=7
+      1:  p(1,  '2', 0, 2, false),  // Cat C — Mexico wins, wrong = 0
+      8:  p(8,  '1', 1, 0, false),  // Cat C upset✓ + exact✓ + Under✓ = 3+2+1=6
+      9:  p(9,  '2', 0, 5, false),  // Cat D — Germany wins, wrong = 0
+      13: p(13, '2', 0, 1, false),  // Cat D upset✓ + exact✓ + Under✓ = 4+2+1=7
+      10: p(10, 'X', 1, 1, false),  // Cat A draw✓ + exact✓ = 1+2=3
+      17: p(17, '2', 1, 2, false),  // Cat B — France wins, wrong = 0
+    },
+    groupPredictions: {
+      A: { group: 'A' as any, advancing: ['צ׳כיה', 'ברזיל', 'קוריאה הדרומית'] },     // 1st wrong pos(1), 2nd wrong pos(1) = 2
+      B: { group: 'B' as any, advancing: ['בוסניה', 'בלגיה', 'קנדה'] },               // 1st wrong pos(1), 2nd wrong pos(1) = 2
+      C: { group: 'C' as any, advancing: ['האיטי', 'מקסיקו', 'סקוטלנד'] },           // 2+2=4
+    },
+    // Expected: 0+6+0+7+0+6+0+7+3+0=29 + groups=2+2+4=8 = ~37נק
+  },
+  {
+    uid: 'full-u4', name: '📊 מועדפים בלבד', description: '1X2 מועדף תמיד, ללא תוצאות, ללא כרטיסים',
+    predictions: {
+      7:  p(7,  '1'),   // Cat A fav✓ = 1
+      2:  p(2,  '1'),   // Cat A draw, picks fav = 0
+      14: p(14, '1'),   // Cat B fav✓ = 1
+      3:  p(3,  '1'),   // Cat B upset, picks fav = 0
+      1:  p(1,  '1'),   // Cat C fav✓ = 1
+      8:  p(8,  '2'),   // Cat C upset, picks fav (Scotland) = 0 (Haiti won)
+      9:  p(9,  '1'),   // Cat D fav✓ = 1
+      13: p(13, '1'),   // Cat D upset, picks fav (Spain) = 0
+      10: p(10, '1'),   // Cat A draw, picks fav = 0
+      17: p(17, '1'),   // Cat B fav✓ = 1
+    },
+    groupPredictions: {
+      A: { group: 'A' as any, advancing: ['ברזיל', 'קוריאה הדרומית', 'צ׳כיה'] },  // exact = 4
+      B: { group: 'B' as any, advancing: ['בלגיה', 'קנדה', 'בוסניה'] },            // wrong order = 1+0=1
+      C: { group: 'C' as any, advancing: ['מקסיקו', 'ספרד', 'ברזיל'] },           // 0
+    },
+    // Expected: 1+0+1+0+1+0+1+0+0+1=5 + groups=4+1+0=5 = 10נק
+  },
+]
+
+// ── Full Knockout Simulation data ─────────────────────────────────────────────
+// 10 matches: R32(4) + R16(2) + QF(2) + SF(1) + Final(1)
+// Covers: FT, AET/PEN, all categories, advance picks all rounds, red cards all pools
+
+// R32 results
+const FKM_73: KnockoutMatch = { // Cat B, Spain fav, Spain wins FT 1:0, Under✓
+  id: 73, round: 'R32', teamA: 'ספרד', teamB: 'מקסיקו',
+  category: 'B', fifaPointsA: 1876.40, fifaPointsB: 1681.03,
+  resultA: 1, resultB: 0, isPlayed: true, advanceTeam: 'ספרד',
+}
+const FKM_74: KnockoutMatch = { // Cat D, Germany fav, Haiti wins (upset 4pt), red card
+  id: 74, round: 'R32', teamA: 'גרמניה', teamB: 'האיטי',
+  category: 'D', fifaPointsA: 1730.37, fifaPointsB: 1291.71,
+  resultA: 0, resultB: 1, isPlayed: true, advanceTeam: 'האיטי', hadRedCard: true,
+}
+const FKM_75: KnockoutMatch = { // Cat B, Brazil fav, draw→AET→Australia (upset Cat B=3pt advance)
+  id: 75, round: 'R32', teamA: 'ברזיל', teamB: 'אוסטרליה',
+  category: 'B', fifaPointsA: 1761.16, fifaPointsB: 1580.67,
+  resultA: 1, resultB: 1, isPlayed: true, advanceTeam: 'אוסטרליה',
+}
+const FKM_76: KnockoutMatch = { // Cat B, France fav, PEN→France (0:0 FT, PEN advance)
+  id: 76, round: 'R32', teamA: 'צרפת', teamB: 'אקוודור',
+  category: 'B', fifaPointsA: 1877.32, fifaPointsB: 1594.78,
+  resultA: 0, resultB: 0, isPlayed: true, advanceTeam: 'צרפת',
+}
+// R16 results
+const FKM_89: KnockoutMatch = { // Cat B, Spain fav, Spain wins 2:0 R16, Under Cat R16 ✓
+  id: 89, round: 'R16', teamA: 'ספרד', teamB: 'האיטי',
+  category: 'C', fifaPointsA: 1876.40, fifaPointsB: 1291.71,
+  resultA: 2, resultB: 0, isPlayed: true, advanceTeam: 'ספרד', hadRedCard: true,
+}
+const FKM_90: KnockoutMatch = { // Cat B, France vs Australia, France wins 3:1, Over R16 ✓
+  id: 90, round: 'R16', teamA: 'צרפת', teamB: 'אוסטרליה',
+  category: 'B', fifaPointsA: 1877.32, fifaPointsB: 1580.67,
+  resultA: 3, resultB: 1, isPlayed: true, advanceTeam: 'צרפת',
+}
+// QF results
+const FKM_97: KnockoutMatch = { // Cat A, Spain vs France, France wins 2:1 (tiny upset, base=2)
+  id: 97, round: 'QF', teamA: 'ספרד', teamB: 'צרפת',
+  category: 'A', fifaPointsA: 1876.40, fifaPointsB: 1877.32,
+  resultA: 1, resultB: 2, isPlayed: true, advanceTeam: 'צרפת',
+}
+const FKM_98: KnockoutMatch = { // Cat B QF, Portugal vs Argentina, Argentina wins (fav)
+  id: 98, round: 'QF', teamA: 'ארגנטינה', teamB: 'פורטוגל',
+  category: 'A', fifaPointsA: 1874.81, fifaPointsB: 1763.83,
+  resultA: 2, resultB: 0, isPlayed: true, advanceTeam: 'ארגנטינה',
+}
+// SF result
+const FKM_101: KnockoutMatch = { // Cat A SF base=3, France vs Argentina, France wins
+  id: 101, round: 'SF', teamA: 'צרפת', teamB: 'ארגנטינה',
+  category: 'A', fifaPointsA: 1877.32, fifaPointsB: 1874.81,
+  resultA: 2, resultB: 1, isPlayed: true, advanceTeam: 'צרפת',
+}
+// Final result
+const FKM_104: KnockoutMatch = { // Cat A Final base=3, France vs Portugal, France wins
+  id: 104, round: 'F', teamA: 'צרפת', teamB: 'פורטוגל',
+  category: 'A', fifaPointsA: 1877.32, fifaPointsB: 1763.83,
+  resultA: 1, resultB: 0, isPlayed: true, advanceTeam: 'צרפת',
+}
+
+const FULL_KO_PLAYED = [FKM_73, FKM_74, FKM_75, FKM_76, FKM_89, FKM_90, FKM_97, FKM_98, FKM_101, FKM_104]
+
+const kp = (matchId: number, x: '1'|'X'|'2', sA: number|null, sB: number|null, adv?: string): KnockoutMatchPrediction =>
+  ({ matchId, prediction1X2: x as any, scoreA: sA, scoreB: sB, advance: adv })
+
+const FULL_KO_USERS: KnockoutSimUser[] = [
+  {
+    uid: 'fko-u1', name: '🏆 מנצח נוקאאוט', description: 'הכל נכון: 1X2, advance, תוצאות, כרטיסים',
+    redCards: { R32: [74], R16: [89], QF: [] }, // correct red card picks
+    knockoutPreds: {
+      73:  kp(73,  '1', 1, 0, 'ספרד'),      // 1X2✓+exact✓+Under✓+adv Cat B fav = 1+2+1+2=6
+      74:  kp(74,  '2', 0, 1, 'האיטי'),      // 1X2✓+exact✓+Under✓+adv Cat D und=4+red✓ = 1+2+1+4+2=10
+      75:  kp(75,  'X', 1, 1, 'אוסטרליה'),   // 1X2✓+exact✓+adv Cat B und=3 = 1+2+3=6
+      76:  kp(76,  'X', 0, 0, 'צרפת'),       // 1X2✓+exact✓+adv Cat B fav=2 = 1+2+2=5
+      89:  kp(89,  '1', 2, 0, 'ספרד'),       // R16: 1X2✓+exact+Under✓+adv Cat C fav=3+red✓ = 1+2+1+3+2=9
+      90:  kp(90,  '1', 3, 1, 'צרפת'),       // R16: 1X2✓+exact✓+Over✓+adv Cat B fav=3 = 1+2+1+3=7
+      97:  kp(97,  '2', 1, 2, 'צרפת'),       // QF: 1X2✓+exact✓+adv Cat A und=4 = 2+2+4=8 (base=2 for QF)
+      98:  kp(98,  '1', 2, 0, 'ארגנטינה'),   // QF: 1X2✓+exact✓+adv Cat A fav=4 = 2+2+4=8
+      101: kp(101, '1', 2, 1, 'צרפת'),       // SF: 1X2✓+exact✓+adv Cat A und=5 = 3+2+5=10 (base=3)
+      104: kp(104, '1', 1, 0, 'צרפת'),       // F:  1X2✓+exact✓+Under✓+adv Cat A fav=5 = 3+2+2+5=12
+    },
+    // Expected total: ~81נק
+  },
+  {
+    uid: 'fko-u2', name: '📊 מועדפים נוקאאוט', description: '1X2 מועדף תמיד + advance מועדף, ללא תוצאות',
+    redCards: { R32: [], R16: [], QF: [] },
+    knockoutPreds: {
+      73:  kp(73,  '1', null, null, 'ספרד'),   // 1X2✓+adv fav=2
+      74:  kp(74,  '1', null, null, 'גרמניה'), // 1X2✗ (Haiti won), adv✗
+      75:  kp(75,  '1', null, null, 'ברזיל'),  // 1X2✗ (draw/AET), adv✗
+      76:  kp(76,  '1', null, null, 'צרפת'),   // 1X2✓(picks fav=France? Wait X was result) No: PEN result = France advances from 0:0
+      89:  kp(89,  '1', null, null, 'ספרד'),   // 1X2✓+adv fav=3 R16
+      90:  kp(90,  '1', null, null, 'צרפת'),   // 1X2✓+adv fav=3 R16
+      97:  kp(97,  '1', null, null, 'ספרד'),   // 1X2✗ (France won)
+      98:  kp(98,  '1', null, null, 'ארגנטינה'),// 1X2✓+adv fav=4 QF
+      101: kp(101, '1', null, null, 'צרפת'),   // 1X2✓+adv fav=5 SF
+      104: kp(104, '1', null, null, 'צרפת'),   // 1X2✓+adv fav=5 Final
+    },
+    // Expected: ~30-35נק
+  },
+  {
+    uid: 'fko-u3', name: '💥 מפתיעים נוקאאוט', description: 'בוחר אנדרדוגים + כרטיסי אדום בכל pool',
+    redCards: { R32: [73, 74, 75], R16: [89, 90], QF: [97] }, // picks all pools, some correct
+    knockoutPreds: {
+      73:  kp(73,  '2', 0, 1, 'מקסיקו'),     // 1X2✗, adv und Cat B = would be 2 if right
+      74:  kp(74,  '2', 0, 1, 'האיטי'),       // 1X2✓+exact✓+Under✓+adv Cat D und=4+red✓ = 10
+      75:  kp(75,  'X', 1, 1, 'אוסטרליה'),    // 1X2✓+exact✓+adv Cat B und=3 = 1+2+3=6
+      76:  kp(76,  '2', 1, 0, 'אקוודור'),     // 1X2✗, adv✗
+      89:  kp(89,  '2', 0, 2, 'האיטי'),       // 1X2✗ (Spain won), no adv, no red(89 has red but not in picks)
+      90:  kp(90,  '2', 1, 3, 'אוסטרליה'),   // 1X2✗ (France won)
+      97:  kp(97,  '2', 1, 2, 'צרפת'),        // 1X2✓+exact✓+adv Cat A und=4, QF base=2 = 2+2+4=8
+      98:  kp(98,  '2', 0, 2, 'פורטוגל'),    // 1X2✗ (Argentina won)
+      101: kp(101, '2', 1, 2, 'ארגנטינה'),   // 1X2✗ (France won)
+      104: kp(104, '2', 0, 1, 'פורטוגל'),    // 1X2✗ (France won)
+    },
+    // Expected: ~10+6+8+red✓(74)=2+red✓(97? not in QF picks since 97 is QF)
+    // red: R32 picks [73,74,75] → 74 had red✓=2. R16 picks [89,90] → 89 had red✓=2. QF picks [97] → 97 no red=0
+    // Total: 0+10+6+0+0+0+8+0+0+0 + reds=2+2=4 = ~30נק
+  },
+]
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Simulator() {
   const [running, setRunning] = useState<string | null>(null)
@@ -426,6 +738,8 @@ export default function Simulator() {
   const [activeScenario, setActiveScenario] = useState<string | null>(null)
   const [r32Result, setR32Result] = useState<Record<number,any> | null>(null)
   const [koResults, setKoResults] = useState<ScenarioResult[] | null>(null)
+  const [fullGsResults, setFullGsResults] = useState<ScenarioResult[] | null>(null)
+  const [fullKoResults, setFullKoResults] = useState<ScenarioResult[] | null>(null)
 
   const addLog = (msg: string) => setLog(prev => [...prev, msg])
 
@@ -554,6 +868,79 @@ export default function Simulator() {
     setRunning(null)
   }
 
+  const runFullGroupStage = async () => {
+    setRunning('full-gs')
+    setLog([])
+    setFullGsResults(null)
+    try {
+      const matchMap: Record<number, Match> = {}
+      for (const m of MATCHES) matchMap[m.id] = { ...m }
+      for (const r of FULL_GS_MATCHES) matchMap[r.id!] = { ...matchMap[r.id!], ...r }
+      await setDoc(doc(db, 'admin', 'results'), { matches: matchMap, groups: FULL_GS_GROUPS, bonus: {} })
+      addLog(`💾 תוצאות מלאות נשמרו (${FULL_GS_MATCHES.length} משחקים, ${Object.keys(FULL_GS_GROUPS).length} בתים)`)
+      const playedMatches = Object.values(matchMap).filter(m => m.isPlayed)
+      const scoreResults: ScenarioResult[] = []
+      for (const user of FULL_GS_USERS) {
+        await setDoc(doc(db, 'users', user.uid), { name: user.name, email: `${user.uid}@sim.test`, joinedAt: Date.now() })
+        await setDoc(doc(db, 'predictions', user.uid), { matches: user.predictions, groups: user.groupPredictions, bonus: {}, userName: user.name, lastUpdated: Date.now() })
+        const score = computeUserScore(user.uid, user.name, user.predictions, user.groupPredictions, {}, playedMatches, FULL_GS_GROUPS, {})
+        await setDoc(doc(db, 'scores', user.uid), score)
+        const breakdown: string[] = []
+        for (const [mid, detail] of Object.entries(score.matchDetails ?? {})) {
+          const match = matchMap[Number(mid)]
+          if (!match) continue
+          const parts = []
+          if ((detail as any).points1X2 > 0) parts.push(`1X2:+${(detail as any).points1X2}`)
+          if ((detail as any).pointsScore > 0) parts.push(`תוצאה:+${(detail as any).pointsScore}`)
+          if ((detail as any).pointsRedCard > 0) parts.push(`🟥:+${(detail as any).pointsRedCard}`)
+          if (parts.length) breakdown.push(`#${mid}(${match.teamA}vs${match.teamB}): ${parts.join(' ')}=[${(detail as any).total}]`)
+        }
+        if (score.groupPoints > 0) breakdown.push(`קבוצות: +${score.groupPoints}`)
+        scoreResults.push({ uid: user.uid, name: user.name, matchPoints: score.matchPoints, redCardPoints: score.redCardPoints, groupPoints: score.groupPoints, total: score.total, breakdown })
+        addLog(`✅ ${user.name}: ${score.total}נק (משחקים:${score.matchPoints} כרטיסים:${score.redCardPoints} קבוצות:${score.groupPoints})`)
+      }
+      setFullGsResults(scoreResults)
+      addLog('🎉 סימולציה מלאה של שלב בתים הושלמה!')
+    } catch (e: any) { addLog(`❌ ${e.message}`) }
+    setRunning(null)
+  }
+
+  const runFullKnockout = async () => {
+    setRunning('full-ko')
+    setLog([])
+    setFullKoResults(null)
+    try {
+      const knockoutMap: Record<number, KnockoutMatch> = {}
+      for (const km of FULL_KO_PLAYED) knockoutMap[km.id] = km
+      await setDoc(doc(db, 'admin', 'knockout'), { matches: knockoutMap })
+      addLog(`💾 תוצאות נוקאאוט מלאות נשמרו (${FULL_KO_PLAYED.length} משחקים)`)
+      const scoreResults: ScenarioResult[] = []
+      for (const user of FULL_KO_USERS) {
+        await setDoc(doc(db, 'users', user.uid), { name: user.name, email: `${user.uid}@sim.test`, joinedAt: Date.now() })
+        await setDoc(doc(db, 'predictions', user.uid), { matches: {}, groups: {}, bonus: {}, knockout: user.knockoutPreds, knockoutRedCards: user.redCards, userName: user.name, lastUpdated: Date.now() })
+        const score = computeUserScore(user.uid, user.name, {}, {}, {}, [], {}, {}, user.knockoutPreds, FULL_KO_PLAYED, user.redCards)
+        await setDoc(doc(db, 'scores', user.uid), score)
+        const breakdown: string[] = []
+        for (const km of FULL_KO_PLAYED) {
+          const pred = user.knockoutPreds[km.id]
+          if (!pred) continue
+          const actual = km.resultA! > km.resultB! ? '1' : km.resultA! < km.resultB! ? '2' : 'X'
+          const parts: string[] = []
+          if (pred.prediction1X2 === actual) parts.push('1X2✓')
+          if (pred.advance === km.advanceTeam) parts.push('advance✓')
+          if (km.hadRedCard && user.redCards[km.round as 'R32'|'R16'|'QF']?.includes(km.id)) parts.push('🟥✓')
+          if (parts.length) breakdown.push(`#${km.id}[${km.round}] ${km.teamA}vs${km.teamB}: ${parts.join(' ')}`)
+        }
+        if (score.redCardPoints > 0) breakdown.push(`סה"כ כרטיסים: +${score.redCardPoints}`)
+        scoreResults.push({ uid: user.uid, name: user.name, matchPoints: score.matchPoints, redCardPoints: score.redCardPoints, groupPoints: 0, total: score.total, breakdown })
+        addLog(`✅ ${user.name}: ${score.total}נק (נוקאאוט:${score.knockoutPoints} כרטיסים:${score.redCardPoints})`)
+      }
+      setFullKoResults(scoreResults)
+      addLog('🎉 סימולציה מלאה של נוקאאוט הושלמה!')
+    } catch (e: any) { addLog(`❌ ${e.message}`) }
+    setRunning(null)
+  }
+
   const runR32Population = async () => {
     setRunning('r32')
     setLog([])
@@ -648,7 +1035,158 @@ export default function Simulator() {
         {resetting ? 'מוחק...' : '🗑️ מחק הכל וחזור למצב ריק'}
       </button>
 
-      {/* Scenario cards */}
+      {/* ── Full Simulations ────────────────────────────────────────────────── */}
+      <div style={{ borderTop: '2px solid #1a1a2e', paddingTop: 24, marginTop: 8, marginBottom: 8 }}>
+        <h3 style={{ margin: '0 0 4px' }}>🎮 סימולציות מלאות</h3>
+        <p style={{ color: '#888', fontSize: 13, margin: '0 0 16px' }}>
+          בודק את כל כללי הניקוד יחד בסימולציה אחת מקיפה לכל שלב
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 8 }}>
+
+          {/* Full Group Stage */}
+          <div style={{ border: `2px solid ${fullGsResults ? '#1a7a44' : '#1a1a2e'}`, borderRadius: 12, padding: 16, background: fullGsResults ? '#f0faf4' : '#fff' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>⚽ שלב בתים מלא</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+              10 משחקים × 4 קטגוריות × כל סוגי הניקוד + עולות מהבתים
+            </div>
+            <details style={{ marginBottom: 12 }}>
+              <summary style={{ fontSize: 12, color: '#555', cursor: 'pointer', fontWeight: 600, userSelect: 'none' }}>📖 הסבר מפורט</summary>
+              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f8f8f8', borderRadius: 8, border: '1px solid #e8e8e8', fontSize: 11, lineHeight: 1.8 }}>
+                <div style={{ fontWeight: 700, color: '#333' }}>📋 10 משחקים המכסים:</div>
+                <div style={{ color: '#666' }}>Cat A: Brazil 1:0 Morocco (מועדף+Under✓) | S.Korea 0:0 Czechia (תיקו+Under✓+🟥)</div>
+                <div style={{ color: '#666' }}>Cat B: Belgium 4:1 Egypt (מועדף+Over✓) | Bosnia 1:0 Canada (אנדרדוג+Under✓+🟥)</div>
+                <div style={{ color: '#666' }}>Cat C: Mexico 2:0 S.Africa (מועדף+Under✓) | Haiti 1:0 Scotland (אנדרדוג Cat C=3נק)</div>
+                <div style={{ color: '#666' }}>Cat D: Germany 5:0 Curaçao (מועדף+Over✓) | Cape Verde 1:0 Spain (אנדרדוג Cat D=4נק+Under✓)</div>
+                <div style={{ color: '#666' }}>Cat A draw: Netherlands 1:1 Japan (תיקו, 2 שערים=ללא O/U)</div>
+                <div style={{ color: '#666' }}>Cat B: France 2:1 Senegal (מועדף, מרווח=1)</div>
+                <div style={{ fontWeight: 700, color: '#333', marginTop: 4 }}>📋 4 משתמשים:</div>
+                <div style={{ color: '#666' }}>🏆 "המנצח המלא" — הכל נכון → צפוי ~60נק</div>
+                <div style={{ color: '#666' }}>⚽ "משתמש ממוצע" — 1X2 נכון + חלק תוצאות → צפוי ~34נק</div>
+                <div style={{ color: '#666' }}>💥 "מחפש אנדרדוגים" — אפסטים נכון → צפוי ~37נק</div>
+                <div style={{ color: '#666' }}>📊 "מועדפים בלבד" — רק 1X2 ומועדפים → צפוי ~10נק</div>
+                <div style={{ fontWeight: 700, color: '#1a7a44', marginTop: 4 }}>✅ ציפייה: מנצח(60) {'>'} אנדרדוגים(37) {'>'} ממוצע(34) {'>'} מועדפים(10)</div>
+                <div style={{ color: '#0C447C', fontWeight: 600 }}>📌 בדוק: O/U Cat C ≤2 שערים (#1, #8) ≥5 (#9) | Cat A draw=#2(6נק) vs #10(3נק)</div>
+              </div>
+            </details>
+            <button onClick={runFullGroupStage} disabled={!!running}
+              style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none',
+                background: running === 'full-gs' ? '#aaa' : '#1a1a2e',
+                color: '#fff', fontWeight: 700, cursor: running ? 'default' : 'pointer',
+                fontFamily: 'inherit', fontSize: 14 }}>
+              {running === 'full-gs' ? '⏳ רץ...' : '▶ הרץ סימולציה מלאה — שלב בתים'}
+            </button>
+            {fullGsResults && (
+              <div style={{ marginTop: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#f0f0f0' }}>
+                      <th style={{ padding: '6px 8px', textAlign: 'right', border: '1px solid #ddd' }}>משתמש</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #ddd' }}>משחקים</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #ddd' }}>🟥</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #ddd' }}>קבוצות</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #ddd', fontWeight: 700 }}>סה"כ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fullGsResults.sort((a,b) => b.total - a.total).map(r => (
+                      <tr key={r.uid}>
+                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', fontWeight: 500 }}>{r.name}</td>
+                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{r.matchPoints}</td>
+                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{r.redCardPoints}</td>
+                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{r.groupPoints}</td>
+                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', textAlign: 'center', fontWeight: 700, color: '#1a7a44' }}>{r.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {fullGsResults.map(r => (
+                  <details key={r.uid} style={{ marginTop: 5, background: '#f9f9f9', borderRadius: 6, padding: '5px 10px', border: '1px solid #e0e0e0' }}>
+                    <summary style={{ cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>{r.name} — פירוט</summary>
+                    <ul style={{ margin: '5px 0 0', paddingRight: 14, fontSize: 10, color: '#555' }}>
+                      {r.breakdown.map((b,i) => <li key={i} style={{ marginBottom: 2 }}>{b}</li>)}
+                    </ul>
+                  </details>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Full Knockout */}
+          <div style={{ border: `2px solid ${fullKoResults ? '#1a7a44' : '#1a1a2e'}`, borderRadius: 12, padding: 16, background: fullKoResults ? '#f0faf4' : '#fff' }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>🏆 נוקאאוט מלא</div>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
+              10 משחקים: R32(4)+R16(2)+QF(2)+SF(1)+גמר(1) — FT/AET/PEN + כל שלבי הניקוד
+            </div>
+            <details style={{ marginBottom: 12 }}>
+              <summary style={{ fontSize: 12, color: '#555', cursor: 'pointer', fontWeight: 600, userSelect: 'none' }}>📖 הסבר מפורט</summary>
+              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f8f8f8', borderRadius: 8, border: '1px solid #e8e8e8', fontSize: 11, lineHeight: 1.8 }}>
+                <div style={{ fontWeight: 700, color: '#333' }}>📋 R32 (base=1):</div>
+                <div style={{ color: '#666' }}>#73 ספרד vs מקסיקו Cat B — ספרד FT 1:0 (Under✓)</div>
+                <div style={{ color: '#666' }}>#74 גרמניה vs האיטי Cat D — האיטי (אפסט! adv=4נק) 🟥</div>
+                <div style={{ color: '#666' }}>#75 ברזיל vs אוסטרליה Cat B — AET 1:1 → אוסטרליה (adv und=3נק)</div>
+                <div style={{ color: '#666' }}>#76 צרפת vs אקוודור Cat B — PEN 0:0 → צרפת (adv fav=2נק)</div>
+                <div style={{ fontWeight: 700, color: '#333' }}>📋 R16 (base=1), QF (base=2), SF (base=3), Final (base=3):</div>
+                <div style={{ color: '#666' }}>#89 ספרד vs האיטי Cat C R16 — 2:0 (Under✓) 🟥</div>
+                <div style={{ color: '#666' }}>#90 צרפת vs אוסטרליה Cat B R16 — 3:1 (Over✓)</div>
+                <div style={{ color: '#666' }}>#97 ספרד vs צרפת Cat A QF — צרפת 2:1 (אפסט Cat A, base=2)</div>
+                <div style={{ color: '#666' }}>#98 ארגנטינה vs פורטוגל Cat A QF — 2:0 (מועדף, base=2)</div>
+                <div style={{ color: '#666' }}>#101 צרפת vs ארגנטינה Cat A SF — 2:1 (base=3)</div>
+                <div style={{ color: '#666' }}>#104 צרפת vs פורטוגל Cat A Final — 1:0 (Under✓, base=3)</div>
+                <div style={{ fontWeight: 700, color: '#333', marginTop: 4 }}>📋 3 משתמשים:</div>
+                <div style={{ color: '#666' }}>🏆 "מנצח נוקאאוט" — הכל נכון → צפוי ~81נק</div>
+                <div style={{ color: '#666' }}>📊 "מועדפים נוקאאוט" — רק מועדפים → צפוי ~35נק</div>
+                <div style={{ color: '#666' }}>💥 "מפתיעים נוקאאוט" — אנדרדוגים + כרטיסים → צפוי ~30נק</div>
+                <div style={{ fontWeight: 700, color: '#1a7a44', marginTop: 4 }}>✅ ציפייה: מנצח {'>'} מועדפים {'>'} מפתיעים</div>
+                <div style={{ color: '#0C447C', fontWeight: 600 }}>📌 בדוק: QF base=2 (#97=8נק advance) | SF base=3 (#101) | Final base=3 (#104)</div>
+              </div>
+            </details>
+            <button onClick={runFullKnockout} disabled={!!running}
+              style={{ width: '100%', padding: '9px', borderRadius: 8, border: 'none',
+                background: running === 'full-ko' ? '#aaa' : '#1a1a2e',
+                color: '#fff', fontWeight: 700, cursor: running ? 'default' : 'pointer',
+                fontFamily: 'inherit', fontSize: 14 }}>
+              {running === 'full-ko' ? '⏳ רץ...' : '▶ הרץ סימולציה מלאה — נוקאאוט'}
+            </button>
+            {fullKoResults && (
+              <div style={{ marginTop: 12 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#f0f0f0' }}>
+                      <th style={{ padding: '6px 8px', textAlign: 'right', border: '1px solid #ddd' }}>משתמש</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #ddd' }}>נוקאאוט</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #ddd' }}>🟥</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'center', border: '1px solid #ddd', fontWeight: 700 }}>סה"כ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {fullKoResults.sort((a,b) => b.total - a.total).map(r => (
+                      <tr key={r.uid}>
+                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', fontWeight: 500 }}>{r.name}</td>
+                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{r.matchPoints}</td>
+                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', textAlign: 'center' }}>{r.redCardPoints}</td>
+                        <td style={{ padding: '6px 8px', border: '1px solid #ddd', textAlign: 'center', fontWeight: 700, color: '#1a7a44' }}>{r.total}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {fullKoResults.map(r => (
+                  <details key={r.uid} style={{ marginTop: 5, background: '#f9f9f9', borderRadius: 6, padding: '5px 10px', border: '1px solid #e0e0e0' }}>
+                    <summary style={{ cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>{r.name} — פירוט</summary>
+                    <ul style={{ margin: '5px 0 0', paddingRight: 14, fontSize: 10, color: '#555' }}>
+                      {r.breakdown.map((b,i) => <li key={i} style={{ marginBottom: 2 }}>{b}</li>)}
+                    </ul>
+                  </details>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Focused scenarios ──────────────────────────────────────────────── */}
+      <h3 style={{ margin: '0 0 4px' }}>🔬 סימולציות ממוקדות — שלב בתים</h3>
+      <p style={{ color: '#888', fontSize: 13, margin: '0 0 16px' }}>בודק כל סוג ניקוד בנפרד</p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14, marginBottom: 24 }}>
         {SCENARIOS.map(s => (
           <div key={s.id} style={{
@@ -662,10 +1200,25 @@ export default function Simulator() {
                 <div style={{ fontSize: 12, color: '#888', marginTop: 3 }}>{s.description}</div>
               </div>
             </div>
-            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 10 }}>
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 8 }}>
               {s.results.length} משחקים · {s.users.length} משתמשים
               {s.groupResults ? ` · ${Object.keys(s.groupResults).length} בתים` : ''}
             </div>
+            <details style={{ marginBottom: 10 }}>
+              <summary style={{ fontSize: 12, color: '#555', cursor: 'pointer', fontWeight: 600, userSelect: 'none' }}>
+                📖 הסבר מפורט
+              </summary>
+              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f8f8f8', borderRadius: 8, border: '1px solid #e8e8e8' }}>
+                {s.details.map((line, i) => (
+                  <div key={i} style={{
+                    fontSize: 11, lineHeight: 1.7,
+                    color: line.startsWith('✅') ? '#1a7a44' : line.startsWith('📌') ? '#0C447C' : line.startsWith('📋') ? '#333' : line.startsWith('👤') ? '#444' : '#666',
+                    fontWeight: line.startsWith('📋') || line.startsWith('✅') || line.startsWith('📌') ? 600 : 400,
+                    whiteSpace: 'pre',
+                  }}>{line}</div>
+                ))}
+              </div>
+            </details>
             <button
               onClick={() => runScenario(s)}
               disabled={!!running}
@@ -741,6 +1294,23 @@ export default function Simulator() {
             <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
               מזין standings ל-12 בתים, מריץ Annex C, ומציג את ה-R32 שנוצר
             </div>
+            <details style={{ marginBottom: 10 }}>
+              <summary style={{ fontSize: 12, color: '#555', cursor: 'pointer', fontWeight: 600, userSelect: 'none' }}>
+                📖 הסבר מפורט
+              </summary>
+              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f8f8f8', borderRadius: 8, border: '1px solid #e8e8e8', fontSize: 11, lineHeight: 1.8 }}>
+                <div style={{ fontWeight: 700, color: '#333' }}>📋 מה הסימולציה בודקת:</div>
+                <div style={{ color: '#666' }}>מזין standings מלאים ל-12 בתים עם 1/2/3 לכל בת ו-8 שלישיות מובחרות</div>
+                <div style={{ fontWeight: 700, color: '#333', marginTop: 6 }}>📋 שיבוץ שלישיות (Annex C):</div>
+                <div style={{ color: '#666' }}>השלישיות מבתים C,F,G,H,I,J,K,L — תואם לשורה 1 בטבלת Annex C</div>
+                <div style={{ color: '#666' }}>לפי הטבלה: E1←3F, I1←3G, A1←3C, L1←3K, D1←3I, G1←3H, B1←3J, K1←3L</div>
+                <div style={{ fontWeight: 700, color: '#333', marginTop: 6 }}>📋 8 משחקים קבועים (ללא שלישיות):</div>
+                <div style={{ color: '#666' }}>#73 A2 vs B2 · #75 F1 vs C2 · #76 C1 vs F2 · #78 E2 vs I2</div>
+                <div style={{ color: '#666' }}>#83 K2 vs L2 · #85 H1 vs J2 · #86 J1 vs H2 · #88 D2 vs G2</div>
+                <div style={{ fontWeight: 700, color: '#1a7a44', marginTop: 6 }}>✅ ציפייה: 16/16 משחקים מאוכלסים</div>
+                <div style={{ color: '#0C447C', fontWeight: 600, marginTop: 4 }}>📌 בדוק שכל קבוצה מופיעה פעם אחת בלבד</div>
+              </div>
+            </details>
             <div style={{ fontSize: 11, color: '#aaa', marginBottom: 12 }}>
               12 בתים · 8 שלישיות · 495 תרחישי Annex C
             </div>
@@ -771,8 +1341,31 @@ export default function Simulator() {
           <div style={{ border: `2px solid ${koResults ? '#1a7a44' : '#e0e0e0'}`, borderRadius: 12, padding: 16, background: koResults ? '#f0faf4' : '#fff' }}>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>⚽ ניקוד נוקאאוט</div>
             <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>
-              5 משחקי נוקאאוט (R32/R16/QF) עם FT, AET, upset ·  3 משתמשים עם advance picks שונים + כרטיסי אדום
+              5 משחקי נוקאאוט (R32/R16/QF) עם FT, AET, upset · 3 משתמשים עם advance picks שונים + כרטיסי אדום
             </div>
+            <details style={{ marginBottom: 10 }}>
+              <summary style={{ fontSize: 12, color: '#555', cursor: 'pointer', fontWeight: 600, userSelect: 'none' }}>
+                📖 הסבר מפורט
+              </summary>
+              <div style={{ marginTop: 8, padding: '8px 10px', background: '#f8f8f8', borderRadius: 8, border: '1px solid #e8e8e8', fontSize: 11, lineHeight: 1.8 }}>
+                <div style={{ fontWeight: 700, color: '#333' }}>📋 משחקים (R32 base=1, R16 base=1, QF base=2):</div>
+                <div style={{ color: '#666' }}>#73 ספרד vs מקסיקו — Cat B, FT 1:0, ספרד עולה (Under ✓)</div>
+                <div style={{ color: '#666' }}>#74 גרמניה vs האיטי — Cat D, האיטי מנצחת (Cat D upset!) 🟥 כרטיס אדום</div>
+                <div style={{ color: '#666' }}>#75 ברזיל vs אוסטרליה — Cat B, תיקו 1:1 → AET → אוסטרליה עולה</div>
+                <div style={{ color: '#666' }}>#89 צרפת vs קולומביה — Cat B R16, FT 2:1, צרפת עולה</div>
+                <div style={{ color: '#666' }}>#97 ארגנטינה vs בלגיה — Cat A QF, בלגיה מנצחת 2:0 (Cat A upset, base=2)</div>
+                <div style={{ fontWeight: 700, color: '#333', marginTop: 6 }}>📋 3 משתמשים:</div>
+                <div style={{ color: '#666' }}>👤 "מועדפים" — בוחר מועדף + advance מועדף: צפוי ~12נק</div>
+                <div style={{ color: '#666' }}>  1X2✓ ספרד (#73) + exact+OU = +4 | advance ספרד Cat B = +2</div>
+                <div style={{ color: '#666' }}>  1X2✓ צרפת (#89) + exact = +3 | advance צרפת Cat B = +3</div>
+                <div style={{ color: '#666' }}>👤 "מפתיעים" — בוחר אנדרדוג + advance אנדרדוג: צפוי ~15נק</div>
+                <div style={{ color: '#666' }}>  advance האיטי Cat D = +4 | advance אוסטרליה Cat B = +3</div>
+                <div style={{ color: '#666' }}>  advance בלגיה Cat A QF = +4 | 🟥 #74 נכון = +2</div>
+                <div style={{ color: '#666' }}>👤 "X תמיד" — מנחש תיקו: רק #75 נכון (Cat B R32 draw = +1)</div>
+                <div style={{ fontWeight: 700, color: '#1a7a44', marginTop: 6 }}>✅ ציפייה: מפתיעים {'>'} מועדפים {'>'} X תמיד</div>
+                <div style={{ color: '#0C447C', fontWeight: 600 }}>📌 בדוק: advance Cat D (#74) = 4נק, QF base (#97) = 2נק</div>
+              </div>
+            </details>
             <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>
               <b>R32 (base=1):</b> ספרד-מקסיקו Cat B (FT) · גרמניה-האיטי Cat D upset (🟥) · ברזיל-אוסטרליה Cat B (AET)
             </div>
