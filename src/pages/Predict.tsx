@@ -365,14 +365,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                     <div className="group-label">{t.group} {group}</div>
                     {ms.map(match => {
                       const p: MatchPrediction = matchPreds[match.id] ?? { matchId: match.id, scoreA: null, scoreB: null, redCard: false }
-                      if (!p.prediction1X2) {
-                        return (
-                          <div className="max-pts-bar" key={match.id} style={{ opacity: 0.4 }}>
-                            <span className="max-pts-label">בחר 1X2 לניקוד</span>
-                          </div>
-                        )
-                      }
-                      const { total: maxPts, breakdown } = calcMaxPoints(p, match.category, match.fifaPointsA, match.fifaPointsB, t)
+                      const { total: maxPts, breakdown } = p.prediction1X2
+                        ? calcMaxPoints(p, match.category, match.fifaPointsA, match.fifaPointsB, t)
+                        : { total: 0, breakdown: [] }
                       return (
                         <div key={match.id} className="match-row">
                           <div className="match-header">
@@ -437,7 +432,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             </label>
                           </div>
 
-                          {p.prediction1X2 && (
+                          {p.prediction1X2 ? (
                             <div className="max-pts-bar">
                               <span className="max-pts-label">מקסימום:</span>
                               <span className="max-pts-value">{maxPts}</span>
@@ -445,6 +440,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                               <div className="max-pts-breakdown">
                                 {breakdown.map((b, i) => <span key={i} className="max-pts-item">{b}</span>)}
                               </div>
+                            </div>
+                          ) : (
+                            <div className="max-pts-bar" style={{ opacity: 0.45 }}>
+                              <span className="max-pts-label">בחר 1X2 לניקוד</span>
                             </div>
                           )}
                         </div>
