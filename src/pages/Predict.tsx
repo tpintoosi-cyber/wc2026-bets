@@ -620,8 +620,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const hasScore = pred?.scoreA !== null && pred?.scoreA !== undefined
                 const predResult = hasPred ? pred!.prediction1X2 : null
 
+                // Red card pick (needs to be before points calculation)
+                const roundKey = km?.round as 'R32' | 'R16' | 'QF' | undefined
+                const pickedRedCard = roundKey && ['R32','R16','QF'].includes(roundKey)
+                  ? (knockoutRedCards[roundKey as 'R32'|'R16'|'QF'] ?? []).includes(id)
+                  : false
+
                 // Points earned (only when played)
-                let pts1x2 = 0, ptsScore = 0, ptsAdv = 0
+                let pts1x2 = 0, ptsScore = 0, ptsAdv = 0, ptsRedCard = 0
                 if (isPlayed && hasPred && km) {
                   pts1x2 = (() => {
                     if (!predResult || actualResult === undefined) return 0
@@ -651,6 +657,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                       ptsAdv = base + catBonus
                     }
                   }
+                  // Red card points
+                  if (pickedRedCard) {
+                    ptsRedCard = actual?.hadRedCard ? 2 : 0
+                  }
                 }
 
                 // Prediction OU label
@@ -660,12 +670,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                   const isOU = km.round === 'F' ? (goalTotal === 0 || goalTotal >= 4) : km.round === '3P' ? (goalTotal <= 2 || goalTotal >= 5) : catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
                   if (isOU) predOuLabel = goalTotal <= (catIdx <= 1 ? 1 : 2) ? t.under : t.over
                 }
-
-                // Red card pick
-                const roundKey = km?.round as 'R32' | 'R16' | 'QF' | undefined
-                const pickedRedCard = roundKey && ['R32','R16','QF'].includes(roundKey)
-                  ? (knockoutRedCards[roundKey as 'R32'|'R16'|'QF'] ?? []).includes(id)
-                  : false
 
                 // Advance pick
                 const advPicked = pred?.advance
@@ -814,54 +818,78 @@ export default function Predict({ lang }: { lang: Lang }) {
                           </div>
                         )}
                         {pickedRedCard && (
-                          <span style={{ fontSize: 11, padding: '2px 4px', borderRadius: 4, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            {isPlayed && (
+                              <span style={{ fontSize: 11, color: ptsRedCard > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>
+                                {ptsRedCard > 0 ? '✓' : '✗'}
+                              </span>
+                            )}
+                            <span style={{ fontSize: 11, padding: '2px 4px', borderRadius: 4, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥</span>
+                            {isPlayed && ptsRedCard > 0 && (
+                              <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsRedCard}</span>
+                            )}
+                          </div>
                         )}
                       </div>
                     )}
 
                     {/* ── ADVANCE PICK ── */}
-                    {advPicked ? (
-                      <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '4px 7px', gap: 4,
-                        background: advCorrect ? '#EAF3DE' : advWrong ? '#FCEBEB' : '#f5f5f5',
-                        borderTop: '1px solid #ebebeb',
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          {isPlayed && (
-                            <span style={{ fontSize: 12, color: advCorrect ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>
-                              {advCorrect ? '✓' : '✗'}
+                    {advPicked ? (() => {
+                      const advPickedIsUnderdog = (advPicked === tA && !aIsFav) || (advPicked === tB && aIsFav)
+                      const advCorrectWithBonus = advCorrect && ptsAdv > 0
+                      const advCorrectNoBonus = advCorrect && ptsAdv === 0  // correct fav pick
+                      return (
+                        <div style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '4px 7px', gap: 4,
+                          background: advCorrectWithBonus ? '#EAF3DE' : advWrong ? '#FCEBEB' : '#f5f5f5',
+                          borderTop: '1px solid #ebebeb',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            {isPlayed && (
+                              <span style={{ fontSize: 12, fontWeight: 700,
+                                color: advCorrectWithBonus ? '#1a7a44' : advWrong ? '#cc3333' : '#888' }}>
+                                {advCorrectWithBonus ? '✓' : advWrong ? '✗' : '—'}
+                              </span>
+                            )}
+                            <span style={{ fontSize: 11, fontWeight: 700,
+                              color: advCorrectWithBonus ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555' }}>
+                              {advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} {advPicked}
                             </span>
-                          )}
-                          <span style={{ fontSize: 11, color: advCorrect ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555', fontWeight: 700 }}>
-                            {advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} {advPicked}
-                          </span>
+                            {isPlayed && advCorrectNoBonus && (
+                              <span style={{ fontSize: 10, color: '#888' }}>(מועדף, ללא בונוס)</span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            {isPlayed && ptsAdv > 0 && (
+                              <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>+{ptsAdv}</span>
+                            )}
+                            {!isPlayed && (
+                              <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4,
+                                background: advPickedIsUnderdog ? '#DBEAFE' : '#f0f0f0',
+                                color: advPickedIsUnderdog ? '#1a4fa8' : '#999', fontWeight: 700 }}>
+                                {advPickedIsUnderdog ? `+${potentialAdvPts}` : 'מועדף'}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                          {isPlayed && ptsAdv > 0 && (
-                            <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>+{ptsAdv}</span>
-                          )}
-                          {!isPlayed && (
-                            <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4, background: '#DBEAFE', color: '#1a4fa8', fontWeight: 700 }}>+{potentialAdvPts}</span>
-                          )}
-                        </div>
-                      </div>
-                    ) : (tA && tB && (
+                      )
+                    })() : (tA && tB && (
                       <div style={{ padding: '4px 7px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
                         <span style={{ fontSize: 10, color: '#aaa' }}>לחץ לבחירת עולה ←</span>
                       </div>
                     ))}
 
                     {/* ── TOTAL POINTS (when played) ── */}
-                    {isPlayed && hasPred && (pts1x2 + ptsScore + ptsAdv) > 0 && (
+                    {isPlayed && hasPred && (pts1x2 + ptsScore + ptsAdv + ptsRedCard) > 0 && (
                       <div style={{
                         padding: '3px 7px', background: '#1a7a44',
                         display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4,
                       }}>
-                        <span style={{ fontSize: 11, color: '#fff', fontWeight: 800 }}>סה״כ: +{pts1x2 + ptsScore + ptsAdv} נק׳</span>
+                        <span style={{ fontSize: 11, color: '#fff', fontWeight: 800 }}>סה״כ: +{pts1x2 + ptsScore + ptsAdv + ptsRedCard} נק׳</span>
                       </div>
                     )}
-                    {isPlayed && hasPred && (pts1x2 + ptsScore + ptsAdv) === 0 && (
+                    {isPlayed && hasPred && (pts1x2 + ptsScore + ptsAdv + ptsRedCard) === 0 && (
                       <div style={{
                         padding: '3px 7px', background: '#e8e8e8',
                         display: 'flex', justifyContent: 'center',
