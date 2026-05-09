@@ -674,7 +674,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                 return (
                   <div
                     id={`bracket-match-${id}`}
-                    onClick={() => handleMatchClick(id)}
                     style={{
                       border: `2px solid ${borderColor}`,
                       borderRadius: 10, overflow: 'hidden',
@@ -682,11 +681,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                       margin: '2px 3px', flex: 1,
                       minWidth: compact ? 130 : 155,
                       maxWidth: compact ? 160 : 195,
-                      cursor: 'pointer',
                       boxShadow: isPlayed ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
                     }}
                   >
-                    {/* ── HEADER: round + category ── */}
+                    {/* ── HEADER: round + category + nav button ── */}
                     <div style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '3px 7px',
@@ -695,51 +693,73 @@ export default function Predict({ lang }: { lang: Lang }) {
                       <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
                         {km ? ({ R32: 'שלב 32', R16: 'שמינית', QF: 'רבע', SF: 'חצי', '3P': 'מקום 3', F: 'גמר' } as Record<string, string>)[km.round] : ''}
                       </span>
-                      <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700 }}>{dynCat}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700 }}>{dynCat}</span>
+                        <button
+                          onClick={() => handleMatchClick(id)}
+                          title="עבור להימור"
+                          style={{
+                            fontSize: 10, lineHeight: 1, padding: '1px 5px', borderRadius: 4,
+                            background: 'rgba(255,255,255,0.15)', color: '#fff',
+                            border: '1px solid rgba(255,255,255,0.3)',
+                            cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                          }}>✏️</button>
+                      </div>
                     </div>
 
-                    {/* ── TEAMS ── */}
-                    {([['A', tA, advA, actualA], ['B', tB, advB, actualB]] as [string, string|undefined, string|false|undefined, number|undefined][]).map(([side, team, isAdv, actualScore]) => {
-                      const isActualWinner = isPlayed && team && team === actualWinner
+                    {/* ── TEAMS — show my predicted score, click to pick advance ── */}
+                    {([['A', tA, advA], ['B', tB, advB]] as [string, string|undefined, string|false|undefined][]).map(([side, team, isAdv]) => {
+                      const predScore = side === 'A' ? pred?.scoreA : pred?.scoreB
+                      const hasThisScore = predScore !== null && predScore !== undefined
                       return (
-                        <div key={side} style={{
-                          display: 'flex', alignItems: 'center',
-                          padding: '5px 7px', gap: 5,
-                          borderBottom: side === 'A' ? '1px solid #ebebeb' : 'none',
-                          background: isActualWinner ? '#e8f5e9' : isAdv && !isPlayed ? '#EAF3DE' : 'transparent',
-                        }}>
+                        <div key={side}
+                          onClick={() => team && updateKnockout(id, 'advance', team)}
+                          style={{
+                            display: 'flex', alignItems: 'center',
+                            padding: '6px 7px', gap: 5,
+                            borderBottom: side === 'A' ? '1px solid #ebebeb' : 'none',
+                            background: isAdv ? '#EAF3DE' : 'transparent',
+                            cursor: team ? 'pointer' : 'default',
+                          }}>
                           <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{team ? (FLAGS[team] ?? '🏳') : ''}</span>
                           <span style={{
-                            flex: 1, fontSize: 12, fontWeight: isAdv || isActualWinner ? 700 : 500,
-                            color: isActualWinner ? '#1a7a44' : isAdv ? '#1a5c30' : team ? '#222' : '#ccc',
+                            flex: 1, fontSize: 12, fontWeight: isAdv ? 700 : 500,
+                            color: isAdv ? '#1a5c30' : team ? '#222' : '#ccc',
                             fontStyle: team ? 'normal' : 'italic',
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{team ?? '...'}</span>
-                          {/* Actual result score */}
-                          {isPlayed && actualScore !== undefined && (
-                            <span style={{ fontSize: 14, fontWeight: 800, color: isActualWinner ? '#1a7a44' : '#555', minWidth: 16, textAlign: 'right' }}>
-                              {actualScore}
+                          {hasThisScore && (
+                            <span style={{ fontSize: 14, fontWeight: 700, color: isAdv ? '#1a7a44' : '#555', minWidth: 16, textAlign: 'right' }}>
+                              {predScore}
                             </span>
                           )}
-                          {/* Advance indicator (pre-match) */}
-                          {!isPlayed && isAdv && <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>●</span>}
-                          {/* Actual advance tick */}
-                          {isPlayed && team && team === actualAdvance && <span style={{ fontSize: 12 }}>→</span>}
+                          {isAdv && <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700, marginRight: 2 }}>●</span>}
                         </div>
                       )
                     })}
 
-                    {/* ── DIVIDER LABEL ── */}
-                    {hasPred && (
-                      <div style={{ padding: '2px 7px', background: '#f0f0f8', borderTop: '1px solid #e8e8f0', borderBottom: '1px solid #e8e8f0' }}>
-                        <span style={{ fontSize: 9, color: '#888', fontWeight: 600, letterSpacing: 0.5 }}>ההימור שלי</span>
+                    {/* ── ACTUAL RESULT ROW (when played) ── */}
+                    {isPlayed && (
+                      <div style={{
+                        padding: '4px 7px', borderTop: '2px solid #d0d0d0',
+                        background: '#f0f0f0',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
+                      }}>
+                        <span style={{ fontSize: 10, color: '#666', fontWeight: 600 }}>תוצאה:</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#333' }}>
+                          {actualA}:{actualB}
+                        </span>
+                        {actualAdvance && (
+                          <span style={{ fontSize: 10, color: '#333', fontWeight: 600, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 4 }}>
+                            {FLAGS[actualAdvance] ?? ''} {actualAdvance} →
+                          </span>
+                        )}
                       </div>
                     )}
 
-                    {/* ── PREDICTION ROW ── */}
+                    {/* ── PREDICTION DETAILS (1X2 + O/U + red card) ── */}
                     {hasPred && (
-                      <div style={{ padding: '5px 7px', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', background: '#fafbff' }}>
-                        {/* 1X2 */}
+                      <div style={{ padding: '4px 7px', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', background: '#fafbff', borderTop: '1px solid #eeeef8' }}>
                         {pred1x2Label && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                             {isPlayed && (
@@ -755,23 +775,21 @@ export default function Predict({ lang }: { lang: Lang }) {
                             )}
                           </div>
                         )}
-                        {/* Score */}
-                        {hasScore && pred!.scoreA !== null && pred!.scoreB !== null && (
+                        {predOuLabel && (
+                          <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#F1EFE8', color: '#444', fontWeight: 600 }}>
+                            {predOuLabel}
+                          </span>
+                        )}
+                        {isPlayed && hasScore && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                            {isPlayed && (
-                              <span style={{ fontSize: 11, color: ptsScore > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>
-                                {ptsScore > 0 ? '✓' : '✗'}
-                              </span>
-                            )}
-                            <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#F1EFE8', color: '#444', fontWeight: 600 }}>
-                              {pred!.scoreA}:{pred!.scoreB}{predOuLabel ? ` · ${predOuLabel}` : ''}
+                            <span style={{ fontSize: 11, color: ptsScore > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>
+                              {ptsScore > 0 ? '✓' : '✗'} תוצאה
                             </span>
-                            {isPlayed && ptsScore > 0 && (
+                            {ptsScore > 0 && (
                               <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsScore}</span>
                             )}
                           </div>
                         )}
-                        {/* Red card */}
                         {pickedRedCard && (
                           <span style={{ fontSize: 11, padding: '2px 4px', borderRadius: 4, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥</span>
                         )}
@@ -1036,7 +1054,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                   </div>
 
                   {/* TOP HALF — converges downward */}
-                  <RoundSection label={t.roundR32} ids={[[73,74,75,76,77,78,79,80]]} />
+                  <RoundSection label={t.roundR32} ids={[[73,74,75,76],[77,78,79,80]]} />
                   <Arrow dir="down" />
                   <RoundSection label={t.roundR16} ids={[[89,90,91,92]]} />
                   <Arrow dir="down" />
@@ -1057,7 +1075,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                   <Arrow dir="up" />
                   <RoundSection label={t.roundR16} ids={[[93,94,95,96]]} />
                   <Arrow dir="up" />
-                  <RoundSection label={t.roundR32} ids={[[81,82,83,84,85,86,87,88]]} />
+                  <RoundSection label={t.roundR32} ids={[[81,82,83,84],[85,86,87,88]]} />
                 </div>
               )
             }
@@ -1241,6 +1259,16 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 if (isRedCard) {
                                   breakdown.push(`🟥 ${t.redCard}: 2`)
                                   total += 2
+                                }
+
+                                if (pred.advance) {
+                                  const advBase = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round]
+                                  const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
+                                  const pickedUnderdog = (pred.advance === teamA && !aIsFavForm) || (pred.advance === teamB && aIsFavForm)
+                                  const advPts = advBase + (pickedUnderdog ? advCatBonus : 0)
+                                  const advFlag = pred.advance === teamA ? (FLAGS[teamA!] ?? '') : (FLAGS[teamB!] ?? '')
+                                  breakdown.push(`עולה (${advFlag} ${pred.advance}): ${advPts}`)
+                                  total += advPts
                                 }
 
                                 return (
