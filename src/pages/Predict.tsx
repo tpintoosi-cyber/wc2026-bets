@@ -695,7 +695,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const pred1x2Label = predResult === '1' ? (tA ?? '1') : predResult === '2' ? (tB ?? '2') : predResult === 'X' ? t.draw : null
                 const pred1x2Flag = predResult === '1' ? (tA ? FLAGS[tA] ?? '' : '') : predResult === '2' ? (tB ? FLAGS[tB] ?? '' : '') : null
 
-                const DEBUG_CARDS = true // ← set false to hide
                 const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
 
                 const borderColor = isPlayed
@@ -740,17 +739,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                           }}>✏️</button>
                       </div>
                     </div>
-
-                    {/* ── DEBUG PANEL ── remove before production */}
-                    {DEBUG_CARDS && isPlayed && (
-                      <div style={{ fontSize: 9, padding: '3px 6px', background: '#fffbe6', borderBottom: '1px solid #ffe58f', color: '#333', lineHeight: 1.6 }}>
-                        <b>🐛 debug #{id}</b><br/>
-                        isPlayed={String(isPlayed)} | hasPred={String(hasPred)} | hasScore={String(hasScore)} | hasSomePred={String(hasSomePred)}<br/>
-                        pred1x2={predResult ?? 'null'} | actualResult={actualResult ?? 'null'} | actualAdv={actualAdvance ?? 'null'}<br/>
-                        pts: 1x2={pts1x2} score={ptsScore} adv={ptsAdv} rc={ptsRedCard} → total={safeTotal}<br/>
-                        actual={actual ? JSON.stringify({rA:actual.resultA,rB:actual.resultB,adv:actual.advanceTeam,played:actual.isPlayed}) : 'NO ACTUAL DATA'}
-                      </div>
-                    )}
 
                     {/* ── TEAMS — show my predicted score, click to pick advance ── */}
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string|undefined, string|false|undefined][]).map(([side, team, isAdv]) => {
@@ -1031,88 +1019,145 @@ export default function Predict({ lang }: { lang: Lang }) {
                 <div style={{ fontSize: 13, userSelect: 'none' }}>
                   {/* ── Points summary ──────────────────────────────── */}
                   {(() => {
-                    let pts1x2 = 0
-                    let ptsScore = 0
-                    let ptsAdvance = 0
+                    // ── MAX POSSIBLE (if all correct) ──
+                    let maxPts1x2 = 0, maxPtsScore = 0, maxPtsAdv = 0, maxPtsRC = 0
                     let filledMatches = 0
-                    let advancePicked = 0
+
+                    // ── ACTUAL EARNED (played matches only) ──
+                    let actPts1x2 = 0, actPtsScore = 0, actPtsAdv = 0, actPtsRC = 0
 
                     for (const km of KNOCKOUT_MATCHES) {
                       const pred = knockoutPreds[km.id]
-                      if (!pred?.prediction1X2) continue
-
-                      // Resolve teams via cascade (user picks) — same logic as bracket view
                       const tA = getTeamSafe(km.id, 'A')
                       const tB = getTeamSafe(km.id, 'B')
-                      if (!tA || !tB) continue  // skip matches where teams aren't yet determined
-
-                      filledMatches++
+                      if (!tA || !tB) continue
 
                       const ptA = TEAM_FIFA_POINTS[tA] ?? 1500
                       const ptB = TEAM_FIFA_POINTS[tB] ?? 1500
                       const dynCat = calcCategoryByRound(ptA, ptB, km.round)
-                      const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
+                      const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat] ?? 0
                       const roundBase = { R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 }[km.round]
                       const aIsFav = ptA >= ptB
+                      const catIdx = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
+                      const actual = knockoutMatches[km.id] as any
 
-                      // 1X2
-                      const predIsX = pred.prediction1X2 === 'X'
-                      const pickedFav = (pred.prediction1X2 === '1' && aIsFav) || (pred.prediction1X2 === '2' && !aIsFav)
-                      if (predIsX) pts1x2 += roundBase + Math.max(0, catBonus - 1)
-                      else if (pickedFav) pts1x2 += roundBase
-                      else pts1x2 += roundBase + catBonus
+                      // ── MAX ──
+                      if (pred?.prediction1X2) {
+                        filledMatches++
+                        const predIsX = pred.prediction1X2 === 'X'
+                        const pickedFav = (pred.prediction1X2 === '1' && aIsFav) || (pred.prediction1X2 === '2' && !aIsFav)
+                        if (predIsX) maxPts1x2 += roundBase + Math.max(0, catBonus - 1)
+                        else if (pickedFav) maxPts1x2 += roundBase
+                        else maxPts1x2 += roundBase + catBonus
 
-                      // Score: exact + OU
-                      if (pred.scoreA !== null && pred.scoreA !== undefined) {
-                        const goalTotal = Number(pred.scoreA) + Number(pred.scoreB ?? 0)
-                        const ouPts = { R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 }[km.round]
-                        const catIdx = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
-                        const isOU = km.round === 'F'
-                          ? (goalTotal === 0 || goalTotal >= 4)
-                          : km.round === '3P'
-                          ? (goalTotal <= 2 || goalTotal >= 5)
-                          : catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
-                        ptsScore += 2 + (isOU ? ouPts : 0)
+                        if (pred.scoreA !== null && pred.scoreA !== undefined) {
+                          const goalTotal = Number(pred.scoreA) + Number(pred.scoreB ?? 0)
+                          const ouPts = { R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 }[km.round]
+                          const isOU = km.round === 'F' ? (goalTotal === 0 || goalTotal >= 4) : km.round === '3P' ? (goalTotal <= 2 || goalTotal >= 5) : catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
+                          maxPtsScore += 2 + (isOU ? ouPts : 0)
+                        }
+                      }
+                      if (pred?.advance) {
+                        const advBase = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
+                        const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat] ?? 0
+                        const pickedUnd = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
+                        maxPtsAdv += advBase + (pickedUnd ? advCatBonus : 0)
+                      }
+                      const roundKey = km.round as string
+                      if (['R32','R16','QF'].includes(roundKey)) {
+                        const picks = knockoutRedCards[roundKey as 'R32'|'R16'|'QF'] ?? []
+                        if (picks.includes(km.id)) maxPtsRC += 2
                       }
 
-                      // Advance — bonus only if picked underdog
-                      if (pred.advance) {
+                      // ── ACTUAL (played only) ──
+                      if (!actual?.isPlayed || actual.resultA === undefined) continue
+                      const actualA = Number(actual.resultA), actualB = Number(actual.resultB)
+                      const actualResult = actualA > actualB ? '1' : actualA < actualB ? '2' : 'X'
+                      const actualAdv = actual.advanceTeam
+
+                      if (pred?.prediction1X2 && pred.prediction1X2 === actualResult) {
+                        const favWon = (actualResult === '1' && aIsFav) || (actualResult === '2' && !aIsFav)
+                        if (actualResult === 'X') actPts1x2 += roundBase + Math.max(0, catBonus - 1)
+                        else actPts1x2 += favWon ? roundBase : roundBase + catBonus
+                      }
+                      if (pred?.scoreA !== null && pred?.scoreA !== undefined && pred?.scoreB !== null) {
+                        const pA = Number(pred.scoreA), pB = Number(pred.scoreB)
+                        if (pA === actualA && pB === actualB) {
+                          const total = actualA + actualB
+                          const ouPts = { R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 }[km.round]
+                          const isOU = km.round === 'F' ? (total === 0 || total >= 4) : km.round === '3P' ? (total <= 2 || total >= 5) : catIdx <= 1 ? (total <= 1 || total >= 4) : (total <= 2 || total >= 5)
+                          actPtsScore += 2 + (isOU ? ouPts : 0)
+                        } else if ((pA - pB) === (actualA - actualB)) {
+                          actPtsScore += 1
+                        }
+                      }
+                      if (pred?.advance && actualAdv && pred.advance === actualAdv) {
                         const advBase = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
-                        const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
-                        const pickedUndAdv = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
-                        ptsAdvance += advBase + (pickedUndAdv ? advCatBonus : 0)
-                        advancePicked++
+                        const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat] ?? 0
+                        const pickedUnd = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
+                        actPtsAdv += advBase + (pickedUnd ? advCatBonus : 0)
+                      }
+                      if (['R32','R16','QF'].includes(roundKey)) {
+                        const picks = knockoutRedCards[roundKey as 'R32'|'R16'|'QF'] ?? []
+                        if (picks.includes(km.id) && actual.hadRedCard) actPtsRC += 2
                       }
                     }
 
-                    const totalPts = pts1x2 + ptsScore + ptsAdvance
+                    const maxTotal = maxPts1x2 + maxPtsScore + maxPtsAdv + maxPtsRC
+                    const actTotal = actPts1x2 + actPtsScore + actPtsAdv + actPtsRC
+                    const hasActual = actTotal > 0 || Object.values(knockoutMatches).some((m: any) => m?.isPlayed)
 
                     return (
-                      <div style={{ display: 'flex', gap: 8, marginBottom: 10, padding: '8px 12px', background: '#f8f9ff', borderRadius: 10, border: '1px solid #e8e8ff', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: '#888' }}>{t.koFilled}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a2e' }}>{filledMatches} / {KNOCKOUT_MATCHES.length}</div>
-                        </div>
-                        <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
-                        <div style={{ flex: 2 }}>
-                          <div style={{ fontSize: 11, color: '#888', marginBottom: 5 }}>{t.koIfCorrect}</div>
-                          {totalPts > 0 ? (
-                            <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#E6F1FB', color: '#0C447C', fontWeight: 600 }}>1X2: {pts1x2}</span>
-                              <span style={{ fontSize: 10, color: '#aaa' }}>+</span>
-                              <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#EAF3DE', color: '#27500A', fontWeight: 600 }}>{t.exactScore}: {ptsScore}</span>
-                              <span style={{ fontSize: 10, color: '#aaa' }}>+</span>
-                              <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FAEEDA', color: '#633806', fontWeight: 600 }}>{t.koAdvance}: {ptsAdvance}</span>
-                              <span style={{ fontSize: 13, fontWeight: 700, color: '#1a7a44', marginRight: 2 }}>= ≈{totalPts} נק'</span>
+                      <div style={{ marginBottom: 10, padding: '10px 14px', background: '#f8f9ff', borderRadius: 10, border: '1px solid #e8e8ff' }}>
+                        <div style={{ display: 'flex', gap: 12, alignItems: 'stretch', flexWrap: 'wrap' }}>
+
+                          {/* Filled */}
+                          <div style={{ minWidth: 80 }}>
+                            <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>{t.koFilled}</div>
+                            <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1a2e' }}>{filledMatches}<span style={{ fontSize: 12, color: '#aaa', fontWeight: 400 }}> / {KNOCKOUT_MATCHES.length}</span></div>
+                          </div>
+
+                          <div style={{ width: 1, background: '#e0e0e0', alignSelf: 'stretch' }} />
+
+                          {/* Max possible */}
+                          <div style={{ flex: 1, minWidth: 180 }}>
+                            <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>מקסימום אם הכל נכון</div>
+                            {maxTotal > 0 ? (
+                              <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#E6F1FB', color: '#0C447C', fontWeight: 600 }}>1X2: {maxPts1x2}</span>
+                                <span style={{ fontSize: 10, color: '#ccc' }}>+</span>
+                                <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#EAF3DE', color: '#27500A', fontWeight: 600 }}>תוצאה: {maxPtsScore}</span>
+                                <span style={{ fontSize: 10, color: '#ccc' }}>+</span>
+                                <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FAEEDA', color: '#633806', fontWeight: 600 }}>עולה: {maxPtsAdv}</span>
+                                {maxPtsRC > 0 && <>
+                                  <span style={{ fontSize: 10, color: '#ccc' }}>+</span>
+                                  <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥 {maxPtsRC}</span>
+                                </>}
+                                <span style={{ fontSize: 13, fontWeight: 700, color: '#555' }}>≈{maxTotal}</span>
+                              </div>
+                            ) : <span style={{ fontSize: 14, color: '#aaa' }}>—</span>}
+                          </div>
+
+                          {hasActual && <>
+                            <div style={{ width: 1, background: '#e0e0e0', alignSelf: 'stretch' }} />
+
+                            {/* Actual earned */}
+                            <div style={{ flex: 1, minWidth: 180 }}>
+                              <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>נצבר בפועל</div>
+                              <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#E6F1FB', color: '#0C447C', fontWeight: 600 }}>1X2: {actPts1x2}</span>
+                                <span style={{ fontSize: 10, color: '#ccc' }}>+</span>
+                                <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#EAF3DE', color: '#27500A', fontWeight: 600 }}>תוצאה: {actPtsScore}</span>
+                                <span style={{ fontSize: 10, color: '#ccc' }}>+</span>
+                                <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FAEEDA', color: '#633806', fontWeight: 600 }}>עולה: {actPtsAdv}</span>
+                                {(actPtsRC > 0 || maxPtsRC > 0) && <>
+                                  <span style={{ fontSize: 10, color: '#ccc' }}>+</span>
+                                  <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥 {actPtsRC}</span>
+                                </>}
+                                <span style={{ fontSize: 14, fontWeight: 800, color: '#1a7a44' }}>= {actTotal}</span>
+                              </div>
                             </div>
-                          ) : (
-                            <div style={{ fontSize: 16, fontWeight: 700, color: '#aaa' }}>—</div>
-                          )}
-                        </div>
-                        <div style={{ width: 1, height: 32, background: '#e0e0e0' }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 11, color: '#888' }}>{t.koAdvancePicked}</div>
-                          <div style={{ fontSize: 16, fontWeight: 700, color: '#555' }}>{advancePicked}</div>
+                          </>}
                         </div>
                       </div>
                     )
