@@ -626,6 +626,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                   ? (knockoutRedCards[roundKey as 'R32'|'R16'|'QF'] ?? []).includes(id)
                   : false
 
+                const hasSomePred = hasPred || hasScore || !!(pred?.advance) || pickedRedCard
+
                 // Points earned (only when played)
                 let pts1x2 = 0, ptsScore = 0, ptsAdv = 0, ptsRedCard = 0
                 if (isPlayed && hasPred && km) {
@@ -785,7 +787,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                     )}
 
                     {/* ── PREDICTION DETAILS (1X2 + O/U + red card) ── */}
-                    {hasPred && (
+                    {hasSomePred && (
                       <div style={{ padding: '4px 7px', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', background: '#fafbff', borderTop: '1px solid #eeeef8' }}>
                         {pred1x2Label && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -880,23 +882,26 @@ export default function Predict({ lang }: { lang: Lang }) {
                       </div>
                     ))}
 
+
                     {/* ── TOTAL POINTS (when played) ── */}
-                    {isPlayed && hasPred && (pts1x2 + ptsScore + ptsAdv + ptsRedCard) > 0 && (
-                      <div style={{
-                        padding: '3px 7px', background: '#1a7a44',
-                        display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4,
-                      }}>
-                        <span style={{ fontSize: 11, color: '#fff', fontWeight: 800 }}>סה״כ: +{pts1x2 + ptsScore + ptsAdv + ptsRedCard} נק׳</span>
-                      </div>
-                    )}
-                    {isPlayed && hasPred && (pts1x2 + ptsScore + ptsAdv + ptsRedCard) === 0 && (
-                      <div style={{
-                        padding: '3px 7px', background: '#e8e8e8',
-                        display: 'flex', justifyContent: 'center',
-                      }}>
-                        <span style={{ fontSize: 10, color: '#888' }}>0 נק׳ במשחק זה</span>
-                      </div>
-                    )}
+                    {isPlayed && hasSomePred && (() => {
+                      const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
+                      return safeTotal > 0 ? (
+                        <div style={{
+                          padding: '3px 7px', background: '#1a7a44',
+                          display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4,
+                        }}>
+                          <span style={{ fontSize: 11, color: '#fff', fontWeight: 800 }}>סה״כ: +{safeTotal} נק׳</span>
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '3px 7px', background: '#e8e8e8',
+                          display: 'flex', justifyContent: 'center',
+                        }}>
+                          <span style={{ fontSize: 10, color: '#888' }}>0 נק׳ במשחק זה</span>
+                        </div>
+                      )
+                    })()}
                   </div>
                 )
               }
