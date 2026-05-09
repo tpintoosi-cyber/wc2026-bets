@@ -596,7 +596,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 }, 100)
               }
 
-              const MatchCard = ({ id, compact = false }: { id: number; compact?: boolean }) => {
+              const MatchCard = ({ id, compact = false, variant = 'normal' }: { id: number; compact?: boolean; variant?: 'normal' | 'final' | 'third' }) => {
                 const tA = getTeamSafe(id, 'A')
                 const tB = getTeamSafe(id, 'B')
                 const pred = knockoutPreds[id]
@@ -697,34 +697,58 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                 const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
 
-                const borderColor = isPlayed
-                  ? (safeTotal > 0 ? '#1a7a44' : '#c0c0c0')
+                const isFinal = variant === 'final'
+                const isThird = variant === 'third'
+                const isSpecial = isFinal || isThird
+
+                const specialBorder = isFinal
+                  ? (isPlayed ? (safeTotal > 0 ? '#B8860B' : '#c0a060') : '#B8860B')
+                  : (isPlayed ? (safeTotal > 0 ? '#8B6914' : '#b09060') : '#8B6914')
+
+                const borderColor = isSpecial ? specialBorder
+                  : isPlayed ? (safeTotal > 0 ? '#1a7a44' : '#c0c0c0')
                   : (advA || advB ? '#2563EB' : '#d0d0e8')
-                const cardBg = isPlayed
-                  ? (safeTotal > 0 ? '#f2faf5' : '#fafafa')
+
+                const cardBg = isSpecial
+                  ? (isFinal ? (isPlayed ? '#FFFDE7' : '#FFFEF5') : (isPlayed ? '#FFF8E1' : '#FFFDF5'))
+                  : isPlayed ? (safeTotal > 0 ? '#f2faf5' : '#fafafa')
                   : (advA || advB ? '#EBF4FF' : '#fff')
+
+                const minW = isFinal ? 175 : isThird ? 165 : compact ? 130 : 155
+                const maxW = isFinal ? 215 : isThird ? 200 : compact ? 160 : 195
+
+                const headerBg = isSpecial
+                  ? (isFinal
+                    ? (isPlayed ? 'linear-gradient(135deg, #B8860B, #DAA520)' : 'linear-gradient(135deg, #7a5c00, #B8860B)')
+                    : (isPlayed ? 'linear-gradient(135deg, #8B6914, #CD853F)' : 'linear-gradient(135deg, #6b4f00, #8B6914)'))
+                  : (isPlayed ? '#1a7a44' : '#4a5568')
+
+                const headerLabel = isFinal ? '🏆 גמר' : isThird ? '🥉 מקום שלישי' : km
+                  ? ({ R32: 'שלב 32', R16: 'שמינית', QF: 'רבע', SF: 'חצי', '3P': 'מקום 3', F: 'גמר' } as Record<string, string>)[km.round]
+                  : ''
 
                 return (
                   <div
                     id={`bracket-match-${id}`}
                     style={{
-                      border: `2px solid ${borderColor}`,
-                      borderRadius: 10, overflow: 'hidden',
+                      border: `${isSpecial ? 2.5 : 2}px solid ${borderColor}`,
+                      borderRadius: isSpecial ? 12 : 10, overflow: 'hidden',
                       background: cardBg,
                       margin: '2px 3px', flex: 1,
-                      minWidth: compact ? 130 : 155,
-                      maxWidth: compact ? 160 : 195,
-                      boxShadow: isPlayed ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
+                      minWidth: minW, maxWidth: maxW,
+                      boxShadow: isSpecial
+                        ? `0 3px 12px rgba(184,134,11,${isPlayed ? '0.25' : '0.15'})`
+                        : isPlayed ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
                     }}
                   >
-                    {/* ── HEADER: round + category + nav button ── */}
+                    {/* ── HEADER ── */}
                     <div style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '3px 7px',
-                      background: isPlayed ? '#1a7a44' : '#4a5568',
+                      padding: isSpecial ? '5px 9px' : '3px 7px',
+                      background: headerBg,
                     }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
-                        {km ? ({ R32: 'שלב 32', R16: 'שמינית', QF: 'רבע', SF: 'חצי', '3P': 'מקום 3', F: 'גמר' } as Record<string, string>)[km.round] : ''}
+                      <span style={{ fontSize: isSpecial ? 12 : 10, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
+                        {headerLabel}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                         <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700 }}>{dynCat}</span>
@@ -861,6 +885,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                             <span style={{ fontSize: 11, fontWeight: 700,
                               color: advCorrect ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555' }}>
                               {advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} {advPicked}
+                              {isSpecial && advPicked && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
+                              {isSpecial && advPicked && isPlayed && advCorrect && (isFinal ? ' 🏆' : ' 🥉')}
                             </span>
                           </div>
                           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
@@ -936,13 +962,13 @@ export default function Predict({ lang }: { lang: Lang }) {
 
               const FinalCard = () => (
                 <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }}>
-                  <MatchCard id={104} />
+                  <MatchCard id={104} variant="final" />
                 </div>
               )
 
               const ThirdCard = () => (
                 <div style={{ display: 'flex', justifyContent: 'center', margin: '3px 0' }}>
-                  <MatchCard id={103} />
+                  <MatchCard id={103} variant="third" />
                 </div>
               )
 
