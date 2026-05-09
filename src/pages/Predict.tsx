@@ -121,6 +121,10 @@ export default function Predict({ lang }: { lang: Lang }) {
   const [knockoutRedCards, setKnockoutRedCards] = useState<{ R32: number[]; R16: number[]; QF: number[] }>({ R32: [], R16: [], QF: [] })
   const [knockoutOpen, setKnockoutOpen] = useState(false)
   const [knockoutDeadline, setKnockoutDeadline] = useState<number | null>(null)
+  const [r16Deadline, setR16Deadline] = useState<number | null>(null)
+  const [qfDeadline, setQfDeadline] = useState<number | null>(null)
+  const [sfDeadline, setSfDeadline] = useState<number | null>(null)
+  const [finalDeadline, setFinalDeadline] = useState<number | null>(null)
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, any>>({})
   const [knockoutView, setKnockoutView] = useState<'bracket' | 'form'>('bracket')
   const [focusMatchId, setFocusMatchId] = useState<number | null>(null)
@@ -189,6 +193,10 @@ export default function Predict({ lang }: { lang: Lang }) {
           const d = settingsSnap.data()
           setKnockoutOpen(d.knockoutOpen ?? false)
           setKnockoutDeadline(d.knockoutDeadline ?? null)
+          setR16Deadline(d.r16Deadline ?? null)
+          setQfDeadline(d.qfDeadline ?? null)
+          setSfDeadline(d.sfDeadline ?? null)
+          setFinalDeadline(d.finalDeadline ?? null)
         }
       } catch { /* ignore */ }
       // Load saved knockout predictions
@@ -534,8 +542,23 @@ export default function Predict({ lang }: { lang: Lang }) {
           </div>
 
           {(() => {
-            const isLocked = !knockoutOpen || (knockoutDeadline != null && Date.now() > knockoutDeadline)
-            const isFormLocked = isLocked  // for form inputs only
+            const now = Date.now()
+            const isLocked = !knockoutOpen || (knockoutDeadline != null && now > knockoutDeadline)
+
+            // Per-round locking: bracket+R32 use isLocked; later rounds have own deadlines
+            const isRoundLocked = (round: string): boolean => {
+              if (!knockoutOpen) return true
+              switch (round) {
+                case 'R32': return knockoutDeadline != null && now > knockoutDeadline
+                case 'R16': return r16Deadline != null && now > r16Deadline
+                case 'QF':  return qfDeadline  != null && now > qfDeadline
+                case 'SF':
+                case '3P':  return sfDeadline   != null && now > sfDeadline
+                case 'F':   return finalDeadline != null && now > finalDeadline
+                default:    return false
+              }
+            }
+            const isFormLocked = isLocked  // kept for bracket advance picks (R32 level)
 
             const getTeamSafe = (matchId: number, side: 'A' | 'B'): string | undefined => {
               try {
@@ -1087,10 +1110,27 @@ export default function Predict({ lang }: { lang: Lang }) {
               const maxRedCards = redCardRounds[round]
               const redCardPicks = maxRedCards ? (knockoutRedCards[round as 'R32' | 'R16' | 'QF'] ?? []) : []
               const hasRedCard = round === 'R32' || round === 'R16'
+              const roundLocked = isRoundLocked(round)
+
+              // Deadline display for this round
+              const roundDeadlineTs: number | null =
+                round === 'R32' ? knockoutDeadline :
+                round === 'R16' ? r16Deadline :
+                round === 'QF'  ? qfDeadline :
+                (round === 'SF' || round === '3P') ? sfDeadline :
+                round === 'F'   ? finalDeadline : null
 
               return (
                 <div key={round}>
-                  <h2 className="round-title">{KNOCKOUT_ROUND_LABELS[round]}</h2>
+                  <h2 className="round-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {KNOCKOUT_ROUND_LABELS[round]}
+                    {roundLocked
+                      ? <span className="badge badge-red" style={{ fontSize: 11 }}>נעול</span>
+                      : roundDeadlineTs
+                        ? <span style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>פתוח עד {new Date(roundDeadlineTs).toLocaleString('he-IL')}</span>
+                        : <span className="badge" style={{ background: '#EAF3DE', color: '#3B6D11', fontSize: 11 }}>פתוח</span>
+                    }
+                  </h2>
 
                   {/* Red card picks — per round */}
                   {maxRedCards && (
@@ -1105,11 +1145,11 @@ export default function Predict({ lang }: { lang: Lang }) {
                           const tB = getTeamSafe(km.id, 'B')
                           if (!tA || !tB) return null
                           const isPicked = redCardPicks.includes(km.id)
-                          const canPick = !isLocked && (!isPicked ? redCardPicks.length < maxRedCards : true)
+                          const canPick = !roundLocked && (!isPicked ? redCardPicks.length < maxRedCards : true)
                           return (
                             <button key={km.id}
-                              onClick={() => !isLocked && toggleKnockoutRedCard(round as 'R32' | 'R16' | 'QF', km.id)}
-                              disabled={isLocked || (!isPicked && redCardPicks.length >= maxRedCards)}
+                              onClick={() => !roundLocked && toggleKnockoutRedCard(round as 'R32' | 'R16' | 'QF', km.id)}
+                              disabled={roundLocked || (!isPicked && redCardPicks.length >= maxRedCards)}
                               style={{
                                 padding: '5px 10px', borderRadius: 8, border: '1.5px solid',
                                 borderColor: isPicked ? '#A32D2D' : '#ddd',
@@ -1165,11 +1205,11 @@ export default function Predict({ lang }: { lang: Lang }) {
                               </div>
                               <div className="score-inputs">
                                 <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                                  value={pred?.scoreA ?? ''} disabled={isLocked}
+                                  value={pred?.scoreA ?? ''} disabled={roundLocked}
                                   onChange={e => updateKnockout(km.id, 'scoreA', parseInt(e.target.value) || 0)} />
                                 <span className="score-sep">–</span>
                                 <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                                  value={pred?.scoreB ?? ''} disabled={isLocked}
+                                  value={pred?.scoreB ?? ''} disabled={roundLocked}
                                   onChange={e => updateKnockout(km.id, 'scoreB', parseInt(e.target.value) || 0)} />
                               </div>
                               <div className="team-name team-name-b">
@@ -1183,7 +1223,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 {([['1', teamA!], ['X', 'תיקו'], ['2', teamB!]] as [Result1X2, string][]).map(([val, label]) => (
                                   <button key={val}
                                     className={`btn-1x2 ${pred?.prediction1X2 === val ? 'selected' : ''}`}
-                                    disabled={isLocked}
+                                    disabled={roundLocked}
                                     onClick={() => updateKnockout(km.id, 'prediction1X2', val)}>
                                     {FLAGS[label] ? `${FLAGS[label]} ${label}` : label}
                                   </button>
@@ -1199,7 +1239,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   const isSelected = pred?.advance === team
                                   return (
                                     <button key={team}
-                                      disabled={isLocked}
+                                      disabled={roundLocked}
                                       onClick={() => updateKnockout(km.id, 'advance', team)}
                                       style={{
                                         flex: 1, padding: '7px 6px',
@@ -1207,8 +1247,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                                         borderRadius: 8, background: isSelected ? '#EAF3DE' : '#fff',
                                         color: isSelected ? '#1a7a44' : '#555',
                                         fontWeight: isSelected ? 700 : 400,
-                                        fontSize: 12, cursor: isLocked ? 'not-allowed' : 'pointer',
-                                        fontFamily: 'inherit', opacity: isLocked ? 0.5 : 1,
+                                        fontSize: 12, cursor: roundLocked ? 'not-allowed' : 'pointer',
+                                        fontFamily: 'inherit', opacity: roundLocked ? 0.5 : 1,
                                       }}>
                                       {FLAGS[team] ?? ''} {team}
                                     </button>

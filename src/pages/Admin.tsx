@@ -28,7 +28,11 @@ export default function Admin() {
   const [matches, setMatches] = useState<Record<number, Match>>({})
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
-  const [settings, setSettings] = useState({ isOpen: true, deadline: '', knockoutOpen: false, knockoutDeadline: '' })
+  const [settings, setSettings] = useState({
+    isOpen: true, deadline: '',
+    knockoutOpen: false, knockoutDeadline: '',
+    r16Deadline: '', qfDeadline: '', sfDeadline: '', finalDeadline: '',
+  })
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
@@ -73,6 +77,10 @@ export default function Admin() {
           deadline: d.deadline ? new Date(d.deadline).toISOString().slice(0, 16) : '',
           knockoutOpen: d.knockoutOpen ?? false,
           knockoutDeadline: d.knockoutDeadline ? new Date(d.knockoutDeadline).toISOString().slice(0, 16) : '',
+          r16Deadline:   d.r16Deadline   ? new Date(d.r16Deadline).toISOString().slice(0, 16)   : '',
+          qfDeadline:    d.qfDeadline    ? new Date(d.qfDeadline).toISOString().slice(0, 16)    : '',
+          sfDeadline:    d.sfDeadline    ? new Date(d.sfDeadline).toISOString().slice(0, 16)    : '',
+          finalDeadline: d.finalDeadline ? new Date(d.finalDeadline).toISOString().slice(0, 16) : '',
         })
       }
       if (koSnap.exists()) {
@@ -389,6 +397,10 @@ export default function Admin() {
       deadline: settings.deadline ? new Date(settings.deadline).getTime() : null,
       knockoutOpen: settings.knockoutOpen,
       knockoutDeadline: settings.knockoutDeadline ? new Date(settings.knockoutDeadline).getTime() : null,
+      r16Deadline:   settings.r16Deadline   ? new Date(settings.r16Deadline).getTime()   : null,
+      qfDeadline:    settings.qfDeadline    ? new Date(settings.qfDeadline).getTime()    : null,
+      sfDeadline:    settings.sfDeadline    ? new Date(settings.sfDeadline).getTime()    : null,
+      finalDeadline: settings.finalDeadline ? new Date(settings.finalDeadline).getTime() : null,
     }, { merge: true })
     setMsg('✓ הגדרות נשמרו')
     setTimeout(() => setMsg(''), 3000)
@@ -593,20 +605,43 @@ export default function Admin() {
         {/* Knockout settings */}
         <section className="admin-section">
           <h2>הגדרות נוקאאוט</h2>
+
           <div className="admin-row">
             <label>
               <input type="checkbox" checked={settings.knockoutOpen}
                 onChange={e => setSettings(s => ({ ...s, knockoutOpen: e.target.checked }))} />
-              &nbsp;חלון R32 פתוח (משתמשים יכולים למלא)
+              &nbsp;חלון נוקאאוט פתוח (משתמשים יכולים למלא)
             </label>
           </div>
-          <div className="admin-row">
-            <label>דדליין נוקאאוט:&nbsp;
-              <input type="datetime-local" value={settings.knockoutDeadline}
-                onChange={e => setSettings(s => ({ ...s, knockoutDeadline: e.target.value }))} />
-            </label>
-          </div>
-          <button className="btn-primary" onClick={saveSettings}>שמור הגדרות</button>
+
+          <table style={{ borderCollapse: 'collapse', width: '100%', marginTop: 10 }}>
+            <thead>
+              <tr style={{ background: '#f5f5f5' }}>
+                <th style={{ textAlign: 'right', padding: '6px 10px', fontSize: 12, fontWeight: 700, borderBottom: '1px solid #e0e0e0' }}>שלב</th>
+                <th style={{ textAlign: 'right', padding: '6px 10px', fontSize: 12, fontWeight: 700, borderBottom: '1px solid #e0e0e0' }}>דדליין (נועל לפני תחילת השלב)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {([
+                ['עץ + R32', 'knockoutDeadline'],
+                ['שמינית גמר (R16)', 'r16Deadline'],
+                ['רבע גמר (QF)', 'qfDeadline'],
+                ['חצי גמר + מקום 3 (SF/3P)', 'sfDeadline'],
+                ['גמר (F)', 'finalDeadline'],
+              ] as [string, keyof typeof settings][]).map(([label, key]) => (
+                <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: key === 'knockoutDeadline' ? 700 : 400 }}>{label}</td>
+                  <td style={{ padding: '6px 10px' }}>
+                    <input type="datetime-local" value={settings[key] as string}
+                      onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))}
+                      style={{ fontSize: 13, padding: '3px 6px', borderRadius: 6, border: '1px solid #ddd' }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <button className="btn-primary" style={{ marginTop: 12 }} onClick={saveSettings}>שמור הגדרות</button>
         </section>
 
         {/* Knockout match management */}
