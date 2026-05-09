@@ -617,9 +617,12 @@ export default function Admin() {
               <h2>{KNOCKOUT_ROUND_LABELS[round]}</h2>
               {roundMatches.map(km => {
                 const r = knockoutMatches[km.id] ?? km
+                const ptA = r.teamA ? (TEAM_FIFA_POINTS[r.teamA] ?? 1500) : 1500
+                const ptB = r.teamB ? (TEAM_FIFA_POINTS[r.teamB] ?? 1500) : 1500
+                const dynCat = (r.teamA && r.teamB) ? calcCategoryByRound(ptA, ptB, km.round) : km.category
                 return (
                   <div key={km.id} className="admin-match-row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
-                    <span className={`cat-badge cat-${km.category.toLowerCase()}`}>{km.category}</span>
+                    <span className={`cat-badge cat-${dynCat.toLowerCase()}`}>{dynCat}</span>
                     <span className="match-num">#{km.id}</span>
 
                     {/* Team A selector */}

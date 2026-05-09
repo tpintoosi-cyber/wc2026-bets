@@ -1116,12 +1116,17 @@ export default function Predict({ lang }: { lang: Lang }) {
                     const teamsReady = !!(teamA && teamB)
                     const isFocused = focusMatchId === km.id
 
+                    const ptA = teamA ? (TEAM_FIFA_POINTS[teamA] ?? 1500) : km.fifaPointsA
+                    const ptB = teamB ? (TEAM_FIFA_POINTS[teamB] ?? 1500) : km.fifaPointsB
+                    const dynCat = (teamA && teamB) ? calcCategoryByRound(ptA, ptB, km.round) : km.category
+                    const aIsFavForm = ptA >= ptB
+
                     return (
                       <div key={km.id} id={`ko-match-${km.id}`} className="match-row"
                         style={{ opacity: !teamsReady ? 0.5 : 1, outline: isFocused ? '2px solid #1a7a44' : 'none', borderRadius: 12 }}>
                         <div className="match-header">
                           <span className="match-num">#{km.id}</span>
-                          <span className={`cat-badge cat-${km.category.toLowerCase()}`}>{km.category}</span>
+                          <span className={`cat-badge cat-${dynCat.toLowerCase()}`}>{dynCat}</span>
                           {teamsReady ? (
                             <span style={{ fontSize: 13, fontWeight: 600 }}>
                               {FLAGS[teamA!] ?? ''} {teamA} נגד {teamB} {FLAGS[teamB!] ?? ''}
@@ -1200,11 +1205,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   <span>⚠️</span> לא בחרת 1X2 — המשחק לא נספר בסיכום
                                 </div>
                               ) : (() => {
-                                const catIdx = { A: 0, B: 1, C: 2, D: 3 }[km.category]
-                                const aIsFav = km.fifaPointsA >= km.fifaPointsB
-                                const isFav = (pred.prediction1X2 === '1' && aIsFav) || (pred.prediction1X2 === '2' && !aIsFav)
+                                const catIdx = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
+                                const isFav = (pred.prediction1X2 === '1' && aIsFavForm) || (pred.prediction1X2 === '2' && !aIsFavForm)
                                 const roundBase = { R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 }[km.round]
-                                const catBonus = { A: 0, B: 1, C: 2, D: 3 }[km.category]
+                                const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
                                 const p1x2 = pred.prediction1X2 === 'X'
                                   ? roundBase + Math.max(0, catBonus - 1)
                                   : isFav ? roundBase : roundBase + catBonus
