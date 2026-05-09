@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { doc, getDoc, setDoc, collection, getDocs, writeBatch, query, where, updateDoc } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, getDocs, writeBatch, query, where, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { computeUserScore } from '../scoring'
@@ -357,6 +357,24 @@ export default function Admin() {
   const rejectUser = async (uid: string) => {
     await updateDoc(doc(db, 'pendingUsers', uid), { status: 'rejected' })
     setPendingUsers(prev => prev.map(u => u.uid === uid ? { ...u, status: 'rejected' } : u))
+  }
+
+  const removeUser = async (uid: string) => {
+    if (!confirm('להסיר משתמש זה לגמרי מהמערכת?')) return
+    await deleteDoc(doc(db, 'pendingUsers', uid))
+    try { await deleteDoc(doc(db, 'users', uid)) } catch {}
+    setPendingUsers(prev => prev.filter(u => u.uid !== uid))
+  }
+
+  const removeAllRejected = async () => {
+    const rejected = pendingUsers.filter(u => u.status === 'rejected')
+    if (rejected.length === 0) return
+    if (!confirm(`להסיר ${rejected.length} משתמשים נדחים לגמרי?`)) return
+    await Promise.all(rejected.map(async u => {
+      await deleteDoc(doc(db, 'pendingUsers', u.uid))
+      try { await deleteDoc(doc(db, 'users', u.uid)) } catch {}
+    }))
+    setPendingUsers(prev => prev.filter(u => u.status !== 'rejected'))
   }
 
   const recalcAllScores = async (matchData?: Record<number, Match>) => {
@@ -748,7 +766,16 @@ export default function Admin() {
             const label = status === 'pending' ? '⏳ ממתינים לאישור' : status === 'approved' ? '✅ מאושרים' : '❌ נדחו'
             return (
               <div key={status} style={{ marginBottom: 24 }}>
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#888', marginBottom: 8 }}>{label}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#888' }}>{label}</div>
+                  {status === 'rejected' && group.length > 1 && (
+                    <button onClick={removeAllRejected} style={{
+                      fontSize: 11, padding: '3px 10px', borderRadius: 6,
+                      border: '1px solid #e0a0a0', background: '#fff5f5',
+                      color: '#c0392b', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
+                    }}>🗑 הסר כל הנדחים ({group.length})</button>
+                  )}
+                </div>
                 {group.map(u => (
                   <div key={u.uid} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
@@ -783,6 +810,13 @@ export default function Admin() {
                         onClick={() => rejectUser(u.uid)}
                         style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#888', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
                         בטל אישור
+                      </button>
+                    )}
+                    {status === 'rejected' && (
+                      <button
+                        onClick={() => removeUser(u.uid)}
+                        style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #e0a0a0', background: '#fff5f5', color: '#c0392b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+                        🗑 הסר
                       </button>
                     )}
                   </div>
