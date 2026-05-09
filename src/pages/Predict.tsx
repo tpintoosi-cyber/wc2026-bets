@@ -398,15 +398,15 @@ export default function Predict({ lang }: { lang: Lang }) {
                             </span>
                             <div className="score-inputs">
                               <input className="score-input" type="number" min="0" max="20"
-                                value={p.scoreA ?? ''} placeholder="0" disabled={!isOpen}
+                                value={p.scoreA ?? 0} placeholder="0" disabled={!isOpen}
                                 onFocus={e => e.target.select()}
-                                onChange={e => updateMatch(match.id, 'scoreA', e.target.value === '' ? null : parseInt(e.target.value))}
+                                onChange={e => updateMatch(match.id, 'scoreA', e.target.value === '' ? 0 : parseInt(e.target.value))}
                               />
                               <span className="score-sep">–</span>
                               <input className="score-input" type="number" min="0" max="20"
-                                value={p.scoreB ?? ''} placeholder="0" disabled={!isOpen}
+                                value={p.scoreB ?? 0} placeholder="0" disabled={!isOpen}
                                 onFocus={e => e.target.select()}
-                                onChange={e => updateMatch(match.id, 'scoreB', e.target.value === '' ? null : parseInt(e.target.value))}
+                                onChange={e => updateMatch(match.id, 'scoreB', e.target.value === '' ? 0 : parseInt(e.target.value))}
                               />
                             </div>
                             <span className="team-name team-name-b">
@@ -934,86 +934,17 @@ export default function Predict({ lang }: { lang: Lang }) {
                 </div>
               )
 
-              const FinalCard = () => {
-                const tA = getTeamSafe(104, 'A')
-                const tB = getTeamSafe(104, 'B')
-                const pred = knockoutPreds[104]
-                const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
-                const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
-                const finalCat = tA && tB ? calcCategoryByRound(ptA, ptB, 'F') : null
-                return (
-                  <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }}>
-                    <div style={{
-                      border: '2px solid #1a7a44', borderRadius: 10, overflow: 'hidden',
-                      background: '#EAF3DE', minWidth: 130, maxWidth: 160,
-                      boxShadow: '0 2px 8px rgba(26,122,68,0.15)',
-                    }}>
-                      <div style={{ background: '#1a7a44', padding: '4px 8px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-                        <span style={{ fontSize: 13 }}>🏆</span>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: '#fff', letterSpacing: 1 }}>גמר</span>
-                        {finalCat && <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.25)', color: '#fff', fontWeight: 700 }}>{finalCat}</span>}
-                      </div>
-                      {([['A', tA], ['B', tB]] as [string, string | undefined][]).map(([side, team]) => {
-                        const isChamp = pred?.advance === team && team
-                        return (
-                          <div key={side}
-                            onClick={() => team && updateKnockout(104, 'advance', team)}
-                            style={{
-                              display: 'flex', alignItems: 'center', padding: '6px 8px', gap: 4,
-                              fontSize: 12, borderBottom: side === 'A' ? '0.5px solid #c5e8c0' : 'none',
-                              background: isChamp ? '#d4edcc' : 'transparent',
-                              cursor: team ? 'pointer' : 'default',
-                            }}>
-                            <span style={{ fontSize: 13, width: 18 }}>{team ? (FLAGS[team] ?? '') : ''}</span>
-                            <span style={{ flex: 1, color: isChamp ? '#1a5c30' : team ? '#2d5a3d' : '#aaa', fontWeight: isChamp ? 700 : 500, fontStyle: team ? 'normal' : 'italic' }}>{team ?? '...'}</span>
-                            {isChamp && <span style={{ fontSize: 14 }}>🏆</span>}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              }
+              const FinalCard = () => (
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '4px 0' }}>
+                  <MatchCard id={104} />
+                </div>
+              )
 
-              const ThirdCard = () => {
-                const tA = getTeamSafe(103, 'A')
-                const tB = getTeamSafe(103, 'B')
-                const pred = knockoutPreds[103]
-                const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
-                const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
-                const thirdCat = tA && tB ? calcCategoryByRound(ptA, ptB, '3P') : null
-                return (
-                  <div style={{ display: 'flex', justifyContent: 'center', margin: '3px 0' }}>
-                    <div style={{
-                      border: '1.5px solid #c0a060', borderRadius: 8, overflow: 'hidden',
-                      background: '#fff', minWidth: 120, maxWidth: 150,
-                    }}>
-                      <div style={{ background: '#f5e9d0', padding: '3px 8px', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, borderBottom: '1px solid #e0c890' }}>
-                        <span style={{ fontSize: 11 }}>🥉</span>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#7a5a20' }}>מקום שלישי</span>
-                        {thirdCat && <span style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 700 }}>{thirdCat}</span>}
-                      </div>
-                      {([['A', tA], ['B', tB]] as [string, string | undefined][]).map(([side, team]) => {
-                        const isWinner = pred?.advance === team && team
-                        return (
-                          <div key={side}
-                            onClick={() => team && updateKnockout(103, 'advance', team)}
-                            style={{
-                              display: 'flex', alignItems: 'center', padding: '4px 6px', gap: 3,
-                              fontSize: 11, borderTop: '0.5px solid #eee',
-                              background: isWinner ? '#EAF3DE' : 'transparent',
-                              cursor: team ? 'pointer' : 'default',
-                            }}>
-                            <span style={{ fontSize: 12, width: 16 }}>{team ? (FLAGS[team] ?? '') : ''}</span>
-                            <span style={{ flex: 1, color: isWinner ? '#1a7a44' : team ? '#555' : '#bbb', fontWeight: isWinner ? 700 : 400, fontStyle: team ? 'normal' : 'italic' }}>{team ?? '...'}</span>
-                            {isWinner && <span style={{ fontSize: 9, color: '#1a7a44' }}>✓</span>}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              }
+              const ThirdCard = () => (
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '3px 0' }}>
+                  <MatchCard id={103} />
+                </div>
+              )
 
               return (
                 <div style={{ fontSize: 13, userSelect: 'none' }}>
@@ -1296,12 +1227,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                               </div>
                               <div className="score-inputs">
                                 <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                                  value={pred?.scoreA ?? ''} disabled={roundLocked}
-                                  onChange={e => updateKnockout(km.id, 'scoreA', parseInt(e.target.value) || 0)} />
+                                  value={pred?.scoreA ?? 0} disabled={roundLocked}
+                                  onFocus={e => e.target.select()}
+                                  onChange={e => updateKnockout(km.id, 'scoreA', e.target.value === '' ? 0 : parseInt(e.target.value))} />
                                 <span className="score-sep">–</span>
                                 <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                                  value={pred?.scoreB ?? ''} disabled={roundLocked}
-                                  onChange={e => updateKnockout(km.id, 'scoreB', parseInt(e.target.value) || 0)} />
+                                  value={pred?.scoreB ?? 0} disabled={roundLocked}
+                                  onFocus={e => e.target.select()}
+                                  onChange={e => updateKnockout(km.id, 'scoreB', e.target.value === '' ? 0 : parseInt(e.target.value))} />
                               </div>
                               <div className="team-name team-name-b">
                                 <span>{teamB}</span>
