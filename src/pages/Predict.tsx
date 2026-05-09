@@ -666,10 +666,10 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                 const borderColor = isPlayed
                   ? (pts1x2 + ptsScore + ptsAdv > 0 ? '#1a7a44' : '#c0c0c0')
-                  : (advA || advB ? '#1a7a44' : '#d0d0e8')
+                  : (advA || advB ? '#2563EB' : '#d0d0e8')
                 const cardBg = isPlayed
                   ? (pts1x2 + ptsScore + ptsAdv > 0 ? '#f2faf5' : '#fafafa')
-                  : (advA || advB ? '#f2faf5' : '#fff')
+                  : (advA || advB ? '#EBF4FF' : '#fff')
 
                 return (
                   <div
@@ -688,7 +688,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                     <div style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                       padding: '3px 7px',
-                      background: isPlayed ? '#1a7a44' : '#1a1a2e',
+                      background: isPlayed ? '#1a7a44' : '#4a5568',
                     }}>
                       <span style={{ fontSize: 10, fontWeight: 700, color: '#fff', letterSpacing: 0.5 }}>
                         {km ? ({ R32: 'שלב 32', R16: 'שמינית', QF: 'רבע', SF: 'חצי', '3P': 'מקום 3', F: 'גמר' } as Record<string, string>)[km.round] : ''}
@@ -718,22 +718,22 @@ export default function Predict({ lang }: { lang: Lang }) {
                             display: 'flex', alignItems: 'center',
                             padding: '6px 7px', gap: 5,
                             borderBottom: side === 'A' ? '1px solid #ebebeb' : 'none',
-                            background: isAdv ? '#EAF3DE' : 'transparent',
+                            background: isAdv ? '#DBEAFE' : 'transparent',
                             cursor: team ? 'pointer' : 'default',
                           }}>
                           <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{team ? (FLAGS[team] ?? '🏳') : ''}</span>
                           <span style={{
                             flex: 1, fontSize: 12, fontWeight: isAdv ? 700 : 500,
-                            color: isAdv ? '#1a5c30' : team ? '#222' : '#ccc',
+                            color: isAdv ? '#1a4fa8' : team ? '#222' : '#ccc',
                             fontStyle: team ? 'normal' : 'italic',
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{team ?? '...'}</span>
                           {hasThisScore && (
-                            <span style={{ fontSize: 14, fontWeight: 700, color: isAdv ? '#1a7a44' : '#555', minWidth: 16, textAlign: 'right' }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: isAdv ? '#1a4fa8' : '#555', minWidth: 16, textAlign: 'right' }}>
                               {predScore}
                             </span>
                           )}
-                          {isAdv && <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700, marginRight: 2 }}>●</span>}
+                          {isAdv && <span style={{ fontSize: 11, color: '#2563EB', fontWeight: 700, marginRight: 2 }}>●</span>}
                         </div>
                       )
                     })}
@@ -819,7 +819,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>+{ptsAdv}</span>
                           )}
                           {!isPlayed && (
-                            <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4, background: '#EAF3DE', color: '#27500A', fontWeight: 700 }}>+{potentialAdvPts}</span>
+                            <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4, background: '#DBEAFE', color: '#1a4fa8', fontWeight: 700 }}>+{potentialAdvPts}</span>
                           )}
                         </div>
                       </div>
