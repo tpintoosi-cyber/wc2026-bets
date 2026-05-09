@@ -415,7 +415,117 @@ export default function AllPredictions() {
     return u.userName
   }
 
-  if (loading || authLoading) return <div className="center-screen">טוען...</div>
+  const downloadReport = () => {
+    const now = new Date()
+    const stamp = now.toLocaleString('he-IL', { dateStyle: 'full', timeStyle: 'medium' })
+    const filename = `wc2026-bets-${now.toISOString().slice(0,16).replace('T','-')}.html`
+
+    const userRows = users.map(u => {
+      const name = adminDisplayName(u)
+      const totalScore = scores[u.userId] ?? 0
+
+      // Group stage match predictions
+      const matchRows = MATCHES.map(m => {
+        const p = u.matches[m.id]
+        if (!p) return ''
+        const res = adminResults[m.id]
+        const flag = (t: string) => FLAGS[t] ?? ''
+        const actual = res?.isPlayed ? `${res.resultA}:${res.resultB}` : '—'
+        const pred1x2 = p.prediction1X2 ?? '—'
+        const predScore = (p.scoreA != null && p.scoreB != null) ? `${p.scoreA}:${p.scoreB}` : '—'
+        const rc = p.redCard ? '🟥' : ''
+        return `<tr><td>${m.id}</td><td>${flag(m.teamA)}${m.teamA} נ׳ ${flag(m.teamB)}${m.teamB}</td><td>${pred1x2}</td><td>${predScore}</td><td>${rc}</td><td>${actual}</td></tr>`
+      }).filter(Boolean).join('')
+
+      // Group qualifiers
+      const groupRows = GROUPS.map(g => {
+        const gp = u.groups?.[g]
+        if (!gp) return ''
+        const teams = GROUPS_TEAMS[g] ?? []
+        const adv = gp.advancing ?? []
+        return `<tr><td>בית ${g}</td><td>${adv.map((t, i) => `${i+1}. ${FLAGS[t]??''}${t}`).join(' | ')}</td></tr>`
+      }).filter(Boolean).join('')
+
+      // Bonus
+      const bonusRows = BONUS_QUESTIONS.map(q => {
+        const val = (u.bonus as any)?.[q.id]
+        if (!val) return ''
+        return `<tr><td>${q.label}</td><td>${val}</td></tr>`
+      }).filter(Boolean).join('')
+
+      // Knockout
+      const koRows = KNOCKOUT_MATCHES.map(km => {
+        const p = u.knockout?.[km.id]
+        if (!p) return ''
+        const pred1x2 = p.prediction1X2 ?? '—'
+        const predScore = (p.scoreA != null && p.scoreB != null) ? `${p.scoreA}:${p.scoreB}` : '—'
+        const adv = p.advance ?? '—'
+        return `<tr><td>${km.id}</td><td>${KNOCKOUT_ROUND_LABELS[km.round]}</td><td>${pred1x2}</td><td>${predScore}</td><td>${adv}</td></tr>`
+      }).filter(Boolean).join('')
+
+      return `
+        <div class="user-block">
+          <div class="user-header">${name} <span class="score-badge">${totalScore} נק׳</span></div>
+          ${matchRows ? `
+            <h4>שלב הבתים</h4>
+            <table><thead><tr><th>#</th><th>משחק</th><th>1X2</th><th>תוצאה</th><th>🟥</th><th>בפועל</th></tr></thead>
+            <tbody>${matchRows}</tbody></table>` : ''}
+          ${groupRows ? `
+            <h4>עולות מהבתים</h4>
+            <table><thead><tr><th>בית</th><th>בחירה</th></tr></thead>
+            <tbody>${groupRows}</tbody></table>` : ''}
+          ${bonusRows ? `
+            <h4>שאלות בונוס</h4>
+            <table><thead><tr><th>שאלה</th><th>תשובה</th></tr></thead>
+            <tbody>${bonusRows}</tbody></table>` : ''}
+          ${koRows ? `
+            <h4>נוקאאוט</h4>
+            <table><thead><tr><th>#</th><th>שלב</th><th>1X2</th><th>תוצאה</th><th>עולה</th></tr></thead>
+            <tbody>${koRows}</tbody></table>` : ''}
+        </div>`
+    }).join('')
+
+    const html = `<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="UTF-8">
+<title>דוח הימורים WC2026 — ${stamp}</title>
+<style>
+  body { font-family: Arial, sans-serif; direction: rtl; background: #f5f5f5; color: #222; margin: 0; padding: 20px; }
+  .report-header { background: #1a1a2e; color: #fff; padding: 18px 24px; border-radius: 10px; margin-bottom: 24px; }
+  .report-header h1 { margin: 0 0 6px; font-size: 22px; }
+  .report-header .stamp { font-size: 13px; color: #aaa; }
+  .report-header .warning { margin-top: 10px; font-size: 12px; background: rgba(255,200,0,0.15); border: 1px solid rgba(255,200,0,0.3); border-radius: 6px; padding: 6px 10px; color: #ffd966; }
+  .user-block { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); page-break-inside: avoid; }
+  .user-header { font-size: 17px; font-weight: 700; margin-bottom: 12px; color: #1a1a2e; border-bottom: 2px solid #e0e0f0; padding-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .score-badge { background: #1a7a44; color: #fff; font-size: 13px; padding: 2px 10px; border-radius: 12px; font-weight: 700; }
+  h4 { margin: 14px 0 6px; font-size: 13px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
+  th { background: #f0f0f8; text-align: right; padding: 5px 8px; font-weight: 600; color: #444; }
+  td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
+  tr:last-child td { border-bottom: none; }
+  @media print { body { padding: 0; } .user-block { box-shadow: none; border: 1px solid #ddd; } }
+</style>
+</head>
+<body>
+<div class="report-header">
+  <h1>⚽ דוח הימורים — גביע העולם 2026</h1>
+  <div class="stamp">הופק: ${stamp}</div>
+  <div class="stamp">${users.length} משתתפים</div>
+  <div class="warning">⚠️ מסמך זה מייצג את מצב ההימורים בזמן ההורדה. שמור אותו כהוכחה שלא בוצעו שינויים לאחר נעילת השלב.</div>
+</div>
+${userRows}
+</body>
+</html>`
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
   if (isOpen && !isAdmin) return (
     <div className="page"><div className="empty-state">
       <div style={{ fontSize: 48 }}>🔒</div>
@@ -439,11 +549,18 @@ export default function AllPredictions() {
     <div className="page">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <h1 style={{ margin: 0 }}>הימורי כולם {isAdmin && isOpen && <span className="badge badge-red">מצב אדמין</span>}</h1>
-        <button onClick={() => { setLoading(true); setRefreshKey(k => k + 1) }} style={{
-          padding: '6px 12px', borderRadius: 8, border: '1px solid #ddd',
-          background: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
-          color: '#555',
-        }} title="טוען מחדש את כל ההימורים והתוצאות מהשרת">🔄 רענן</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={downloadReport} style={{
+            padding: '6px 12px', borderRadius: 8, border: '1px solid #1a7a44',
+            background: '#EAF3DE', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+            color: '#1a5c30', fontWeight: 600,
+          }} title="הורד דוח HTML עם כל ההימורים כהוכחה לזמן הנעילה">📥 הורד דוח</button>
+          <button onClick={() => { setLoading(true); setRefreshKey(k => k + 1) }} style={{
+            padding: '6px 12px', borderRadius: 8, border: '1px solid #ddd',
+            background: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
+            color: '#555',
+          }} title="טוען מחדש את כל ההימורים והתוצאות מהשרת">🔄 רענן</button>
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 14, background: 'var(--bg-card,#fff)', borderRadius: 12, padding: 4, border: '1px solid var(--border,#e5e5e5)' }}>
