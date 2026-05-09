@@ -654,11 +654,11 @@ export default function Predict({ lang }: { lang: Lang }) {
                     }
                   }
                   if (pred?.advance && actualAdvance) {
-                    const pickedUnderdog = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
-                    if (pred.advance === actualAdvance && pickedUnderdog) {
+                    if (pred.advance === actualAdvance) {
+                      const pickedUnderdog = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
                       const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round]
                       const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat] ?? 0
-                      ptsAdv = base + catBonus
+                      ptsAdv = base + (pickedUnderdog ? catBonus : 0)
                     }
                   }
                   // Red card points
@@ -854,29 +854,26 @@ export default function Predict({ lang }: { lang: Lang }) {
                     {/* ── ADVANCE PICK ── */}
                     {advPicked ? (() => {
                       const advPickedIsUnderdog = (advPicked === tA && !aIsFav) || (advPicked === tB && aIsFav)
-                      const advCorrectWithBonus = advCorrect && ptsAdv > 0
-                      const advCorrectNoBonus = advCorrect && ptsAdv === 0  // correct fav pick
+                      const advCorrectWithBonus = advCorrect && advPickedIsUnderdog && ptsAdv > 0
+                      const advCorrectBase = advCorrect && !advPickedIsUnderdog && ptsAdv > 0
                       return (
                         <div style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           padding: '4px 7px', gap: 4,
-                          background: advCorrectWithBonus ? '#EAF3DE' : advWrong ? '#FCEBEB' : '#f5f5f5',
+                          background: advCorrect ? '#EAF3DE' : advWrong ? '#FCEBEB' : '#f5f5f5',
                           borderTop: '1px solid #ebebeb',
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             {isPlayed && (
                               <span style={{ fontSize: 12, fontWeight: 700,
-                                color: advCorrectWithBonus ? '#1a7a44' : advWrong ? '#cc3333' : '#888' }}>
-                                {advCorrectWithBonus ? '✓' : advWrong ? '✗' : '—'}
+                                color: advCorrect ? '#1a7a44' : '#cc3333' }}>
+                                {advCorrect ? '✓' : '✗'}
                               </span>
                             )}
                             <span style={{ fontSize: 11, fontWeight: 700,
-                              color: advCorrectWithBonus ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555' }}>
+                              color: advCorrect ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555' }}>
                               {advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} {advPicked}
                             </span>
-                            {isPlayed && advCorrectNoBonus && (
-                              <span style={{ fontSize: 10, color: '#888' }}>(מועדף, ללא בונוס)</span>
-                            )}
                           </div>
                           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                             {isPlayed && ptsAdv > 0 && (
@@ -884,9 +881,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                             )}
                             {!isPlayed && (
                               <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4,
-                                background: advPickedIsUnderdog ? '#DBEAFE' : '#f0f0f0',
-                                color: advPickedIsUnderdog ? '#1a4fa8' : '#999', fontWeight: 700 }}>
-                                {advPickedIsUnderdog ? `+${potentialAdvPts}` : 'מועדף'}
+                                background: advPickedIsUnderdog ? '#DBEAFE' : '#e8f5e9',
+                                color: advPickedIsUnderdog ? '#1a4fa8' : '#1a5c30', fontWeight: 700 }}>
+                                +{potentialAdvPts}
                               </span>
                             )}
                           </div>
