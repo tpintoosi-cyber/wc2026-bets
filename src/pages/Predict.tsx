@@ -630,16 +630,18 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                 // Points earned (only when played)
                 let pts1x2 = 0, ptsScore = 0, ptsAdv = 0, ptsRedCard = 0
-                if (isPlayed && hasPred && km) {
-                  pts1x2 = (() => {
-                    if (!predResult || actualResult === undefined) return 0
-                    if (predResult !== actualResult) return 0
-                    const base = ({ R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 } as Record<string, number>)[km.round]
-                    const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
-                    if (actualResult === 'X') return base + Math.max(0, catBonus - 1)
-                    const favWon = (actualResult === '1' && aIsFav) || (actualResult === '2' && !aIsFav)
-                    return favWon ? base : base + catBonus
-                  })()
+                if (isPlayed && hasSomePred && km) {
+                  if (hasPred) {
+                    pts1x2 = (() => {
+                      if (!predResult || actualResult === undefined) return 0
+                      if (predResult !== actualResult) return 0
+                      const base = ({ R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 } as Record<string, number>)[km.round]
+                      const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat] ?? 0
+                      if (actualResult === 'X') return base + Math.max(0, catBonus - 1)
+                      const favWon = (actualResult === '1' && aIsFav) || (actualResult === '2' && !aIsFav)
+                      return favWon ? base : base + catBonus
+                    })()
+                  }
                   if (hasScore && pred!.scoreA !== null && pred!.scoreB !== null) {
                     const pA = Number(pred!.scoreA), pB = Number(pred!.scoreB)
                     if (pA === actualA && pB === actualB) {
@@ -655,7 +657,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                     const pickedUnderdog = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
                     if (pred.advance === actualAdvance && pickedUnderdog) {
                       const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round]
-                      const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
+                      const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat] ?? 0
                       ptsAdv = base + catBonus
                     }
                   }
