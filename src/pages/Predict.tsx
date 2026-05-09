@@ -695,11 +695,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const pred1x2Label = predResult === '1' ? (tA ?? '1') : predResult === '2' ? (tB ?? '2') : predResult === 'X' ? t.draw : null
                 const pred1x2Flag = predResult === '1' ? (tA ? FLAGS[tA] ?? '' : '') : predResult === '2' ? (tB ? FLAGS[tB] ?? '' : '') : null
 
+                const DEBUG_CARDS = true // ← set false to hide
+                const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
+
                 const borderColor = isPlayed
-                  ? (pts1x2 + ptsScore + ptsAdv > 0 ? '#1a7a44' : '#c0c0c0')
+                  ? (safeTotal > 0 ? '#1a7a44' : '#c0c0c0')
                   : (advA || advB ? '#2563EB' : '#d0d0e8')
                 const cardBg = isPlayed
-                  ? (pts1x2 + ptsScore + ptsAdv > 0 ? '#f2faf5' : '#fafafa')
+                  ? (safeTotal > 0 ? '#f2faf5' : '#fafafa')
                   : (advA || advB ? '#EBF4FF' : '#fff')
 
                 return (
@@ -737,6 +740,17 @@ export default function Predict({ lang }: { lang: Lang }) {
                           }}>✏️</button>
                       </div>
                     </div>
+
+                    {/* ── DEBUG PANEL ── remove before production */}
+                    {DEBUG_CARDS && isPlayed && (
+                      <div style={{ fontSize: 9, padding: '3px 6px', background: '#fffbe6', borderBottom: '1px solid #ffe58f', color: '#333', lineHeight: 1.6 }}>
+                        <b>🐛 debug #{id}</b><br/>
+                        isPlayed={String(isPlayed)} | hasPred={String(hasPred)} | hasScore={String(hasScore)} | hasSomePred={String(hasSomePred)}<br/>
+                        pred1x2={predResult ?? 'null'} | actualResult={actualResult ?? 'null'} | actualAdv={actualAdvance ?? 'null'}<br/>
+                        pts: 1x2={pts1x2} score={ptsScore} adv={ptsAdv} rc={ptsRedCard} → total={safeTotal}<br/>
+                        actual={actual ? JSON.stringify({rA:actual.resultA,rB:actual.resultB,adv:actual.advanceTeam,played:actual.isPlayed}) : 'NO ACTUAL DATA'}
+                      </div>
+                    )}
 
                     {/* ── TEAMS — show my predicted score, click to pick advance ── */}
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string|undefined, string|false|undefined][]).map(([side, team, isAdv]) => {
