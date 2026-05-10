@@ -722,7 +722,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                   if (pred?.advance && actualAdvance) {
                     if (pred.advance === actualAdvance) {
                       const pickedUnderdog = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
-                      const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round]
+                      const base = ({ R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 } as Record<string, number>)[km.round]
                       const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat] ?? 0
                       ptsAdv = base + (pickedUnderdog ? catBonus : 0)
                     }
@@ -751,7 +751,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 // Potential advance points (pre-match)
                 const potentialAdvPts = (() => {
                   if (!km || !advPicked) return 0
-                  const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round]
+                  const base = ({ R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 } as Record<string, number>)[km.round]
                   const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
                   const pickedUnderdog = (advPicked === tA && !aIsFav) || (advPicked === tB && aIsFav)
                   return base + (pickedUnderdog ? catBonus : 0)
@@ -1081,7 +1081,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         }
                       }
                       if (pred?.advance) {
-                        const advBase = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
+                        const advBase = { R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 }[km.round]
                         const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat] ?? 0
                         const pickedUnd = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
                         maxPtsAdv += advBase + (pickedUnd ? advCatBonus : 0)
@@ -1115,7 +1115,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         }
                       }
                       if (pred?.advance && actualAdv && pred.advance === actualAdv) {
-                        const advBase = { R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 }[km.round]
+                        const advBase = { R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 }[km.round]
                         const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat] ?? 0
                         const pickedUnd = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
                         actPtsAdv += advBase + (pickedUnd ? advCatBonus : 0)
@@ -1191,8 +1191,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                   </div>
 
                   {/* TOP HALF — converges downward */}
-                  <RoundSection label={t.roundR32} ids={[[73,74,75,76],[77,78,79,80]]} />
-                  <Arrow dir="down" />
                   <RoundSection label={t.roundR16} ids={[[89,90,91,92]]} />
                   <Arrow dir="down" />
                   <RoundSection label={t.roundQF} ids={[[97,98]]} />
@@ -1211,8 +1209,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                   <RoundSection label={t.roundQF} ids={[[99,100]]} />
                   <Arrow dir="up" />
                   <RoundSection label={t.roundR16} ids={[[93,94,95,96]]} />
-                  <Arrow dir="up" />
-                  <RoundSection label={t.roundR32} ids={[[81,82,83,84],[85,86,87,88]]} />
                 </div>
               )
             }
@@ -1411,7 +1407,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 }
 
                                 if (pred.advance) {
-                                  const advBase = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<string, number>)[km.round]
+                                  const advBase = ({ R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 } as Record<string, number>)[km.round]
                                   const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
                                   const pickedUnderdog = (pred.advance === teamA && !aIsFavForm) || (pred.advance === teamB && aIsFavForm)
                                   const advPts = advBase + (pickedUnderdog ? advCatBonus : 0)

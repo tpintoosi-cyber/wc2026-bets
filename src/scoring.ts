@@ -212,7 +212,7 @@ export function calcAdvancePoints(
   teamB: string
 ): number {
   if (!predicted || !actual || predicted !== actual) return 0
-  const base = ({ R32: 2, R16: 3, QF: 4, SF: 5, '3P': 4, F: 5 } as Record<KnockoutRound, number>)[round]
+  const base = ({ R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 } as Record<KnockoutRound, number>)[round]
   const catBonus = { A: 0, B: 1, C: 2, D: 2 }[category]
   // Was the predicted team the underdog?
   const aIsFavorite = fifaPointsA >= fifaPointsB

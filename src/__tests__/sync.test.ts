@@ -80,9 +80,9 @@ describe('Full sync flow — group stage to final', () => {
     // Actually 3 total goals, Cat A neither ≤1 nor ≥4 → 2pt exact only
 
     const pAdvance = calcAdvancePoints('France', 'France', 'R32', 'A', 1877, 1877, 'France', 'England')
-    expect(pAdvance).toBe(2)  // R32 Cat A = 2pt
+    expect(pAdvance).toBe(1)  // R32 Cat A = 1pt
 
-    expect(p1x2 + pScore + pAdvance).toBe(5)
+    expect(p1x2 + pScore + pAdvance).toBe(4)
   })
 
   // ── Scenario 4: Knockout — penalty shootout ────────────────────────────────
@@ -100,7 +100,7 @@ describe('Full sync flow — group stage to final', () => {
     expect(p1x2).toBe(1)  // draw Cat A = 1pt
 
     const pAdvance = calcAdvancePoints('Argentina', 'Argentina', 'QF', 'A', 1877, 1877, 'France', 'Argentina')
-    expect(pAdvance).toBe(4)  // QF Cat A = 4pt
+    expect(pAdvance).toBe(3)  // QF Cat A = 3pt
   })
 
   // ── Scenario 5: Upset prediction ──────────────────────────────────────────
@@ -122,7 +122,7 @@ describe('Full sync flow — group stage to final', () => {
   })
 
   // ── Scenario 7: Max possible score in a single match ─────────────────────
-  it('Cat D match: max score = 1X2(4) + exact(2) + OU(1) + red(2) + advance(4) = 13pt', () => {
+  it('Cat D match: max score = 1X2(4) + exact(2) + OU(1) + red(2) + advance(3) = 12pt', () => {
     // Cat D: underdog wins, exact score ≤2 goals Cat C/D (under), red card, advance correct
     const p1x2 = calc1X2Points('2', 0, 1, 1800, 1300, 'D')  // underdog wins
     const pScore = calcScorePoints(0, 1, 0, 1, 'D')  // exact, 1 goal total ≤2 = under
@@ -131,8 +131,8 @@ describe('Full sync flow — group stage to final', () => {
     expect(p1x2).toBe(4)
     expect(pScore).toBe(3)  // 2 + 1 under
     expect(pRed).toBe(2)
-    expect(pAdv).toBe(4)
-    expect(p1x2 + pScore + pRed + pAdv).toBe(13)
+    expect(pAdv).toBe(3)
+    expect(p1x2 + pScore + pRed + pAdv).toBe(12)
   })
 
   // ── Scenario 8: Standings parsing end-to-end ──────────────────────────────
@@ -212,7 +212,7 @@ describe('Edge cases', () => {
   it('Knockout advance — same team predicted in R32 gets points in all later rounds', () => {
     // User predicted France from R32 and they made it to the Final
     const rounds = ['R32', 'R16', 'QF', 'SF', 'F'] as const
-    const expected = [2, 3, 4, 5, 5] // Cat A points
+    const expected = [1, 2, 3, 4, 5] // Cat A points
     rounds.forEach((round, i) => {
       expect(calcAdvancePoints('France', 'France', round, 'A', 1877, 1877, 'France', 'England')).toBe(expected[i])
     })
