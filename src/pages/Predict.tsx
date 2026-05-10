@@ -112,6 +112,7 @@ export default function Predict({ lang }: { lang: Lang }) {
   const t = T[lang]
   const [tab, setTab] = useState<Tab>('matches')
   const [isOpen, setIsOpen] = useState(true)
+  const [groupDeadline, setGroupDeadline] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [matchPreds, setMatchPreds] = useState<Record<number, MatchPrediction>>({})
@@ -200,6 +201,7 @@ export default function Predict({ lang }: { lang: Lang }) {
           const d = settingsSnap.data()
           setKnockoutOpen(d.knockoutOpen ?? false)
           setKnockoutDeadline(d.knockoutDeadline ?? null)
+          setGroupDeadline(d.deadline ?? null)
           setR16Deadline(d.r16Deadline ?? null)
           setQfDeadline(d.qfDeadline ?? null)
           setSfDeadline(d.sfDeadline ?? null)
@@ -331,6 +333,48 @@ export default function Predict({ lang }: { lang: Lang }) {
 
   const matchProgress = Object.values(matchPreds).filter(p => p.prediction1X2).length
 
+  // Live clock — updates every second
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  const formatTimeLeft = (deadline: number | null): { label: string; color: string; icon: string } => {
+    if (!deadline) return { label: 'פתוח', color: '#1a7a44', icon: '🟢' }
+    const diff = deadline - now
+    if (diff <= 0) return { label: 'נעול — לא ניתן לשינוי', color: '#c0392b', icon: '🔒' }
+    const d = Math.floor(diff / 86400000)
+    const h = Math.floor((diff % 86400000) / 3600000)
+    const m = Math.floor((diff % 3600000) / 60000)
+    const s = Math.floor((diff % 60000) / 1000)
+    if (d > 0) return { label: `נותרו ${d} ימים ו-${h} שעות`, color: '#1a7a44', icon: '🟢' }
+    if (h > 0) return { label: `נותרו ${h} שעות ו-${m} דקות`, color: h < 3 ? '#e67e22' : '#1a7a44', icon: h < 3 ? '🟠' : '🟢' }
+    return { label: `נותרו ${m}:${String(s).padStart(2, '0')} דקות`, color: '#c0392b', icon: '🔴' }
+  }
+
+  const DeadlineBanner = ({ deadline, locked }: { deadline: number | null; locked: boolean }) => {
+    const { label, color, icon } = locked
+      ? { label: 'נעול — לא ניתן לשינוי', color: '#c0392b', icon: '🔒' }
+      : formatTimeLeft(deadline)
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 8,
+        padding: '8px 14px', borderRadius: 10, marginBottom: 12,
+        background: locked ? '#FFF5F5' : (deadline && deadline - now < 3600000 ? '#FFF8F0' : '#F0FDF4'),
+        border: `1px solid ${locked ? '#FECACA' : (deadline && deadline - now < 3600000 ? '#FED7AA' : '#BBF7D0')}`,
+      }}>
+        <span style={{ fontSize: 16 }}>{icon}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color }}>{label}</span>
+        {!locked && deadline && (
+          <span style={{ fontSize: 12, color: '#888', marginRight: 'auto' }}>
+            עד {new Date(deadline).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })}
+          </span>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="page" dir={lang === 'en' ? 'ltr' : 'rtl'}>
       <div className="status-bar">
@@ -381,6 +425,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
       {tab === 'matches' && (
         <div className="matches-section">
+          <DeadlineBanner deadline={groupDeadline} locked={!isOpen} />
           {[1, 2, 3].map(round => (
             <div key={round}>
               <h2 className="round-title">{t.round} {round}</h2>
@@ -486,6 +531,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
       {tab === 'groups' && (
         <div className="groups-section">
+          <DeadlineBanner deadline={groupDeadline} locked={!isOpen} />
           <p className="hint">{t.groupsHint1}</p>
           <p className="hint">{t.groupsHint2}</p>
           <div className="groups-grid">
@@ -514,6 +560,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
       {tab === 'bonus' && (
         <div className="bonus-section">
+          <DeadlineBanner deadline={groupDeadline} locked={!isOpen} />
           <p className="hint">{t.bonusHint}</p>
           {BONUS_QUESTIONS.map(q => (
             <div key={q.id} className="bonus-row">
@@ -1189,15 +1236,8 @@ export default function Predict({ lang }: { lang: Lang }) {
 
               return (
                 <div key={round}>
-                  <h2 className="round-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {KNOCKOUT_ROUND_LABELS[round]}
-                    {roundLocked
-                      ? <span className="badge badge-red" style={{ fontSize: 11 }}>נעול</span>
-                      : roundDeadlineTs
-                        ? <span style={{ fontSize: 11, color: '#888', fontWeight: 400 }}>פתוח עד {new Date(roundDeadlineTs).toLocaleString('he-IL')}</span>
-                        : <span className="badge" style={{ background: '#EAF3DE', color: '#3B6D11', fontSize: 11 }}>פתוח</span>
-                    }
-                  </h2>
+                  <h2 className="round-title">{KNOCKOUT_ROUND_LABELS[round]}</h2>
+                  <DeadlineBanner deadline={roundDeadlineTs} locked={roundLocked} />
 
                   {/* Red card picks — per round */}
                   {maxRedCards && (
