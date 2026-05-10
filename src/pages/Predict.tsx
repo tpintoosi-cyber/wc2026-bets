@@ -642,6 +642,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                   if (!winner || !sfA || !sfB) return undefined
                   return winner === sfA ? sfB : sfA
                 }
+                // Prioritize actual result from API/admin sync over user's prediction
+                const actualAdv = (knockoutMatches[feederId] as any)?.advanceTeam
+                if (actualAdv) return actualAdv
                 return knockoutPreds[feederId]?.advance
               } catch { return undefined }
             }

@@ -678,54 +678,53 @@ const FULL_KO_USERS: KnockoutSimUser[] = [
     uid: 'fko-u1', name: '🏆 מנצח נוקאאוט', description: 'הכל נכון: 1X2, advance, תוצאות, כרטיסים',
     redCards: { R32: [74], R16: [89], QF: [] }, // correct red card picks
     knockoutPreds: {
-      73:  kp(73,  '1', 1, 0, 'ספרד'),      // 1X2✓+exact✓+Under✓+adv Cat B fav = 1+2+1+2=6
-      74:  kp(74,  '2', 0, 1, 'האיטי'),      // 1X2✓+exact✓+Under✓+adv Cat D und=4+red✓ = 1+2+1+4+2=10
-      75:  kp(75,  'X', 1, 1, 'אוסטרליה'),   // 1X2✓+exact✓+adv Cat B und=3 = 1+2+3=6
-      76:  kp(76,  'X', 0, 0, 'צרפת'),       // 1X2✓+exact✓+adv Cat B fav=2 = 1+2+2=5
-      89:  kp(89,  '1', 2, 0, 'ספרד'),       // R16: 1X2✓+exact+Under✓+adv Cat C fav=3+red✓ = 1+2+1+3+2=9
-      90:  kp(90,  '1', 3, 1, 'צרפת'),       // R16: 1X2✓+exact✓+Over✓+adv Cat B fav=3 = 1+2+1+3=7
-      97:  kp(97,  '2', 1, 2, 'צרפת'),       // QF: 1X2✓+exact✓+adv Cat A und=4 = 2+2+4=8 (base=2 for QF)
-      98:  kp(98,  '1', 2, 0, 'ארגנטינה'),   // QF: 1X2✓+exact✓+adv Cat A fav=4 = 2+2+4=8
-      101: kp(101, '1', 2, 1, 'צרפת'),       // SF: 1X2✓+exact✓+adv Cat A und=5 = 3+2+5=10 (base=3)
-      104: kp(104, '1', 1, 0, 'צרפת'),       // F:  1X2✓+exact✓+Under✓+adv Cat A fav=5 = 3+2+2+5=12
+      73:  kp(73,  '1', 1, 0, 'ספרד'),      // 1X2✓+exact✓+Under✓+adv Cat B fav=1 → 1+2+1+1=5
+      74:  kp(74,  '2', 0, 1, 'האיטי'),      // 1X2✓+exact✓+Under✓+adv Cat D und=3+red✓ → 1+2+1+3+2=9
+      75:  kp(75,  'X', 1, 1, 'אוסטרליה'),   // 1X2✓+exact✓+adv Cat B und=2 → 1+2+2=5
+      76:  kp(76,  'X', 0, 0, 'צרפת'),       // 1X2✓+exact✓+adv Cat B fav=1 → 1+2+1=4
+      89:  kp(89,  '1', 2, 0, 'ספרד'),       // R16: 1X2✓+exact✓+Under✓+adv Cat C fav=2+red✓ → 1+2+1+2+2=8
+      90:  kp(90,  '1', 3, 1, 'צרפת'),       // R16: 1X2✓+exact✓+Over✓+adv Cat B fav=2 → 1+2+1+2=6
+      97:  kp(97,  '2', 1, 2, 'צרפת'),       // QF: 1X2✓+exact✓+adv Cat A und=3 → 2+2+3=7
+      98:  kp(98,  '1', 2, 0, 'ארגנטינה'),   // QF: 1X2✓+exact✓+adv Cat A fav=3 → 2+2+3=7
+      101: kp(101, '1', 2, 1, 'צרפת'),       // SF: 1X2✓+exact✓+adv Cat A und=4 → 3+2+4=9
+      104: kp(104, '1', 1, 0, 'צרפת'),       // F:  1X2✓+exact✓+Under✓+adv Cat A fav=5 → 3+2+2+5=12
     },
-    // Expected total: ~81נק
+    // Expected total: ~72נק (base R32=1,R16=2,QF=3,SF=4,F=5)
   },
   {
     uid: 'fko-u2', name: '📊 מועדפים נוקאאוט', description: '1X2 מועדף תמיד + advance מועדף, ללא תוצאות',
     redCards: { R32: [], R16: [], QF: [] },
     knockoutPreds: {
-      73:  kp(73,  '1', null, null, 'ספרד'),   // 1X2✓+adv fav=2
+      73:  kp(73,  '1', null, null, 'ספרד'),   // 1X2✓+adv fav R32=1
       74:  kp(74,  '1', null, null, 'גרמניה'), // 1X2✗ (Haiti won), adv✗
       75:  kp(75,  '1', null, null, 'ברזיל'),  // 1X2✗ (draw/AET), adv✗
-      76:  kp(76,  '1', null, null, 'צרפת'),   // 1X2✓(picks fav=France? Wait X was result) No: PEN result = France advances from 0:0
-      89:  kp(89,  '1', null, null, 'ספרד'),   // 1X2✓+adv fav=3 R16
-      90:  kp(90,  '1', null, null, 'צרפת'),   // 1X2✓+adv fav=3 R16
+      76:  kp(76,  '1', null, null, 'צרפת'),   // 1X2✗ (X was result), adv fav=1
+      89:  kp(89,  '1', null, null, 'ספרד'),   // 1X2✓+adv fav R16=2
+      90:  kp(90,  '1', null, null, 'צרפת'),   // 1X2✓+adv fav R16=2
       97:  kp(97,  '1', null, null, 'ספרד'),   // 1X2✗ (France won)
-      98:  kp(98,  '1', null, null, 'ארגנטינה'),// 1X2✓+adv fav=4 QF
-      101: kp(101, '1', null, null, 'צרפת'),   // 1X2✓+adv fav=5 SF
-      104: kp(104, '1', null, null, 'צרפת'),   // 1X2✓+adv fav=5 Final
+      98:  kp(98,  '1', null, null, 'ארגנטינה'),// 1X2✓+adv fav QF=3
+      101: kp(101, '1', null, null, 'צרפת'),   // 1X2✓+adv fav SF=4
+      104: kp(104, '1', null, null, 'צרפת'),   // 1X2✓+adv fav F=5
     },
-    // Expected: ~30-35נק
+    // Expected: ~25-30נק (base R32=1,R16=2,QF=3,SF=4,F=5)
   },
   {
     uid: 'fko-u3', name: '💥 מפתיעים נוקאאוט', description: 'בוחר אנדרדוגים + כרטיסי אדום בכל pool',
     redCards: { R32: [73, 74, 75], R16: [89, 90], QF: [97] }, // picks all pools, some correct
     knockoutPreds: {
-      73:  kp(73,  '2', 0, 1, 'מקסיקו'),     // 1X2✗, adv und Cat B = would be 2 if right
-      74:  kp(74,  '2', 0, 1, 'האיטי'),       // 1X2✓+exact✓+Under✓+adv Cat D und=4+red✓ = 10
-      75:  kp(75,  'X', 1, 1, 'אוסטרליה'),    // 1X2✓+exact✓+adv Cat B und=3 = 1+2+3=6
+      73:  kp(73,  '2', 0, 1, 'מקסיקו'),     // 1X2✗, adv und Cat B would be 2 if right
+      74:  kp(74,  '2', 0, 1, 'האיטי'),       // 1X2✓+exact✓+Under✓+adv Cat D und=3+red✓ → 1+2+1+3+2=9
+      75:  kp(75,  'X', 1, 1, 'אוסטרליה'),    // 1X2✓+exact✓+adv Cat B und=2 → 1+2+2=5
       76:  kp(76,  '2', 1, 0, 'אקוודור'),     // 1X2✗, adv✗
-      89:  kp(89,  '2', 0, 2, 'האיטי'),       // 1X2✗ (Spain won), no adv, no red(89 has red but not in picks)
+      89:  kp(89,  '2', 0, 2, 'האיטי'),       // 1X2✗ (Spain won), no adv, no red
       90:  kp(90,  '2', 1, 3, 'אוסטרליה'),   // 1X2✗ (France won)
-      97:  kp(97,  '2', 1, 2, 'צרפת'),        // 1X2✓+exact✓+adv Cat A und=4, QF base=2 = 2+2+4=8
+      97:  kp(97,  '2', 1, 2, 'צרפת'),        // 1X2✓+exact✓+adv Cat A und=3, QF → 2+2+3=7
       98:  kp(98,  '2', 0, 2, 'פורטוגל'),    // 1X2✗ (Argentina won)
       101: kp(101, '2', 1, 2, 'ארגנטינה'),   // 1X2✗ (France won)
       104: kp(104, '2', 0, 1, 'פורטוגל'),    // 1X2✗ (France won)
     },
-    // Expected: ~10+6+8+red✓(74)=2+red✓(97? not in QF picks since 97 is QF)
-    // red: R32 picks [73,74,75] → 74 had red✓=2. R16 picks [89,90] → 89 had red✓=2. QF picks [97] → 97 no red=0
-    // Total: 0+10+6+0+0+0+8+0+0+0 + reds=2+2=4 = ~30נק
+    // red: R32[73,74,75]→74✓=2. R16[89,90]→89✓=2. QF[97]→97 no red=0
+    // Total: 0+9+5+0+0+0+7+0+0+0 + reds=4 = ~25נק
   },
 ]
 
