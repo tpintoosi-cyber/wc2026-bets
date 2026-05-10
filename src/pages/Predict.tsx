@@ -250,10 +250,12 @@ export default function Predict({ lang }: { lang: Lang }) {
   const updateMatch = (id: number, field: keyof MatchPrediction, value: unknown) => {
     if (!isOpen) return
     setMatchPreds(prev => {
-      const updated = {
-        ...prev,
-        [id]: { ...(prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0, redCard: false }), [field]: value } as MatchPrediction
-      }
+      const base = prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0, redCard: false }
+      const entry = { ...base, [field]: value } as MatchPrediction
+      // When changing a score, ensure the other score defaults to 0
+      if (field === 'scoreA' && (entry.scoreB === null || entry.scoreB === undefined)) entry.scoreB = 0
+      if (field === 'scoreB' && (entry.scoreA === null || entry.scoreA === undefined)) entry.scoreA = 0
+      const updated = { ...prev, [id]: entry }
       if (field === 'redCard' && value === true) {
         const newCount = Object.values(updated).filter(p => p.redCard).length
         if (newCount > MAX_RED_CARDS) return prev
@@ -296,10 +298,12 @@ export default function Predict({ lang }: { lang: Lang }) {
       if (koDeadlinePassed) return
     }
     setKnockoutPreds(prev => {
-      const updated = {
-        ...prev,
-        [id]: { ...(prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0 }), [field]: value } as KnockoutMatchPrediction
-      }
+      const base = prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0 }
+      const entry = { ...base, [field]: value } as KnockoutMatchPrediction
+      // When changing a score, ensure the other score defaults to 0
+      if (field === 'scoreA' && (entry.scoreB === null || entry.scoreB === undefined)) entry.scoreB = 0
+      if (field === 'scoreB' && (entry.scoreA === null || entry.scoreA === undefined)) entry.scoreA = 0
+      const updated = { ...prev, [id]: entry }
       if (knockoutOpen) scheduleSave(matchPreds, groupPreds, bonus, updated, knockoutRedCards)
       return updated
     })
