@@ -160,7 +160,14 @@ export default function Predict({ lang }: { lang: Lang }) {
       const snap = await getDoc(doc(db, 'predictions', user.uid))
       if (snap.exists()) {
         const data = snap.data()
-        setMatchPreds(data.matches ?? {})
+        setMatchPreds(
+          Object.fromEntries(
+            Object.entries(data.matches ?? {}).map(([k, m]: [string, any]) => [
+              Number(k),
+              { ...m, scoreA: m.scoreA ?? 0, scoreB: m.scoreB ?? 0 }
+            ])
+          )
+        )
         setGroupPreds(data.groups ?? {})
         setBonus(data.bonus ?? {})
         if (data.nickname) { setNickname(data.nickname); setNickInput(data.nickname) }
@@ -201,7 +208,15 @@ export default function Predict({ lang }: { lang: Lang }) {
       } catch { /* ignore */ }
       // Load saved knockout predictions
       if (snap.exists() && snap.data().knockout) {
-        setKnockoutPreds(snap.data().knockout)
+        const ko = snap.data().knockout
+        setKnockoutPreds(
+          Object.fromEntries(
+            Object.entries(ko).map(([k, m]: [string, any]) => [
+              Number(k),
+              { ...m, scoreA: m.scoreA ?? 0, scoreB: m.scoreB ?? 0 }
+            ])
+          )
+        )
       }
       if (snap.exists() && snap.data().knockoutRedCards) {
         setKnockoutRedCards(snap.data().knockoutRedCards)
@@ -237,7 +252,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     setMatchPreds(prev => {
       const updated = {
         ...prev,
-        [id]: { ...(prev[id] ?? { matchId: id, scoreA: null, scoreB: null, redCard: false }), [field]: value } as MatchPrediction
+        [id]: { ...(prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0, redCard: false }), [field]: value } as MatchPrediction
       }
       if (field === 'redCard' && value === true) {
         const newCount = Object.values(updated).filter(p => p.redCard).length
@@ -283,7 +298,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     setKnockoutPreds(prev => {
       const updated = {
         ...prev,
-        [id]: { ...(prev[id] ?? { matchId: id, scoreA: null, scoreB: null }), [field]: value } as KnockoutMatchPrediction
+        [id]: { ...(prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0 }), [field]: value } as KnockoutMatchPrediction
       }
       if (knockoutOpen) scheduleSave(matchPreds, groupPreds, bonus, updated, knockoutRedCards)
       return updated
@@ -372,7 +387,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                   <div key={group} className="group-block">
                     <div className="group-label">{t.group} {group}</div>
                     {ms.map(match => {
-                      const p: MatchPrediction = matchPreds[match.id] ?? { matchId: match.id, scoreA: null, scoreB: null, redCard: false }
+                      const p: MatchPrediction = matchPreds[match.id] ?? { matchId: match.id, scoreA: 0, scoreB: 0, redCard: false }
                       const { total: maxPts, breakdown } = p.prediction1X2
                         ? calcMaxPoints(p, match.category, match.fifaPointsA, match.fifaPointsB, t)
                         : { total: 0, breakdown: [] }
