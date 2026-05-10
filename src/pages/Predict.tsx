@@ -642,11 +642,18 @@ export default function Predict({ lang }: { lang: Lang }) {
                   if (!winner || !sfA || !sfB) return undefined
                   return winner === sfA ? sfB : sfA
                 }
-                // Prioritize actual result from API/admin sync over user's prediction
-                const actualAdv = (knockoutMatches[feederId] as any)?.advanceTeam
-                if (actualAdv) return actualAdv
+                // Bracket always shows user's own predictions (not actual results)
                 return knockoutPreds[feederId]?.advance
               } catch { return undefined }
+            }
+
+            // Form view: show actual teams from API when available, fallback to user predictions
+            const getFormTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
+              const actual = knockoutMatches[matchId] as any
+              if (actual?.teamA && actual?.teamB) {
+                return side === 'A' ? actual.teamA : actual.teamB
+              }
+              return getTeamSafe(matchId, side)
             }
 
             // ── BRACKET VIEW ────────────────────────────────────────────────
@@ -1247,8 +1254,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                         {roundMatches.map(km => {
-                          const tA = getTeamSafe(km.id, 'A')
-                          const tB = getTeamSafe(km.id, 'B')
+                          const tA = getFormTeam(km.id, 'A')
+                          const tB = getFormTeam(km.id, 'B')
                           if (!tA || !tB) return null
                           const isPicked = redCardPicks.includes(km.id)
                           const canPick = !roundLocked && (!isPicked ? redCardPicks.length < maxRedCards : true)
@@ -1274,8 +1281,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                     </div>
                   )}
                   {roundMatches.map(km => {
-                    const teamA = getTeamSafe(km.id, 'A')
-                    const teamB = getTeamSafe(km.id, 'B')
+                    const teamA = getFormTeam(km.id, 'A')
+                    const teamB = getFormTeam(km.id, 'B')
                     const pred = knockoutPreds[km.id]
                     const teamsReady = !!(teamA && teamB)
                     const isFocused = focusMatchId === km.id
