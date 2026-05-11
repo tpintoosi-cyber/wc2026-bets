@@ -590,14 +590,10 @@ ${userRows}
           </div>
           {current && (
             <>
-              <div className="tabs" style={{ marginTop: 12 }}>
-                <button className={userTab === 'matches' ? 'tab active' : 'tab'} onClick={() => setUserTab('matches')}>משחקים</button>
-                <button className={userTab === 'groups' ? 'tab active' : 'tab'} onClick={() => setUserTab('groups')}>עולים מהבית</button>
-                <button className={userTab === 'bonus' ? 'tab active' : 'tab'} onClick={() => setUserTab('bonus')}>בונוס</button>
-              </div>
+              {/* Matches only - groups & bonus aggregate moved to stats tab */}
 
               {/* Matches */}
-              {userTab === 'matches' && [1,2,3].map(round => (
+              {[1,2,3].map(round => (
                 <div key={round}>
                   <h2 className="round-title">סיבוב {round}</h2>
                   {GROUPS.map(group => {
@@ -680,82 +676,6 @@ ${userRows}
               ))}
 
               {/* Groups */}
-              {userTab === 'groups' && (
-                <div className="groups-section">
-                  <div className="groups-grid">
-                    {GROUPS.map(group => {
-                      const gp = current.groups[group]
-                      const actual = actualGroups[group]
-                      const hasResult = actual?.[0]
-                      const pts = hasResult && gp ? calcGroupPoints(gp.advancing, actual) : 0
-                      return (
-                        <div key={group} className="group-card" style={hasResult && pts > 0 ? { borderColor: '#1a7a44', borderWidth: 2 } : {}}>
-                          <div className="group-card-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>בית {group}</span>
-                            {hasResult && <PtsBadge pts={pts} played={true} />}
-                          </div>
-                          {[0,1,2].map(idx => {
-                            const predTeam = gp?.advancing[idx]
-                            const actualTeam = actual?.[idx]
-                            const isExact = predTeam && actualTeam && predTeam === actualTeam
-                            const isCorrectWrongPos = predTeam && actual && actual.includes(predTeam) && !isExact
-                            const isWrong = predTeam && actual?.[0] && !actual.includes(predTeam)
-                            return (
-                              <div key={idx} className="group-slot">
-                                <span className="slot-num">{idx+1}.</span>
-                                <span style={{ fontSize: 13, flex: 1, fontWeight: isExact ? 700 : 400, color: isExact ? '#1a7a44' : isCorrectWrongPos ? '#185FA5' : isWrong ? '#c00' : '#333' }}>
-                                  {predTeam ? `${FLAGS[predTeam]??''} ${predTeam}` : <span style={{ color: '#ccc' }}>—</span>}
-                                </span>
-                                {isExact && '✓✓'}{isCorrectWrongPos && '✓'}{(isWrong && hasResult) && <span style={{ color: '#c00' }}>✗</span>}
-                              </div>
-                            )
-                          })}
-                          {hasResult && <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
-                            <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>בפועל:</div>
-                            {[0,1,2].map(idx => <div key={idx} style={{ fontSize: 12, color: '#555' }}>{idx+1}. {FLAGS[actual[idx]]??''} {actual[idx]}</div>)}
-                          </div>}
-                        </div>
-                      )
-                    })}
-                  </div>
-                  {/* Group pred table per group */}
-                  <h2 className="round-title" style={{ marginTop: 20 }}>קיבוץ לפי ניחוש — כל הבתים</h2>
-                  {GROUPS.map(group => (
-                    <div key={group} style={{ marginBottom: 16 }}>
-                      <div className="group-label">בית {group}</div>
-                      <GroupPredTable group={group} users={users} actualResult={actualGroups[group]} />
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Bonus */}
-              {userTab === 'bonus' && (
-                <div className="bonus-section">
-                  {BONUS_QUESTIONS.map(q => {
-                    const predVal = (current.bonus as any)?.[q.id]
-                    const actualVal = (actualBonus as any)?.[q.id]
-                    const hasResult = !!actualVal
-                    const isCorrect = hasResult && predVal?.trim().toLowerCase() === actualVal?.trim().toLowerCase()
-                    const isWrong = hasResult && predVal && !isCorrect
-                    return (
-                      <div key={q.id} className="bonus-row" style={isCorrect ? { borderColor: '#1a7a44', borderWidth: 2 } : {}}>
-                        <div className="bonus-label" style={{ justifyContent: 'space-between' }}>
-                          <span>{q.label}<span className="pts-badge" style={{ marginRight: 6 }}>{q.points} נק׳</span></span>
-                          {hasResult && <PtsBadge pts={isCorrect ? parseInt(q.points) : 0} played={true} />}
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
-                          <span style={{ fontSize: 14, color: isCorrect ? '#1a7a44' : isWrong ? '#c00' : predVal ? '#1a1a2e' : '#ccc', fontWeight: isCorrect ? 700 : 400 }}>
-                            {isCorrect && '✓ '}{isWrong && '✗ '}{predVal || 'לא מולא'}
-                          </span>
-                          {hasResult && !isCorrect && <span style={{ fontSize: 12, color: '#888' }}>(בפועל: {actualVal})</span>}
-                        </div>
-                        <BonusPredTable qId={q.id} users={users} actualVal={actualVal} />
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
             </>
           )}
         </>
@@ -917,6 +837,39 @@ ${userRows}
               </div>
             )
           })}
+
+          {/* ── סטטיסטיקות עולות מהבתים ── */}
+          <div style={{ marginTop: 32 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>🏠 עולות מהבתים — כלל המשתתפים</h2>
+            <p style={{ fontSize: 13, color: '#888', marginBottom: 14 }}>פיזור ניחושי כל המשתתפים לכל בית — מי בחר מי</p>
+            <div id="chart-groups" style={{ minHeight: 40, marginBottom: 20 }} />
+            {GROUPS.map(group => (
+              <div key={group} style={{ marginBottom: 16 }}>
+                <div className="group-label">בית {group}</div>
+                <GroupPredTable group={group} users={users} actualResult={actualGroups[group]} />
+              </div>
+            ))}
+          </div>
+
+          {/* ── סטטיסטיקות שאלות בונוס ── */}
+          <div style={{ marginTop: 32, paddingBottom: 40 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>🎯 שאלות בונוס — כלל המשתתפים</h2>
+            <p style={{ fontSize: 13, color: '#888', marginBottom: 14 }}>פיזור התשובות של כל המשתתפים לכל שאלה</p>
+            <div id="chart-bonus" style={{ minHeight: 40, marginBottom: 20 }} />
+            {BONUS_QUESTIONS.map(q => {
+              const actualVal = (actualBonus as any)?.[q.id]
+              return (
+                <div key={q.id} className="bonus-row">
+                  <div className="bonus-label">
+                    <span>{q.label}</span>
+                    <span className="pts-badge">{q.points} נק׳</span>
+                    {actualVal && <span style={{ fontSize: 12, color: '#1a7a44', fontWeight: 600, marginRight: 8 }}>✓ {actualVal}</span>}
+                  </div>
+                  <BonusPredTable qId={q.id} users={users} actualVal={actualVal} />
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
