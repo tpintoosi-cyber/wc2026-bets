@@ -728,7 +728,88 @@ const FULL_KO_USERS: KnockoutSimUser[] = [
   },
 ]
 
-// ── Algorithmic data generators ─────────────────────────────────────────────
+// ── Additional R32 results for full tournament simulation ──────────────────
+const FKM_77: KnockoutMatch = { id: 77, round: 'R32', teamA: 'פורטוגל', teamB: 'קמרון', category: 'C', fifaPointsA: 1763.83, fifaPointsB: 1416.97, resultA: 2, resultB: 0, isPlayed: true, advanceTeam: 'פורטוגל' }
+const FKM_78: KnockoutMatch = { id: 78, round: 'R32', teamA: 'ארגנטינה', teamB: 'אקוואדור', category: 'B', fifaPointsA: 1874.81, fifaPointsB: 1594.78, resultA: 1, resultB: 1, isPlayed: true, advanceTeam: 'ארגנטינה' }
+const FKM_79: KnockoutMatch = { id: 79, round: 'R32', teamA: 'הולנד', teamB: 'סנגל', category: 'C', fifaPointsA: 1742.37, fifaPointsB: 1533.86, resultA: 3, resultB: 0, isPlayed: true, advanceTeam: 'הולנד' }
+const FKM_80: KnockoutMatch = { id: 80, round: 'R32', teamA: 'אנגליה', teamB: 'אורוגוואי', category: 'B', fifaPointsA: 1763.21, fifaPointsB: 1717.09, resultA: 2, resultB: 1, isPlayed: true, advanceTeam: 'אנגליה' }
+const FKM_81: KnockoutMatch = { id: 81, round: 'R32', teamA: 'בלגיה', teamB: 'ניגריה', category: 'C', fifaPointsA: 1731.98, fifaPointsB: 1481.96, resultA: 2, resultB: 0, isPlayed: true, advanceTeam: 'בלגיה' }
+const FKM_82: KnockoutMatch = { id: 82, round: 'R32', teamA: 'קרואטיה', teamB: 'קנדה', category: 'B', fifaPointsA: 1726.06, fifaPointsB: 1610.15, resultA: 1, resultB: 0, isPlayed: true, advanceTeam: 'קרואטיה' }
+const FKM_83: KnockoutMatch = { id: 83, round: 'R32', teamA: 'דנמרק', teamB: 'ארה"ב', category: 'A', fifaPointsA: 1719.34, fifaPointsB: 1716.85, resultA: 1, resultB: 2, isPlayed: true, advanceTeam: 'ארה"ב' }
+const FKM_84: KnockoutMatch = { id: 84, round: 'R32', teamA: 'מרוקו', teamB: 'יפן', category: 'B', fifaPointsA: 1688.45, fifaPointsB: 1641.96, resultA: 0, resultB: 1, isPlayed: true, advanceTeam: 'יפן', hadRedCard: true }
+const FKM_85: KnockoutMatch = { id: 85, round: 'R32', teamA: 'שוויץ', teamB: 'אוסטרליה', category: 'B', fifaPointsA: 1697.80, fifaPointsB: 1580.67, resultA: 2, resultB: 1, isPlayed: true, advanceTeam: 'שוויץ' }
+const FKM_86: KnockoutMatch = { id: 86, round: 'R32', teamA: 'קוריאה', teamB: 'גאנה', category: 'B', fifaPointsA: 1617.36, fifaPointsB: 1469.96, resultA: 2, resultB: 0, isPlayed: true, advanceTeam: 'קוריאה' }
+const FKM_87: KnockoutMatch = { id: 87, round: 'R32', teamA: 'מקסיקו', teamB: 'ירדן', category: 'C', fifaPointsA: 1681.03, fifaPointsB: 1369.38, resultA: 3, resultB: 1, isPlayed: true, advanceTeam: 'מקסיקו' }
+const FKM_88: KnockoutMatch = { id: 88, round: 'R32', teamA: 'סנגל', teamB: 'פולין', category: 'B', fifaPointsA: 1533.86, fifaPointsB: 1678.34, resultA: 2, resultB: 2, isPlayed: true, advanceTeam: 'פולין' }
+
+// R16 results for full simulation
+const FKM_91: KnockoutMatch = { id: 91, round: 'R16', teamA: 'פורטוגל', teamB: 'ארגנטינה', category: 'A', fifaPointsA: 1763.83, fifaPointsB: 1874.81, resultA: 0, resultB: 1, isPlayed: true, advanceTeam: 'ארגנטינה' }
+const FKM_92: KnockoutMatch = { id: 92, round: 'R16', teamA: 'הולנד', teamB: 'אנגליה', category: 'A', fifaPointsA: 1742.37, fifaPointsB: 1763.21, resultA: 1, resultB: 2, isPlayed: true, advanceTeam: 'אנגליה' }
+const FKM_93: KnockoutMatch = { id: 93, round: 'R16', teamA: 'בלגיה', teamB: 'קרואטיה', category: 'A', fifaPointsA: 1731.98, fifaPointsB: 1726.06, resultA: 2, resultB: 1, isPlayed: true, advanceTeam: 'בלגיה' }
+const FKM_94: KnockoutMatch = { id: 94, round: 'R16', teamA: 'ארה"ב', teamB: 'יפן', category: 'A', fifaPointsA: 1716.85, fifaPointsB: 1641.96, resultA: 2, resultB: 0, isPlayed: true, advanceTeam: 'ארה"ב' }
+const FKM_95: KnockoutMatch = { id: 95, round: 'R16', teamA: 'שוויץ', teamB: 'קוריאה', category: 'B', fifaPointsA: 1697.80, fifaPointsB: 1617.36, resultA: 1, resultB: 0, isPlayed: true, advanceTeam: 'שוויץ' }
+const FKM_96: KnockoutMatch = { id: 96, round: 'R16', teamA: 'מקסיקו', teamB: 'פולין', category: 'B', fifaPointsA: 1681.03, fifaPointsB: 1678.34, resultA: 0, resultB: 1, isPlayed: true, advanceTeam: 'פולין' }
+
+// QF remaining
+const FKM_99: KnockoutMatch = { id: 99, round: 'QF', teamA: 'בלגיה', teamB: 'ארה"ב', category: 'A', fifaPointsA: 1731.98, fifaPointsB: 1716.85, resultA: 2, resultB: 1, isPlayed: true, advanceTeam: 'בלגיה' }
+const FKM_100: KnockoutMatch = { id: 100, round: 'QF', teamA: 'שוויץ', teamB: 'פולין', category: 'B', fifaPointsA: 1697.80, fifaPointsB: 1678.34, resultA: 1, resultB: 2, isPlayed: true, advanceTeam: 'פולין' }
+
+// SF #2, 3P, F
+const FKM_102: KnockoutMatch = { id: 102, round: 'SF', teamA: 'בלגיה', teamB: 'פולין', category: 'A', fifaPointsA: 1731.98, fifaPointsB: 1678.34, resultA: 1, resultB: 0, isPlayed: true, advanceTeam: 'בלגיה' }
+const FKM_103: KnockoutMatch = { id: 103, round: '3P', teamA: 'ארגנטינה', teamB: 'פולין', category: 'A', fifaPointsA: 1874.81, fifaPointsB: 1678.34, resultA: 2, resultB: 0, isPlayed: true, advanceTeam: 'ארגנטינה' }
+
+// Full 32-match set
+const ALL_32_PLAYED: KnockoutMatch[] = [
+  FKM_73, FKM_74, FKM_75, FKM_76, FKM_77, FKM_78, FKM_79, FKM_80,
+  FKM_81, FKM_82, FKM_83, FKM_84, FKM_85, FKM_86, FKM_87, FKM_88,
+  FKM_89, FKM_90, FKM_91, FKM_92, FKM_93, FKM_94, FKM_95, FKM_96,
+  FKM_97, FKM_98, FKM_99, FKM_100,
+  FKM_101, FKM_102, FKM_103,
+  { ...FKM_104, teamA: 'צרפת', teamB: 'בלגיה', fifaPointsB: 1731.98,
+    resultA: 1, resultB: 0, advanceTeam: 'צרפת' },
+]
+
+// Full bracket user: R32 form picks + bracket picks from R16 onward
+const FULL_BRACKET_USER: KnockoutSimUser = {
+  uid: 'fko-u4', name: '🌍 טורניר מלא', description: 'כיסוי כל 32 משחקים — R32 בטופס, ברקט מR16',
+  redCards: { R32: [74, 84], R16: [89], QF: [97] },
+  knockoutPreds: {
+    // R32 form picks (advance picks — שלב הטופס)
+    73:  kp(73,  '1', 1, 0, 'ספרד'),        // ✓ 1X2+exact+Under+adv fav=1
+    74:  kp(74,  '2', 0, 1, 'האיטי'),        // ✓ 1X2+exact+Under+adv und Cat D=3+red✓
+    75:  kp(75,  'X', 1, 1, 'אוסטרליה'),     // ✓ 1X2+exact+adv und Cat B=2
+    76:  kp(76,  'X', 0, 0, 'צרפת'),         // ✓ 1X2+exact+adv fav=1
+    77:  kp(77,  '1', 2, 0, 'פורטוגל'),      // ✓ 1X2+exact+Under+adv fav=1
+    78:  kp(78,  'X', 1, 1, 'ארגנטינה'),     // ✓ 1X2+exact+adv fav=1
+    79:  kp(79,  '1', 3, 0, 'הולנד'),        // ✓ 1X2+exact+Over+adv fav=1
+    80:  kp(80,  '1', 2, 1, 'אנגליה'),       // ✓ 1X2+exact+adv fav=1
+    81:  kp(81,  '1', 2, 0, 'בלגיה'),        // ✓ 1X2+exact+Under+adv fav=1
+    82:  kp(82,  '1', 1, 0, 'קרואטיה'),      // ✓ 1X2+exact+Under+adv fav=1
+    83:  kp(83,  '2', 1, 2, 'ארה"ב'),        // ✓ 1X2+exact+adv und Cat A=1
+    84:  kp(84,  '2', 0, 1, 'יפן'),          // ✓ 1X2+exact+Under+adv und Cat B=2+red✓
+    85:  kp(85,  '1', 2, 1, 'שוויץ'),        // ✓ 1X2+exact+adv fav=1
+    86:  kp(86,  '1', 2, 0, 'קוריאה'),       // ✓ 1X2+exact+Under+adv fav=1
+    87:  kp(87,  '1', 3, 1, 'מקסיקו'),       // ✓ 1X2+exact+Over+adv fav=1
+    88:  kp(88,  'X', 2, 2, 'פולין'),        // ✓ 1X2+exact+adv und Cat B=2
+    // Bracket picks from R16 (advance picks — שלב הברקט)
+    89:  kp(89,  '1', 2, 0, 'ספרד'),         // ✓ R16 adv Cat C fav=2+red✓
+    90:  kp(90,  '1', 3, 1, 'צרפת'),         // ✓ R16 adv Cat B fav=2
+    91:  kp(91,  '2', 0, 1, 'ארגנטינה'),     // ✓ R16 adv Cat A und=2
+    92:  kp(92,  '2', 1, 2, 'אנגליה'),       // ✓ R16 adv Cat A und=2
+    93:  kp(93,  '1', 2, 1, 'בלגיה'),        // ✓ R16 adv Cat A fav=2
+    94:  kp(94,  '1', 2, 0, 'ארה"ב'),        // ✓ R16 adv Cat A fav=2
+    95:  kp(95,  '1', 1, 0, 'שוויץ'),        // ✓ R16 adv Cat B fav=2
+    96:  kp(96,  '2', 0, 1, 'פולין'),        // ✓ R16 adv Cat B und=3
+    97:  kp(97,  '2', 1, 2, 'צרפת'),         // ✓ QF adv Cat A und=3+red✓
+    98:  kp(98,  '1', 2, 0, 'ארגנטינה'),     // ✓ QF adv Cat A fav=3
+    99:  kp(99,  '1', 2, 1, 'בלגיה'),        // ✓ QF adv Cat A fav=3
+    100: kp(100, '2', 0, 2, 'פולין'),        // ✓ QF adv Cat B und=4
+    101: kp(101, '1', 2, 1, 'צרפת'),         // ✓ SF adv Cat A und=4
+    102: kp(102, '1', 1, 0, 'בלגיה'),        // ✓ SF adv Cat A fav=4
+    103: kp(103, '1', 2, 0, 'ארגנטינה'),     // ✓ 3P adv Cat A fav=2
+    104: kp(104, '1', 1, 0, 'צרפת'),         // ✓ F adv Cat A und(vs בלגיה)=5
+  },
+}
 
 // Generates results for ALL 72 group stage matches
 // Pattern per (id % 6): ensures O/U bonus coverage across all categories
@@ -1136,6 +1217,34 @@ export default function Simulator() {
     setRunning(null)
   }
 
+  const runFullTournament = async () => {
+    setRunning('full-tournament')
+    setLog([])
+    setKoResults(null)
+    try {
+      const matchesRecord: Record<number, KnockoutMatch> = {}
+      ALL_32_PLAYED.forEach(km => { matchesRecord[km.id] = km })
+      await setDoc(doc(db, 'admin', 'knockout'), { matches: matchesRecord })
+      addLog(`💾 נשמרו ${ALL_32_PLAYED.length} תוצאות נוקאאוט`)
+
+      const u = FULL_BRACKET_USER
+      await setDoc(doc(db, 'users', u.uid), { name: u.name, email: `${u.uid}@sim.test`, joinedAt: Date.now() })
+      await setDoc(doc(db, 'predictions', u.uid), { matches: {}, groups: {}, bonus: {}, knockout: u.knockoutPreds, knockoutRedCards: u.redCards, userName: u.name, lastUpdated: Date.now() })
+      const score = computeUserScore(u.uid, u.name, {}, {}, {}, [], {}, {}, u.knockoutPreds, ALL_32_PLAYED, u.redCards as KnockoutRedCardPicks)
+      await setDoc(doc(db, 'scores', u.uid), score)
+
+      addLog(`✅ ${u.name}: סה"כ ${score.total}נק`)
+      addLog(`   נוקאאוט: ${score.knockoutPoints}נק | כרטיסים: ${score.redCardPoints}נק`)
+
+      const r32adv = ALL_32_PLAYED.filter(km => km.round === 'R32').map(km => `${km.teamA}→${km.advanceTeam}`).join(', ')
+      addLog(`📋 R32 עולות: ${r32adv}`)
+      addLog(`🎉 הסימולציה כוללת R32 בטופס + ברקט R16→גמר`)
+
+      setKoResults([{ uid: u.uid, name: u.name, matchPoints: score.matchPoints, redCardPoints: score.redCardPoints, groupPoints: 0, total: score.total, breakdown: [`נוקאאוט:${score.knockoutPoints} | 🟥:${score.redCardPoints}`] }])
+    } catch (e: any) { addLog(`❌ ${e.message}`) }
+    setRunning(null)
+  }
+
   const runR32Population = async () => {
     setRunning('r32')
     setLog([])
@@ -1388,6 +1497,28 @@ export default function Simulator() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* ── Full tournament ──────────────────────────────────────────────────── */}
+      <h3 style={{ margin: '24px 0 4px' }}>🌍 טורניר נוקאאוט מלא — 32 משחקים</h3>
+      <p style={{ color: '#888', fontSize: 13, margin: '0 0 12px' }}>R32 בטופס + ברקט R16→גמר. מוודא שR16 מקבל נבחרות מתוצאות אמיתיות של R32.</p>
+      <div style={{ border: `2px solid ${koResults ? '#1a7a44' : '#1a1a2e'}`, borderRadius: 12, padding: 16, background: koResults ? '#f0faf4' : '#fff', marginBottom: 24 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>🌍 {FULL_BRACKET_USER.name}</div>
+        <div style={{ fontSize: 12, color: '#666', marginBottom: 10 }}>{FULL_BRACKET_USER.description}</div>
+        <button onClick={runFullTournament} disabled={!!running}
+          style={{ padding: '8px 20px', borderRadius: 8, border: 'none', background: running === 'full-tournament' ? '#ccc' : '#1a1a2e', color: '#fff', fontWeight: 700, cursor: running ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
+          {running === 'full-tournament' ? '⏳ רץ...' : '▶ הרץ טורניר מלא'}
+        </button>
+        {koResults && (
+          <div style={{ marginTop: 12 }}>
+            {koResults.map(r => (
+              <div key={r.uid} style={{ padding: '8px 12px', background: '#EAF3DE', borderRadius: 8, fontSize: 13 }}>
+                <b>{r.name}</b>: {r.total}נק׳ (נוקאאוט:{r.matchPoints} | 🟥:{r.redCardPoints})
+                {r.breakdown.map((b,i) => <div key={i} style={{ fontSize: 11, color: '#555', marginTop: 2 }}>{b}</div>)}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Focused scenarios ──────────────────────────────────────────────── */}
