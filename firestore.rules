@@ -2,39 +2,98 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // App settings — read by all logged-in users, write only by admin
-    match /settings/{doc} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
+    // ── Helper functions ──────────────────────────────────────────
+
+    // משתמש מחובר
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // User profiles — read by all, write only own
-    match /users/{uid} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == uid;
-    }
-
-    // Predictions — read by all logged-in users, write only own
-    match /predictions/{uid} {
-      allow read: if request.auth != null;
-      allow write: if request.auth.uid == uid;
-    }
-
-    // Scores — read by all logged-in, write only by admin / Cloud Function
-    match /scores/{uid} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
-    }
-
-    // Admin results — read/write only by admin
-    match /admin/{doc} {
-      allow read, write: if isAdmin();
-    }
-
+    // אדמין — מסתכל ב-adminUids שבהגדרות
     function isAdmin() {
-      return request.auth != null &&
-        exists(/databases/$(database)/documents/settings/app) &&
+      return isSignedIn() &&
         request.auth.uid in get(/databases/$(database)/documents/settings/app).data.adminUids;
+    }
+
+    // משתמש מאושר — קיים ב-/users/ (נוצר רק אחרי אישור האדמין)
+    function isApproved() {
+      return isSignedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    // חלון שלב הבתים פתוח
+    function isGroupOpen() {
+      return get(/databases/$(database)/documents/settings/app).data.isOpen == true;
+    }
+
+    // חלון נוקאאוט פתוח
+    function isKnockoutOpen() {
+      return get(/databases/$(database)/documents/settings/app).data.knockoutOpen == true;
+    }
+
+    // לפחות חלון אחד פתוח (הימורים בכלל)
+    function anyWindowOpen() {
+      return isGroupOpen() || isKnockoutOpen();
+    }
+
+    // ── /settings/app ─────────────────────────────────────────────
+    // קריאה: כל משתמש מחובר (צריך לבדוק isOpen בהתחברות)
+    // כתיבה: אדמין בלבד
+    match /settings/app {
+      allow read:  if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // ── /predictions/{uid} ────────────────────────────────────────
+    // קריאה: משתמשים מאושרים (לעמוד "הימורי כולם") + אדמין
+    // כתיבה: המשתמש עצמו בלבד כאשר חלון פתוח + אדמין
+    // מחיקה: אדמין בלבד
+    match /predictions/{uid} {
+      allow read:   if isApproved() || isAdmin();
+      allow create,
+            update: if isSignedIn()
+                    && request.auth.uid == uid
+                    && isApproved()
+                    && anyWindowOpen();
+      allow delete: if isAdmin();
+    }
+
+    // ── /scores/{uid} ─────────────────────────────────────────────
+    // קריאה: משתמשים מאושרים (לדירוג) + אדמין
+    // כתיבה: אדמין בלבד (סנכרון תוצאות)
+    match /scores/{uid} {
+      allow read:  if isApproved() || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ── /admin/{doc} ──────────────────────────────────────────────
+    // results, knockout, schedule
+    // קריאה: משתמשים מאושרים (לצפות בתוצאות) + אדמין
+    // כתיבה: אדמין בלבד
+    match /admin/{doc} {
+      allow read:  if isApproved() || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ── /pendingUsers/{uid} ───────────────────────────────────────
+    // יצירה: כל משתמש מחובר יכול ליצור את הרשומה שלו בלבד
+    // קריאה: המשתמש עצמו (לבדוק סטטוס) + אדמין
+    // עדכון/מחיקה: אדמין בלבד (אישור/דחייה/הסרה)
+    match /pendingUsers/{uid} {
+      allow create: if isSignedIn()
+                    && request.auth.uid == uid
+                    && request.resource.data.uid == uid;
+      allow read:   if request.auth.uid == uid || isAdmin();
+      allow update,
+            delete: if isAdmin();
+    }
+
+    // ── /users/{uid} ──────────────────────────────────────────────
+    // קריאה: משתמשים מאושרים + אדמין
+    // כתיבה: אדמין בלבד (נוצר בעת אישור)
+    match /users/{uid} {
+      allow read:  if isApproved() || isAdmin();
+      allow write: if isAdmin();
     }
   }
 }
