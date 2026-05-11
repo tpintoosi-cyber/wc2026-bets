@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
+import StatsCharts from './StatsCharts'
 import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, KNOCKOUT_BRACKET } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Match, KnockoutMatchPrediction } from '../types'
 import { calc1X2Points, calcScorePoints, calcRedCardPoints, calcGroupPoints, calcBonusPoints, calcAdvancePoints, calc1X2KnockoutPoints, calcScoreKnockoutPoints } from '../scoring'
@@ -287,6 +288,10 @@ export default function AllPredictions() {
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
   const [scores, setScores] = useState<Record<string, number>>({})
+  const [scoreBreakdown, setScoreBreakdown] = useState<Record<string, {
+    total: number; matchPoints: number; groupPoints: number;
+    bonusPoints: number; redCardPoints: number; knockoutPoints: number
+  }>>({})
   const [knockoutScores, setKnockoutScores] = useState<Record<string, number>>({})
   const [knockoutAdminMatches, setKnockoutAdminMatches] = useState<Record<number, any>>({})
   const [koSubTab, setKoSubTab] = useState<'byUser' | 'byMatch'>('byUser')
@@ -341,12 +346,23 @@ export default function AllPredictions() {
       if (scoresSnap) {
         const sc: Record<string, number> = {}
         const koSc: Record<string, number> = {}
+        const breakdown: Record<string, any> = {}
         scoresSnap.docs.forEach(d => {
-          sc[d.id] = d.data().total ?? 0
-          koSc[d.id] = d.data().knockoutPoints ?? 0
+          const data = d.data()
+          sc[d.id] = data.total ?? 0
+          koSc[d.id] = data.knockoutPoints ?? 0
+          breakdown[d.id] = {
+            total:          data.total          ?? 0,
+            matchPoints:    data.matchPoints     ?? 0,
+            groupPoints:    data.groupPoints     ?? 0,
+            bonusPoints:    data.bonusPoints     ?? 0,
+            redCardPoints:  data.redCardPoints   ?? 0,
+            knockoutPoints: data.knockoutPoints  ?? 0,
+          }
         })
         setScores(sc)
         setKnockoutScores(koSc)
+        setScoreBreakdown(breakdown)
       }
       setLoading(false)
     })()
@@ -779,25 +795,14 @@ ${userRows}
 
           {/* ── סקירה כללית ── */}
           {statsSubTab === 'overview' && (
-            <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8, marginBottom: 16 }}>
-                {[
-                  { label: 'משתתפים', value: users.length },
-                  { label: 'משחקים שהוחלטו', value: playedMatches.length },
-                  { label: playedMatches.length > 0 ? 'ניחושים מדויקים' : 'הימורים שהוגשו',
-                    value: playedMatches.length > 0
-                      ? (() => { let c=0; users.forEach(u=>playedMatches.forEach(m=>{const p=u.matches[m.id],r=adminResults[m.id]; if(p?.scoreA!=null&&r?.resultA!=null&&Number(p.scoreA)===Number(r.resultA)&&Number(p.scoreB)===Number(r.resultB))c++})); return c })()
-                      : users.filter(u => Object.keys(u.matches).length > 0).length },
-                  { label: playedMatches.length > 0 ? 'כרטיסים שניחשו' : 'כרטיסי אדום שסומנו',
-                    value: (() => { let c=0; users.forEach(u=>{ if(playedMatches.length > 0) { playedMatches.forEach(m=>{const p=u.matches[m.id],r=adminResults[m.id]; if(p?.redCard&&r?.hadRedCard)c++}) } else { Object.values(u.matches).forEach((p:any)=>{if(p?.redCard)c++}) } }); return c })() },
-                ].map((s,i) => (
-                  <div key={i} style={{ background: '#f8f9fa', borderRadius: 10, padding: 12, textAlign: 'center', border: '1px solid #e5e5e5' }}>
-                    <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a2e' }}>{s.value}</div>
-                    <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>{s.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <StatsCharts
+              users={users}
+              adminResults={adminResults}
+              actualBonus={actualBonus as Record<string, string>}
+              scoreBreakdown={scoreBreakdown}
+              currentUserId={user?.uid}
+              getDisplayName={getDisplayName}
+            />
           )}
 
           {/* ── התפלגות 1X2 ── */}
