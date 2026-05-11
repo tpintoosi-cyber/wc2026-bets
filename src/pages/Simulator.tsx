@@ -1003,6 +1003,7 @@ export default function Simulator() {
   const [results, setResults] = useState<ScenarioResult[] | null>(null)
   const [log, setLog] = useState<string[]>([])
   const [resetting, setResetting] = useState(false)
+  const [e2eResults, setE2eResults] = useState<ScenarioResult[] | null>(null)
   const [activeScenario, setActiveScenario] = useState<string | null>(null)
   const [r32Result, setR32Result] = useState<Record<number,any> | null>(null)
   const [koResults, setKoResults] = useState<ScenarioResult[] | null>(null)
@@ -1024,6 +1025,7 @@ export default function Simulator() {
         ...Array.from({length: 3}, (_, i) => `ko-u${i+1}`),    // focused knockout
         ...Array.from({length: 5}, (_, i) => `full-u${i+1}`),  // full group stage
         ...Array.from({length: 3}, (_, i) => `fko-u${i+1}`),   // full knockout
+        ...Array.from({length: 10}, (_, i) => `e2e-u${i+1}`),  // end-to-end
       ]
       for (const uid of allUids) {
         batch.delete(doc(db, 'predictions', uid))
@@ -1245,6 +1247,113 @@ export default function Simulator() {
     setRunning(null)
   }
 
+  const runEndToEnd = async () => {
+    setRunning('e2e')
+    setLog([])
+    setE2eResults(null)
+    try {
+      const gsResults = generateAllGroupResults()
+      const groups    = computeGroupQualifiers(gsResults)
+      const matchMap  = Object.fromEntries(
+        Object.entries(gsResults).map(([k, v]) => [Number(k), v])
+      ) as Record<number, Partial<Match>>
+
+      const { updatedKnockout: r32base } = populateR32Teams(
+        groups as any, BEST_8_THIRDS, {}, TEAM_FIFA_POINTS, calcCategoryByRound
+      )
+      const { matches: koMatches, preds: koPreds } = generateFullKnockoutData(r32base)
+      const playedKO   = Object.values(koMatches).filter(km => km.isPlayed) as KnockoutMatch[]
+      const koMatchMap = Object.fromEntries(playedKO.map(km => [km.id, km])) as Record<number, KnockoutMatch>
+
+      const champion   = koMatches[104]?.advanceTeam ?? 'צרפת'
+      const finalist   = koMatches[104]?.teamA === champion ? koMatches[104]?.teamB : koMatches[104]?.teamA
+      const thirdPlace = koMatches[103]?.advanceTeam ?? ''
+
+      const adminBonus: Record<string, string> = {
+        q105: champion, q106: finalist ?? '', q107: thirdPlace,
+        q108: 'קיליאן מבאפה', q109: '7', q110: 'ז׳ואו פליקס',
+        q111: Object.values(groups)[0]?.[0] ?? '',
+        q112: Object.values(groups)[11]?.[2] ?? '',
+        q113: 'A', q114: 'L', q115: champion, q116: '5', q117: '52',
+      }
+
+      await setDoc(doc(db, 'admin', 'results'),  { matches: matchMap, groups, bonus: adminBonus })
+      await setDoc(doc(db, 'admin', 'knockout'), { matches: koMatchMap })
+      addLog(`✅ תוצאות: 72 בתים + 32 נוקאאוט + בונוס`)
+      addLog(`🏆 אלוף: ${champion} | סגן: ${finalist} | 3: ${thirdPlace}`)
+
+      const gsTypes: Array<'perfect'|'favorites'|'underdogs'|'draws'|'exact'> =
+        ['perfect','favorites','underdogs','draws','exact','perfect','favorites','underdogs','exact','draws']
+      const koTypes: Array<'perfect'|'favorites'|'underdogs'> =
+        ['perfect','favorites','underdogs','perfect','favorites','underdogs','perfect','favorites','underdogs','favorites']
+      const bonusCorrect = [13,7,2,6,4,8,1,3,5,4]
+      const names = [
+        '🥇 אנליסט מושלם','📊 מחנה המועדפים','💥 ציד האנדרדוגים',
+        '🎯 תוצאות מדויקות','⚽ מלך הבתים','🏆 מלך הנוקאאוט',
+        '🎲 מהמר אקראי','🔀 שיטת מרווחים','🌟 משתמש מאוזן','📐 אסטרטג הבתים',
+      ]
+      const bonusKeys = Object.keys(adminBonus)
+      const scoreResults: ScenarioResult[] = []
+
+      for (let i = 0; i < 10; i++) {
+        const uid    = `e2e-u${i + 1}`
+        const name   = names[i]
+        const gsType = gsTypes[i]
+        const koType = koTypes[i]
+
+        const matchPreds = buildUserPreds(matchMap, gsType)
+        const groupPreds = Object.fromEntries(
+          Object.entries(groups).map(([g, teams]) => [g, {
+            group: g as any,
+            advancing: gsType === 'perfect' ? teams :
+              gsType === 'favorites' ? [teams[0], teams[2], teams[1]] :
+              [teams[2], teams[1], teams[0]],
+          }])
+        ) as any
+        const userBonus: Record<string, string> = {}
+        bonusKeys.forEach((k, idx) => {
+          userBonus[k] = idx < bonusCorrect[i] ? adminBonus[k] : '— לא ידוע —'
+        })
+
+        const rcR32 = playedKO.filter(km => km.round==='R32' && km.hadRedCard).map(km=>km.id).slice(0,3)
+        const rcR16 = playedKO.filter(km => km.round==='R16' && km.hadRedCard).map(km=>km.id).slice(0,koType==='perfect'?2:0)
+        const rcQF  = playedKO.filter(km => km.round==='QF'  && km.hadRedCard).map(km=>km.id).slice(0,koType==='perfect'?1:0)
+        const reds  = { R32: rcR32, R16: rcR16, QF: rcQF }
+        const koPredsByType = koPreds[koType] as Record<number, KnockoutMatchPrediction>
+
+        await setDoc(doc(db, 'users', uid), { name, email: `${uid}@sim.test`, joinedAt: Date.now() })
+        await setDoc(doc(db, 'predictions', uid), {
+          matches: matchPreds, groups: groupPreds, bonus: userBonus,
+          knockout: koPredsByType, knockoutRedCards: reds,
+          userName: name, lastUpdated: Date.now(),
+        })
+
+        const score = computeUserScore(
+          uid, name, matchPreds, groupPreds, userBonus,
+          MATCHES, groups, adminBonus, koPredsByType, playedKO, reds as KnockoutRedCardPicks
+        )
+        await setDoc(doc(db, 'scores', uid), score)
+        scoreResults.push({
+          uid, name,
+          matchPoints: score.matchPoints, redCardPoints: score.redCardPoints,
+          groupPoints: score.groupPoints, total: score.total,
+          breakdown: [
+            `בתים: ${score.matchPoints}נק`, `עולות+בונוס: ${score.groupPoints}נק`,
+            `נוקאאוט: ${score.knockoutPoints}נק`, `🟥: ${score.redCardPoints}נק`,
+          ],
+        })
+        addLog(`✅ ${name}: ${score.total}נק (בתים:${score.matchPoints} עולות:${score.groupPoints} KO:${score.knockoutPoints} 🟥:${score.redCardPoints})`)
+      }
+
+      scoreResults.sort((a, b) => b.total - a.total)
+      setE2eResults(scoreResults)
+      addLog(`\n🎉 הושלם! 10 משתמשים, כל שלבי ההימור.`)
+      addLog(`🥇 ${scoreResults[0].name}: ${scoreResults[0].total}נק`)
+      addLog(`🏅 ${scoreResults[9].name}: ${scoreResults[9].total}נק`)
+    } catch (e: any) { addLog(`❌ ${e.message}`) }
+    setRunning(null)
+  }
+
   const runR32Population = async () => {
     setRunning('r32')
     setLog([])
@@ -1338,6 +1447,56 @@ export default function Simulator() {
         }}>
         {resetting ? 'מוחק...' : '🗑️ מחק הכל וחזור למצב ריק'}
       </button>
+
+      {/* ── End-to-End: 10 users full simulation ──────────────────────────── */}
+      <div style={{ border: `2px solid ${e2eResults ? '#1a7a44' : '#7b2d8b'}`, borderRadius: 14, padding: 20, marginBottom: 28, background: e2eResults ? '#f0faf4' : '#fdf8ff' }}>
+        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 4 }}>🌐 סימולציה מקיפה — 10 משתמשים, כל השלבים</div>
+        <div style={{ fontSize: 13, color: '#666', marginBottom: 14 }}>
+          ממלא את כל שלבי ההימור: 72 משחקי בתים + עולות + בונוס (13 שאלות) + R32 בטופס + ברקט R16→גמר. 10 משתמשים בסגנונות שונים.
+        </div>
+        <button onClick={runEndToEnd} disabled={!!running}
+          style={{ padding: '10px 28px', borderRadius: 10, border: 'none',
+            background: running === 'e2e' ? '#ccc' : '#7b2d8b',
+            color: '#fff', fontWeight: 700, cursor: running ? 'not-allowed' : 'pointer',
+            fontFamily: 'inherit', fontSize: 15 }}>
+          {running === 'e2e' ? '⏳ רץ...' : '▶ הרץ סימולציה מקיפה'}
+        </button>
+        <div style={{ fontSize: 11, color: '#999', marginTop: 6 }}>⚠️ כותב על כל הנתונים: admin/results, admin/knockout, 10 משתמשים</div>
+        {e2eResults && (
+          <div style={{ marginTop: 16 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: '#f0f0f0' }}>
+                  <th style={{ padding: '7px 10px', textAlign: 'right', border: '1px solid #ddd' }}>מקום</th>
+                  <th style={{ padding: '7px 10px', textAlign: 'right', border: '1px solid #ddd' }}>שם</th>
+                  <th style={{ padding: '7px 10px', textAlign: 'center', border: '1px solid #ddd' }}>בתים</th>
+                  <th style={{ padding: '7px 10px', textAlign: 'center', border: '1px solid #ddd' }}>עולות+בונוס</th>
+                  <th style={{ padding: '7px 10px', textAlign: 'center', border: '1px solid #ddd' }}>נוקאאוט</th>
+                  <th style={{ padding: '7px 10px', textAlign: 'center', border: '1px solid #ddd' }}>🟥</th>
+                  <th style={{ padding: '7px 10px', textAlign: 'center', border: '1px solid #ddd', fontWeight: 700 }}>סה״כ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {e2eResults.map((r, idx) => (
+                  <tr key={r.uid} style={{ background: idx === 0 ? '#fffbea' : idx === 9 ? '#fff5f5' : 'white' }}>
+                    <td style={{ padding: '6px 10px', border: '1px solid #ddd', fontWeight: 700, color: idx === 0 ? '#B8860B' : '#555' }}>
+                      {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx+1}.`}
+                    </td>
+                    <td style={{ padding: '6px 10px', border: '1px solid #ddd', fontWeight: 500 }}>{r.name}</td>
+                    <td style={{ padding: '6px 10px', border: '1px solid #ddd', textAlign: 'center' }}>{r.matchPoints}</td>
+                    <td style={{ padding: '6px 10px', border: '1px solid #ddd', textAlign: 'center' }}>{r.groupPoints}</td>
+                    <td style={{ padding: '6px 10px', border: '1px solid #ddd', textAlign: 'center' }}>
+                      {r.total - r.matchPoints - r.groupPoints - r.redCardPoints}
+                    </td>
+                    <td style={{ padding: '6px 10px', border: '1px solid #ddd', textAlign: 'center' }}>{r.redCardPoints}</td>
+                    <td style={{ padding: '6px 10px', border: '1px solid #ddd', textAlign: 'center', fontWeight: 800, color: '#1a7a44', fontSize: 15 }}>{r.total}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* ── Full Simulations ────────────────────────────────────────────────── */}
       <div style={{ borderTop: '2px solid #1a1a2e', paddingTop: 24, marginTop: 8, marginBottom: 8 }}>
