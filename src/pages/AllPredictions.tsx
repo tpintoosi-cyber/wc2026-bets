@@ -691,7 +691,74 @@ ${userRows}
                 </div>
               ))}
 
-              {/* Groups */}
+              {/* ── עולות מהבתים ── */}
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '2px solid #e8e8e8' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>🏠 עולות מהבתים</div>
+                <div className="groups-grid">
+                  {GROUPS.map(group => {
+                    const gp = current.groups[group]
+                    const actual = actualGroups[group]
+                    const hasResult = actual?.[0]
+                    const pts = hasResult && gp ? calcGroupPoints(gp.advancing, actual) : 0
+                    return (
+                      <div key={group} className="group-card" style={hasResult && pts > 0 ? { borderColor: '#1a7a44', borderWidth: 2 } : {}}>
+                        <div className="group-card-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>בית {group}</span>
+                          {hasResult && <PtsBadge pts={pts} played={true} />}
+                        </div>
+                        {[0,1,2].map(idx => {
+                          const predTeam = gp?.advancing[idx]
+                          const actualTeam = actual?.[idx]
+                          const isExact = predTeam && actualTeam && predTeam === actualTeam
+                          const isCorrectWrongPos = predTeam && actual && actual.includes(predTeam) && !isExact
+                          const isWrong = predTeam && actual?.[0] && !actual.includes(predTeam)
+                          return (
+                            <div key={idx} className="group-slot">
+                              <span className="slot-num">{idx+1}.</span>
+                              <span style={{ fontSize: 13, flex: 1, fontWeight: isExact ? 700 : 400, color: isExact ? '#1a7a44' : isCorrectWrongPos ? '#185FA5' : isWrong ? '#c00' : '#333' }}>
+                                {predTeam ? `${FLAGS[predTeam]??''} ${predTeam}` : <span style={{ color: '#ccc' }}>—</span>}
+                              </span>
+                              {isExact && '✓✓'}{isCorrectWrongPos && '✓'}{(isWrong && hasResult) && <span style={{ color: '#c00' }}>✗</span>}
+                            </div>
+                          )
+                        })}
+                        {hasResult && (
+                          <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
+                            <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>בפועל:</div>
+                            {[0,1,2].map(idx => <div key={idx} style={{ fontSize: 12, color: '#555' }}>{idx+1}. {FLAGS[actual[idx]]??''} {actual[idx]}</div>)}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* ── בונוס ── */}
+              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '2px solid #e8e8e8' }}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>🎯 שאלות בונוס</div>
+                {BONUS_QUESTIONS.map(q => {
+                  const predVal = (current.bonus as any)?.[q.id]
+                  const actualVal = (actualBonus as any)?.[q.id]
+                  const hasResult = !!actualVal
+                  const isCorrect = hasResult && predVal?.trim().toLowerCase() === actualVal?.trim().toLowerCase()
+                  const isWrong = hasResult && predVal && !isCorrect
+                  return (
+                    <div key={q.id} className="bonus-row" style={isCorrect ? { borderColor: '#1a7a44', borderWidth: 2 } : {}}>
+                      <div className="bonus-label" style={{ justifyContent: 'space-between' }}>
+                        <span>{q.label}<span className="pts-badge" style={{ marginRight: 6 }}>{q.points} נק׳</span></span>
+                        {hasResult && <PtsBadge pts={isCorrect ? parseInt(q.points) : 0} played={true} />}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+                        <span style={{ fontSize: 14, color: isCorrect ? '#1a7a44' : isWrong ? '#c00' : predVal ? '#1a1a2e' : '#ccc', fontWeight: isCorrect ? 700 : 400 }}>
+                          {isCorrect && '✓ '}{isWrong && '✗ '}{predVal || 'לא מולא'}
+                        </span>
+                        {hasResult && !isCorrect && <span style={{ fontSize: 12, color: '#888' }}>(בפועל: {actualVal})</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </>
           )}
 
