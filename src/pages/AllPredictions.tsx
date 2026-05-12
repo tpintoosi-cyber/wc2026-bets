@@ -296,6 +296,7 @@ export default function AllPredictions() {
   const [knockoutAdminMatches, setKnockoutAdminMatches] = useState<Record<number, any>>({})
   const [koSubTab, setKoSubTab] = useState<'byUser' | 'byMatch'>('byUser')
   const [statsSubTab, setStatsSubTab] = useState<'overview' | 'matches' | 'groups' | 'bonus'>('overview')
+  const [userSubTab, setUserSubTab] = useState<'matches' | 'groups' | 'bonus' | 'knockout'>('matches')
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -606,10 +607,23 @@ ${userRows}
           </div>
           {current && (
             <>
-              {/* Matches only - groups & bonus aggregate moved to stats tab */}
+              <div className="tabs" style={{ marginTop: 12 }}>
+                {([
+                  { id: 'matches',  label: '⚽ בתים' },
+                  { id: 'groups',   label: '🏠 עולות' },
+                  { id: 'bonus',    label: '🎯 בונוס' },
+                  { id: 'knockout', label: '🏆 נוקאאוט' },
+                ] as const).map(t => (
+                  <button key={t.id}
+                    className={userSubTab === t.id ? 'tab active' : 'tab'}
+                    onClick={() => setUserSubTab(t.id)}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
 
               {/* Matches */}
-              {[1,2,3].map(round => (
+              {userSubTab === 'matches' && [1,2,3].map(round => (
                 <div key={round}>
                   <h2 className="round-title">סיבוב {round}</h2>
                   {GROUPS.map(group => {
@@ -692,8 +706,7 @@ ${userRows}
               ))}
 
               {/* ── עולות מהבתים ── */}
-              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '2px solid #e8e8e8' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>🏠 עולות מהבתים</div>
+              {userSubTab === 'groups' && <div style={{ marginTop: 8 }}>
                 <div className="groups-grid">
                   {GROUPS.map(group => {
                     const gp = current.groups[group]
@@ -732,11 +745,10 @@ ${userRows}
                     )
                   })}
                 </div>
-              </div>
+              </div>}
 
               {/* ── בונוס ── */}
-              <div style={{ marginTop: 24, paddingTop: 16, borderTop: '2px solid #e8e8e8' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>🎯 שאלות בונוס</div>
+              {userSubTab === 'bonus' && <div style={{ marginTop: 8 }}>
                 {BONUS_QUESTIONS.map(q => {
                   const predVal = (current.bonus as any)?.[q.id]
                   const actualVal = (actualBonus as any)?.[q.id]
@@ -758,12 +770,12 @@ ${userRows}
                     </div>
                   )
                 })}
-              </div>
+              </div>}
             </>
           )}
 
           {/* ── KNOCKOUT section inside user tab ── */}
-          {current && (() => {
+          {current && userSubTab === 'knockout' && (() => {
             const getTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
               try {
                 const bracket = KNOCKOUT_BRACKET[matchId]
@@ -781,7 +793,7 @@ ${userRows}
               } catch { return undefined }
             }
             const hasKO = KNOCKOUT_MATCHES.some(km => current.knockout?.[km.id]?.prediction1X2)
-            if (!hasKO) return null
+            if (!hasKO) return <div style={{ color: '#aaa', fontSize: 13, padding: '12px 0' }}>לא הוגשו הימורי נוקאאוט עדיין</div>
             return (
               <div style={{ marginTop: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, paddingTop: 16, borderTop: '2px solid #e8e8e8' }}>
