@@ -18,7 +18,7 @@ interface UserData {
   knockout?: Record<number, KnockoutMatchPrediction>
 }
 
-type MainTab = 'user' | 'match' | 'stats' | 'knockout'
+type MainTab = 'user' | 'match' | 'stats'
 type UserTab = 'matches' | 'groups' | 'bonus'
 
 // Module-level helper — usable in all sub-components
@@ -556,10 +556,9 @@ ${userRows}
   const playedMatches = MATCHES.filter(m => adminResults[m.id]?.isPlayed)
 
   const TAB_LABELS: { id: MainTab; label: string }[] = [
-    { id: 'user', label: '👤 לפי משתמש' },
+    { id: 'user',  label: '👤 לפי משתמש' },
     { id: 'match', label: '⚽ לפי משחק' },
     { id: 'stats', label: '📊 סטטיסטיקות' },
-    { id: 'knockout', label: '🏆 נוקאאוט / Knockout' },
   ]
 
   return (
@@ -695,6 +694,95 @@ ${userRows}
               {/* Groups */}
             </>
           )}
+
+          {/* ── KNOCKOUT section inside user tab ── */}
+          {current && (() => {
+            const getTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
+              try {
+                const bracket = KNOCKOUT_BRACKET[matchId]
+                if (!bracket) return undefined
+                const feederId = side === 'A' ? bracket.feederA : bracket.feederB
+                if (feederId === null) return side === 'A' ? knockoutAdminMatches[matchId]?.teamA : knockoutAdminMatches[matchId]?.teamB
+                if (feederId < 0) {
+                  const sfId = Math.abs(feederId)
+                  const winner = current.knockout?.[sfId]?.advance
+                  const sfA = getTeam(sfId, 'A'), sfB = getTeam(sfId, 'B')
+                  if (!winner || !sfA || !sfB) return undefined
+                  return winner === sfA ? sfB : sfA
+                }
+                return current.knockout?.[feederId]?.advance
+              } catch { return undefined }
+            }
+            const hasKO = KNOCKOUT_MATCHES.some(km => current.knockout?.[km.id]?.prediction1X2)
+            if (!hasKO) return null
+            return (
+              <div style={{ marginTop: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, paddingTop: 16, borderTop: '2px solid #e8e8e8' }}>
+                  <span style={{ fontSize: 15, fontWeight: 700 }}>🏆 נוקאאוט</span>
+                  {knockoutScores[current.userId] > 0 && (
+                    <span style={{ fontSize: 13, padding: '2px 10px', borderRadius: 10, background: '#EAF3DE', color: '#1a7a44', fontWeight: 700 }}>
+                      {knockoutScores[current.userId]} נק׳
+                    </span>
+                  )}
+                </div>
+                {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
+                  const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
+                  const hasAny = roundMatches.some(km => current.knockout?.[km.id]?.prediction1X2)
+                  if (!hasAny) return null
+                  return (
+                    <div key={round} style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 6, letterSpacing: '0.04em' }}>{KNOCKOUT_ROUND_LABELS[round]}</div>
+                      {roundMatches.map(km => {
+                        const pred = current.knockout?.[km.id]
+                        if (!pred?.prediction1X2) return null
+                        const tA = getTeam(km.id, 'A')
+                        const tB = getTeam(km.id, 'B')
+                        const adminKm = knockoutAdminMatches[km.id]
+                        const isPlayed = adminKm?.isPlayed
+                        const actual1x2 = isPlayed && adminKm?.resultA != null
+                          ? (adminKm.resultA > adminKm.resultB ? '1' : adminKm.resultA < adminKm.resultB ? '2' : 'X') : null
+                        const correct1x2 = actual1x2 && pred.prediction1X2 === actual1x2
+                        const correctAdvance = isPlayed && adminKm?.advanceTeam && pred.advance === adminKm.advanceTeam
+                        return (
+                          <div key={km.id} style={{ border: '1px solid #e8e8e8', borderRadius: 10, marginBottom: 6, overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', gap: 8, flexWrap: 'wrap' }}>
+                              <span style={{ fontSize: 12, color: '#aaa' }}>#{km.id}</span>
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tA ? `${FLAGS[tA] ?? ''} ${tA}` : '?'}</span>
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>{pred.scoreA ?? '?'}–{pred.scoreB ?? '?'}</span>
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tB ? `${FLAGS[tB] ?? ''} ${tB}` : '?'}</span>
+                              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: correct1x2 ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f0f0f0', color: correct1x2 ? '#1a7a44' : isPlayed ? '#A32D2D' : '#666', fontWeight: 600 }}>
+                                {pred.prediction1X2 === '1' ? (tA ?? '1') : pred.prediction1X2 === '2' ? (tB ?? '2') : 'תיקו'}
+                              </span>
+                              {(() => {
+                                if (!isPlayed || adminKm?.resultA == null) return null
+                                const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
+                                const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
+                                const cat = calcCategoryByRound(ptA, ptB, km.round) as any
+                                const p1x2 = calc1X2KnockoutPoints(pred.prediction1X2, Number(adminKm.resultA), Number(adminKm.resultB), ptA, ptB, cat, km.round)
+                                const pScore = pred.scoreA != null ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), Number(adminKm.resultA), Number(adminKm.resultB), cat, km.round) : 0
+                                const pAdv = pred.advance && adminKm.advanceTeam ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, tA ?? '', tB ?? '') : 0
+                                const total = p1x2 + pScore + pAdv
+                                if (total === 0) return null
+                                return <span style={{ marginRight: 'auto', fontSize: 12, fontWeight: 700, color: '#1a7a44', background: '#EAF3DE', padding: '2px 8px', borderRadius: 10 }}>+{total} נק׳</span>
+                              })()}
+                            </div>
+                            {pred.advance && (
+                              <div style={{ padding: '5px 10px', borderTop: '1px solid #f0f0f0', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, background: correctAdvance ? '#EAF3DE' : isPlayed && adminKm?.advanceTeam ? '#FCEBEB' : '#f8f9ff' }}>
+                                <span style={{ color: '#888' }}>מעלה:</span>
+                                <span style={{ fontWeight: 700, color: correctAdvance ? '#1a7a44' : isPlayed && adminKm?.advanceTeam ? '#A32D2D' : '#333' }}>{FLAGS[pred.advance] ?? ''} {pred.advance}</span>
+                                {correctAdvance && <span style={{ color: '#1a7a44' }}>✓</span>}
+                                {isPlayed && adminKm?.advanceTeam && !correctAdvance && <span style={{ color: '#A32D2D', fontSize: 11 }}>(עלה: {FLAGS[adminKm.advanceTeam] ?? ''} {adminKm.advanceTeam})</span>}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
         </>
       )}
 
@@ -769,6 +857,91 @@ ${userRows}
               </>
             )
           })()}
+
+          {/* ── נוקאאוט ── */}
+          {KNOCKOUT_MATCHES.some(km => knockoutAdminMatches[km.id]?.teamA) && (
+            <div style={{ marginTop: 24, paddingTop: 16, borderTop: '2px solid #e8e8e8' }}>
+              <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🏆 נוקאאוט</div>
+            <div>
+              {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
+                const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
+                const anyHasTeams = roundMatches.some(km => knockoutAdminMatches[km.id]?.teamA)
+                if (!anyHasTeams) return null
+                return (
+                  <div key={round} style={{ marginBottom: 20 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 8, letterSpacing: '0.04em' }}>{KNOCKOUT_ROUND_LABELS[round]}</div>
+                    {roundMatches.map(km => {
+                      const adminKm = knockoutAdminMatches[km.id]
+                      if (!adminKm?.teamA || !adminKm?.teamB) return null
+                      const tA = adminKm.teamA, tB = adminKm.teamB
+                      const isPlayed = adminKm.isPlayed
+                      const actual1x2 = isPlayed && adminKm.resultA != null
+                        ? (adminKm.resultA > adminKm.resultB ? '1' : adminKm.resultA < adminKm.resultB ? '2' : 'X') : null
+                      const preds = users.map(u => ({ name: displayName(u), pred: u.knockout?.[km.id] })).filter(x => x.pred?.prediction1X2)
+                      const total = preds.length
+                      if (total === 0) return (
+                        <div key={km.id} style={{ padding: '8px 10px', borderRadius: 8, background: '#f8f9fa', marginBottom: 6, fontSize: 12, color: '#888' }}>
+                          {FLAGS[tA] ?? ''} {tA} נגד {FLAGS[tB] ?? ''} {tB} — אין הימורים
+                        </div>
+                      )
+                      return (
+                        <div key={km.id} style={{ border: '1px solid #e8e8e8', borderRadius: 10, marginBottom: 8, overflow: 'hidden' }}>
+                          <div style={{ padding: '8px 12px', background: '#f8f9fa', fontWeight: 700, fontSize: 13, display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <span>#{km.id}</span>
+                            <span>{FLAGS[tA] ?? ''} {tA}</span>
+                            {isPlayed ? <span style={{ fontWeight: 700 }}>{adminKm.resultA}–{adminKm.resultB}</span> : <span style={{ color: '#aaa', fontSize: 11 }}>טרם שוחק</span>}
+                            <span>{FLAGS[tB] ?? ''} {tB}</span>
+                          </div>
+                          <div style={{ padding: '8px 12px' }}>
+                            {[['1', tA], ['X', 'תיקו'], ['2', tB]].map(([x2, label]) => {
+                              const group = preds.filter(p => p.pred?.prediction1X2 === x2)
+                              const pct = Math.round((group.length / total) * 100)
+                              const isWinner = actual1x2 === x2
+                              return (
+                                <div key={x2} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                  <span style={{ fontSize: 12, minWidth: 72, color: isWinner ? '#1a7a44' : '#555', fontWeight: isWinner ? 700 : 400 }}>{FLAGS[label] ?? ''} {label}</span>
+                                  <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 10, overflow: 'hidden' }}>
+                                    <div style={{ height: 10, borderRadius: 4, width: `${pct}%`, background: isWinner ? '#1a7a44' : '#bbb' }} />
+                                  </div>
+                                  <HoverTooltip names={group.map(p => `${p.name}: ${p.pred?.scoreA ?? '?'}–${p.pred?.scoreB ?? '?'}`)}>
+                                    <span style={{ fontSize: 12, minWidth: 55, color: isWinner ? '#1a7a44' : '#888', textDecoration: group.length > 0 ? 'underline dotted' : 'none', cursor: group.length > 0 ? 'pointer' : 'default' }}>
+                                      {pct}% ({group.length})
+                                    </span>
+                                  </HoverTooltip>
+                                </div>
+                              )
+                            })}
+                            <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
+                              <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>מי עולה?</div>
+                              {[tA, tB].map(team => {
+                                const group = preds.filter(p => p.pred?.advance === team)
+                                const pct = Math.round((group.length / total) * 100)
+                                const isCorrect = isPlayed && adminKm?.advanceTeam === team
+                                return (
+                                  <div key={team} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                                    <span style={{ fontSize: 12, minWidth: 72, color: isCorrect ? '#1a7a44' : '#555', fontWeight: isCorrect ? 700 : 400 }}>{FLAGS[team] ?? ''} {team}</span>
+                                    <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+                                      <div style={{ height: 8, borderRadius: 4, width: `${pct}%`, background: isCorrect ? '#1a7a44' : '#b3d4f0' }} />
+                                    </div>
+                                    <HoverTooltip names={group.map(p => p.name)}>
+                                      <span style={{ fontSize: 12, minWidth: 55, color: isCorrect ? '#1a7a44' : '#888', textDecoration: group.length > 0 ? 'underline dotted' : 'none', cursor: group.length > 0 ? 'pointer' : 'default' }}>
+                                        {pct}% ({group.length})
+                                      </span>
+                                    </HoverTooltip>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+            </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -905,221 +1078,6 @@ ${userRows}
         </div>
       )}
 
-      {/* ── KNOCKOUT TAB ────────────────────────────────────────────── */}
-      {mainTab === 'knockout' && (
-        <div>
-          <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: '#f8f9fa', borderRadius: 10, padding: 4 }}>
-            <button onClick={() => setKoSubTab('byUser')} style={{
-              flex: 1, padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
-              background: koSubTab === 'byUser' ? '#1a1a2e' : 'transparent',
-              color: koSubTab === 'byUser' ? '#fff' : '#666',
-            }}>👤 לפי משתמש</button>
-            <button onClick={() => setKoSubTab('byMatch')} style={{
-              flex: 1, padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
-              background: koSubTab === 'byMatch' ? '#1a1a2e' : 'transparent',
-              color: koSubTab === 'byMatch' ? '#fff' : '#666',
-            }}>⚽ לפי משחק</button>
-          </div>
-
-          {koSubTab === 'byUser' && (
-            <div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
-                {users.map(u => (
-                  <button key={u.userId} onClick={() => setSelectedUser(u.userId)} style={{
-                    padding: '5px 12px', borderRadius: 20, border: '1px solid',
-                    borderColor: selectedUser === u.userId ? '#1a1a2e' : '#ddd',
-                    background: selectedUser === u.userId ? '#1a1a2e' : '#fff',
-                    color: selectedUser === u.userId ? '#fff' : '#555',
-                    fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-                  }}>{displayName(u)}</button>
-                ))}
-              </div>
-
-              {current && knockoutScores[current.userId] > 0 && (
-                <div style={{ display: 'flex', gap: 12, padding: '8px 14px', background: '#f0faf4', borderRadius: 10, border: '1px solid #b7e4c7', marginBottom: 12, alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, color: '#888' }}>ניקוד נוקאאוט:</span>
-                  <span style={{ fontSize: 18, fontWeight: 700, color: '#1a7a44' }}>{knockoutScores[current.userId]} נק׳</span>
-                </div>
-              )}
-
-              {current && (() => {
-                const getTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
-                  try {
-                    const bracket = KNOCKOUT_BRACKET[matchId]
-                    if (!bracket) return undefined
-                    const feederId = side === 'A' ? bracket.feederA : bracket.feederB
-                    if (feederId === null) return side === 'A' ? knockoutAdminMatches[matchId]?.teamA : knockoutAdminMatches[matchId]?.teamB
-                    if (feederId < 0) {
-                      const sfId = Math.abs(feederId)
-                      const winner = current.knockout?.[sfId]?.advance
-                      const sfA = getTeam(sfId, 'A'), sfB = getTeam(sfId, 'B')
-                      if (!winner || !sfA || !sfB) return undefined
-                      return winner === sfA ? sfB : sfA
-                    }
-                    return current.knockout?.[feederId]?.advance
-                  } catch { return undefined }
-                }
-
-                return (['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
-                  const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
-                  const hasAny = roundMatches.some(km => current.knockout?.[km.id]?.prediction1X2)
-                  if (!hasAny) return null
-
-                  return (
-                    <div key={round} style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 6, letterSpacing: '0.04em' }}>{KNOCKOUT_ROUND_LABELS[round]}</div>
-                      {roundMatches.map(km => {
-                        const pred = current.knockout?.[km.id]
-                        if (!pred?.prediction1X2) return null
-                        const tA = getTeam(km.id, 'A')
-                        const tB = getTeam(km.id, 'B')
-                        const adminKm = knockoutAdminMatches[km.id]
-                        const isPlayed = adminKm?.isPlayed
-                        const actual1x2 = isPlayed && adminKm?.resultA != null
-                          ? (adminKm.resultA > adminKm.resultB ? '1' : adminKm.resultA < adminKm.resultB ? '2' : 'X') : null
-                        const correct1x2 = actual1x2 && pred.prediction1X2 === actual1x2
-                        const correctAdvance = isPlayed && adminKm?.advanceTeam && pred.advance === adminKm.advanceTeam
-
-                        return (
-                          <div key={km.id} style={{ border: '1px solid #e8e8e8', borderRadius: 10, marginBottom: 6, overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', gap: 8, flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: 12, color: '#aaa' }}>#{km.id}</span>
-                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tA ? `${FLAGS[tA] ?? ''} ${tA}` : '?'}</span>
-                              <span style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>{pred.scoreA ?? '?'}–{pred.scoreB ?? '?'}</span>
-                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tB ? `${FLAGS[tB] ?? ''} ${tB}` : '?'}</span>
-                              <span style={{
-                                fontSize: 11, padding: '2px 8px', borderRadius: 10,
-                                background: correct1x2 ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f0f0f0',
-                                color: correct1x2 ? '#1a7a44' : isPlayed ? '#A32D2D' : '#666', fontWeight: 600,
-                              }}>
-                                {pred.prediction1X2 === '1' ? (tA ?? '1') : pred.prediction1X2 === '2' ? (tB ?? '2') : 'תיקו'}
-                              </span>
-                              {(() => {
-                                if (!isPlayed || adminKm?.resultA == null) return null
-                                const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
-                                const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
-                                const cat = calcCategoryByRound(ptA, ptB, km.round) as any
-                                const p1x2 = calc1X2KnockoutPoints(pred.prediction1X2, Number(adminKm.resultA), Number(adminKm.resultB), ptA, ptB, cat, km.round)
-                                const pScore = pred.scoreA != null ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), Number(adminKm.resultA), Number(adminKm.resultB), cat, km.round) : 0
-                                const pAdv = pred.advance && adminKm.advanceTeam ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, tA ?? '', tB ?? '') : 0
-                                const total = p1x2 + pScore + pAdv
-                                if (total === 0) return null
-                                return (
-                                  <span style={{ marginRight: 'auto', fontSize: 12, fontWeight: 700, color: '#1a7a44', background: '#EAF3DE', padding: '2px 8px', borderRadius: 10 }}>
-                                    +{total} נק׳
-                                  </span>
-                                )
-                              })()}
-                            </div>
-                            {pred.advance && (
-                              <div style={{
-                                padding: '5px 10px', borderTop: '1px solid #f0f0f0', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6,
-                                background: correctAdvance ? '#EAF3DE' : isPlayed && adminKm?.advanceTeam ? '#FCEBEB' : '#f8f9ff',
-                              }}>
-                                <span style={{ color: '#888' }}>מעלה:</span>
-                                <span style={{ fontWeight: 700, color: correctAdvance ? '#1a7a44' : isPlayed && adminKm?.advanceTeam ? '#A32D2D' : '#333' }}>
-                                  {FLAGS[pred.advance] ?? ''} {pred.advance}
-                                </span>
-                                {correctAdvance && <span style={{ color: '#1a7a44' }}>✓</span>}
-                                {isPlayed && adminKm?.advanceTeam && !correctAdvance && (
-                                  <span style={{ color: '#A32D2D', fontSize: 11 }}>(עלה: {FLAGS[adminKm.advanceTeam] ?? ''} {adminKm.advanceTeam})</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )
-                })
-              })()}
-            </div>
-          )}
-
-          {koSubTab === 'byMatch' && (
-            <div>
-              {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
-                const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
-                const anyHasTeams = roundMatches.some(km => knockoutAdminMatches[km.id]?.teamA)
-                if (!anyHasTeams) return null
-                return (
-                  <div key={round} style={{ marginBottom: 20 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 8, letterSpacing: '0.04em' }}>{KNOCKOUT_ROUND_LABELS[round]}</div>
-                    {roundMatches.map(km => {
-                      const adminKm = knockoutAdminMatches[km.id]
-                      if (!adminKm?.teamA || !adminKm?.teamB) return null
-                      const tA = adminKm.teamA, tB = adminKm.teamB
-                      const isPlayed = adminKm.isPlayed
-                      const actual1x2 = isPlayed && adminKm.resultA != null
-                        ? (adminKm.resultA > adminKm.resultB ? '1' : adminKm.resultA < adminKm.resultB ? '2' : 'X') : null
-                      const preds = users.map(u => ({ name: displayName(u), pred: u.knockout?.[km.id] })).filter(x => x.pred?.prediction1X2)
-                      const total = preds.length
-                      if (total === 0) return (
-                        <div key={km.id} style={{ padding: '8px 10px', borderRadius: 8, background: '#f8f9fa', marginBottom: 6, fontSize: 12, color: '#888' }}>
-                          {FLAGS[tA] ?? ''} {tA} נגד {FLAGS[tB] ?? ''} {tB} — אין הימורים
-                        </div>
-                      )
-                      return (
-                        <div key={km.id} style={{ border: '1px solid #e8e8e8', borderRadius: 10, marginBottom: 8, overflow: 'hidden' }}>
-                          <div style={{ padding: '8px 12px', background: '#f8f9fa', fontWeight: 700, fontSize: 13, display: 'flex', gap: 8, alignItems: 'center' }}>
-                            <span>#{km.id}</span>
-                            <span>{FLAGS[tA] ?? ''} {tA}</span>
-                            {isPlayed ? <span style={{ fontWeight: 700 }}>{adminKm.resultA}–{adminKm.resultB}</span> : <span style={{ color: '#aaa', fontSize: 11 }}>טרם שוחק</span>}
-                            <span>{FLAGS[tB] ?? ''} {tB}</span>
-                          </div>
-                          <div style={{ padding: '8px 12px' }}>
-                            {[['1', tA], ['X', 'תיקו'], ['2', tB]].map(([x2, label]) => {
-                              const group = preds.filter(p => p.pred?.prediction1X2 === x2)
-                              const pct = Math.round((group.length / total) * 100)
-                              const isWinner = actual1x2 === x2
-                              return (
-                                <div key={x2} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                  <span style={{ fontSize: 12, minWidth: 72, color: isWinner ? '#1a7a44' : '#555', fontWeight: isWinner ? 700 : 400 }}>{FLAGS[label] ?? ''} {label}</span>
-                                  <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 10, overflow: 'hidden' }}>
-                                    <div style={{ height: 10, borderRadius: 4, width: `${pct}%`, background: isWinner ? '#1a7a44' : '#bbb' }} />
-                                  </div>
-                                  <HoverTooltip names={group.map(p => `${p.name}: ${p.pred?.scoreA ?? '?'}–${p.pred?.scoreB ?? '?'}`)}>
-                                    <span style={{ fontSize: 12, minWidth: 55, color: isWinner ? '#1a7a44' : '#888', textDecoration: group.length > 0 ? 'underline dotted' : 'none', cursor: group.length > 0 ? 'pointer' : 'default' }}>
-                                      {pct}% ({group.length})
-                                    </span>
-                                  </HoverTooltip>
-                                </div>
-                              )
-                            })}
-                            <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
-                              <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>מי עולה?</div>
-                              {[tA, tB].map(team => {
-                                const group = preds.filter(p => p.pred?.advance === team)
-                                const pct = Math.round((group.length / total) * 100)
-                                const isCorrect = isPlayed && adminKm?.advanceTeam === team
-                                return (
-                                  <div key={team} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                                    <span style={{ fontSize: 12, minWidth: 72, color: isCorrect ? '#1a7a44' : '#555', fontWeight: isCorrect ? 700 : 400 }}>{FLAGS[team] ?? ''} {team}</span>
-                                    <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 8, overflow: 'hidden' }}>
-                                      <div style={{ height: 8, borderRadius: 4, width: `${pct}%`, background: isCorrect ? '#1a7a44' : '#b3d4f0' }} />
-                                    </div>
-                                    <HoverTooltip names={group.map(p => p.name)}>
-                                      <span style={{ fontSize: 12, minWidth: 55, color: isCorrect ? '#1a7a44' : '#888', textDecoration: group.length > 0 ? 'underline dotted' : 'none', cursor: group.length > 0 ? 'pointer' : 'default' }}>
-                                        {pct}% ({group.length})
-                                      </span>
-                                    </HoverTooltip>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }
