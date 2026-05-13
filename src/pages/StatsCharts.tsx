@@ -1,11 +1,189 @@
 import Flag, { getFlagUrl, flagToIso } from '../components/Flag'
+
+// ── Custom SVG arc helper ─────────────────────────────────────────────────
+function arcPath(cx: number, cy: number, ir: number, or: number, sa: number, ea: number): string {
+  const r = (a: number) => (a - 90) * Math.PI / 180
+  const pt = (radius: number, a: number) => `${cx + radius * Math.cos(r(a))},${cy + radius * Math.sin(r(a))}`
+  const large = ea - sa > 180 ? 1 : 0
+  if (ir <= 0) return `M${cx},${cy} L${pt(or,sa)} A${or},${or} 0 ${large} 1 ${pt(or,ea)} Z`
+  return `M${pt(or,sa)} A${or},${or} 0 ${large} 1 ${pt(or,ea)} L${pt(ir,ea)} A${ir},${ir} 0 ${large} 0 ${pt(ir,sa)} Z`
+}
+
+interface ArcSlice { team: string|null; count: number; pct: number; sa: number; ea: number; key: string }
+
+function buildArcs(items: {team: string|null; count: number; key: string}[], total: number): ArcSlice[] {
+  let angle = 0
+  return items.map(item => {
+    const span = total > 0 ? (item.count / total) * 360 : 0
+    const slice = { ...item, pct: Math.round(item.count / total * 100), sa: angle, ea: angle + span }
+    angle += span
+    return slice
+  }).filter(s => s.ea - s.sa > 0.5)
+}
+
+function FlagRing({ cx, cy, ir, or: outerR, slices, id, showPct }: {
+  cx: number; cy: number; ir: number; or: number
+  slices: ArcSlice[]; id: string; showPct: boolean
+}) {
+  return (
+    <g>
+      <defs>
+        {slices.map((s, i) => {
+          const iso = s.team ? flagToIso(FLAGS[s.team] ?? '') : ''
+          if (!iso) return null
+          return (
+            <clipPath key={i} id={`cp-${id}-${i}`}>
+              <path d={arcPath(cx, cy, ir, outerR, s.sa, s.ea)} />
+            </clipPath>
+          )
+        })}
+      </defs>
+      {slices.map((s, i) => {
+        const path = arcPath(cx, cy, ir, outerR, s.sa, s.ea)
+        const iso = s.team ? flagToIso(FLAGS[s.team] ?? '') : ''
+        const midA = (s.sa + s.ea) / 2
+        const midR = ir <= 0 ? outerR * 0.55 : (ir + outerR) / 2
+        const toRad = (a: number) => (a - 90) * Math.PI / 180
+        const lx = cx + midR * Math.cos(toRad(midA))
+        const ly = cy + midR * Math.sin(toRad(midA))
+        return (
+          <g key={i}>
+            {iso ? (
+              <>
+                <image
+                  href={`https://flagcdn.com/w80/${iso}.png`}
+                  x={cx - outerR} y={cy - outerR} width={outerR * 2} height={outerR * 2}
+                  clipPath={`url(#cp-${id}-${i})`}
+                  preserveAspectRatio="xMidYMid slice"
+                />
+                <path d={path} fill="rgba(0,0,0,0.18)" stroke="white" strokeWidth={2.5} />
+              </>
+            ) : (
+              <path d={path} fill="#cccccc" stroke="white" strokeWidth={2.5} />
+            )}
+            {showPct && s.pct >= 8 && (
+              <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central"
+                style={{ fontSize: ir < 30 ? 13 : 15, fontWeight: 800, fill: '#fff',
+                  stroke: 'rgba(0,0,0,0.6)', strokeWidth: 4, paintOrder: 'stroke fill' }}>
+                {s.pct}%
+              </text>
+            )}
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
+function FlagPieChart({ matchId, teamA, teamB, users, adminResult, isKO, koAdminResult }: {
+  matchId: number; teamA: string; teamB: string
+  users: UserData[]; adminResult?: any; isKO: boolean; koAdminResult?: any
+}) {
+  const SIZE = 280, cx = 140, cy = 140
+  const title = `${teamA} — ${teamB}`
+
+  // 1X2 data
+  const preds1x2 = users.map(u => isKO ? u.knockout?.[matchId]?.prediction1X2 : u.matches[matchId]?.prediction1X2).filter(Boolean)
+  const c1 = preds1x2.filter(x => x === '1').length
+  const c2 = preds1x2.filter(x => x === '2').length
+  const cX = preds1x2.filter(x => x === 'X').length
+  const total1x2 = preds1x2.length || 1
+
+  const played = (isKO ? koAdminResult : adminResult)?.isPlayed ?? false
+  const rA = played ? Number((isKO ? koAdminResult : adminResult).resultA ?? 0) : null
+  const rB = played ? Number((isKO ? koAdminResult : adminResult).resultB ?? 0) : null
+  const actual1x2 = rA !== null && rB !== null ? (rA > rB ? '1' : rA < rB ? '2' : 'X') : null
+  const actualAdv = isKO ? koAdminResult?.advanceTeam : null
+
+  const slices1x2 = buildArcs([
+    { key: '1', team: teamA, count: c1 },
+    { key: 'X', team: null,  count: cX },
+    { key: '2', team: teamB, count: c2 },
+  ], total1x2)
+
+  // Advance data (knockout only)
+  let slicesAdv: ArcSlice[] = []
+  if (isKO) {
+    const predsAdv = users.map(u => u.knockout?.[matchId]?.advance)
+    const cA = predsAdv.filter(x => x === teamA).length
+    const cB = predsAdv.filter(x => x === teamB).length
+    const cNone = users.length - cA - cB
+    slicesAdv = buildArcs([
+      { key: 'A', team: teamA, count: cA },
+      { key: 'B', team: teamB, count: cB },
+      { key: 'none', team: null, count: cNone },
+    ], users.length)
+  }
+
+  const outerR = isKO ? 95 : 130
+  const innerR = isKO ? 45 : 0
+  const advInnerR = 102, advOuterR = 135
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a2e', textAlign: 'center' }}>{title}</div>
+
+      {played && actual1x2 && (
+        <div style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, background: '#EAF3DE', color: '#27500A', fontWeight: 600 }}>
+          בפועל: {rA}:{rB} → {actual1x2==='1' ? teamA : actual1x2==='2' ? teamB : 'תיקו'}
+          {actualAdv && ` | עולה: ${actualAdv}`}
+        </div>
+      )}
+
+      <svg width={SIZE} height={SIZE} style={{ overflow: 'visible' }}>
+        <FlagRing cx={cx} cy={cy} ir={innerR} or={outerR} slices={slices1x2} id={`r1-${matchId}`} showPct={true} />
+        {isKO && slicesAdv.length > 0 && (
+          <FlagRing cx={cx} cy={cy} ir={advInnerR} or={advOuterR} slices={slicesAdv} id={`r2-${matchId}`} showPct={true} />
+        )}
+        {/* Center hole label for KO */}
+        {isKO && innerR > 0 && (
+          <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central"
+            style={{ fontSize: 11, fill: '#888', fontWeight: 600 }}>1X2</text>
+        )}
+      </svg>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', fontSize: 13 }}>
+        {[
+          { team: teamA, label: teamA, count: c1, total: total1x2, correct: actual1x2 === '1' },
+          { team: null,  label: 'תיקו',  count: cX, total: total1x2, correct: actual1x2 === 'X' },
+          { team: teamB, label: teamB, count: c2, total: total1x2, correct: actual1x2 === '2' },
+        ].map((item, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: item.correct ? 700 : 400, color: item.correct ? '#1a7a44' : '#444' }}>
+            {item.team ? <Flag emoji={FLAGS[item.team]??''} size={18} /> : <span style={{ fontSize: 16 }}>🤝</span>}
+            <span>{item.label}</span>
+            <span style={{ color: '#888', fontWeight: 400 }}>{Math.round(item.count/item.total*100)}% ({item.count})</span>
+            {item.correct && <span>✓</span>}
+          </div>
+        ))}
+      </div>
+
+      {isKO && (
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', fontSize: 12, color: '#888' }}>
+          <span style={{ fontWeight: 600, color: '#555' }}>עולה:</span>
+          {[teamA, teamB].map(team => {
+            const predsAdv = users.map(u => u.knockout?.[matchId]?.advance)
+            const count = predsAdv.filter(x => x === team).length
+            const pct = Math.round(count / users.length * 100)
+            const correct = actualAdv === team
+            return (
+              <span key={team} style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: correct ? 700 : 400, color: correct ? '#1a7a44' : '#555' }}>
+                <Flag emoji={FLAGS[team]??''} size={16} /> {team} {pct}% {correct && '✓'}
+              </span>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
 import { useState, useMemo } from 'react'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
   RadarChart, PolarGrid, PolarAngleAxis, Radar,
 } from 'recharts'
-import { MATCHES, BONUS_QUESTIONS, FLAGS } from '../data/matches'
+import { MATCHES, BONUS_QUESTIONS, FLAGS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS } from '../data/matches'
 import { Match } from '../types'
 
 interface UserData {
@@ -32,6 +210,7 @@ interface Props {
   adminResults: Record<number, Match>
   actualBonus: Record<string, string>
   scoreBreakdown: Record<string, ScoreBreakdown>
+  knockoutMatches: Record<number, any>
   currentUserId?: string
   getDisplayName: (u: UserData) => string
 }
@@ -71,7 +250,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-export default function StatsCharts({ users, adminResults, actualBonus, scoreBreakdown, currentUserId, getDisplayName }: Props) {
+export default function StatsCharts({ users, adminResults, actualBonus, scoreBreakdown, knockoutMatches, currentUserId, getDisplayName }: Props) {
   const [tab, setTab]               = useState<ChartTab>('distribution')
   const [selectedMatchId, setSelectedMatchId] = useState<number>(MATCHES[0]?.id ?? 1)
 
@@ -214,97 +393,60 @@ export default function StatsCharts({ users, adminResults, actualBonus, scoreBre
       {tab === 'distribution' && (
         <div>
           <select value={selectedMatchId} onChange={e => setSelectedMatchId(Number(e.target.value))}
-            style={{ marginBottom: 16, width: '100%', maxWidth: 360, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontFamily: 'inherit', fontSize: 13 }}>
-            {MATCHES.map(m => (
-              <option key={m.id} value={m.id}>
-                #{m.id} {m.teamA} נגד {m.teamB}{adminResults[m.id]?.isPlayed ? ' ✓' : ''}
-              </option>
-            ))}
-          </select>
-
-          {distributionData && (
-            <>
-              {distributionData.actual && (
-                <div style={{ marginBottom: 12, padding: '8px 14px', background: '#EAF3DE', borderRadius: 8, fontSize: 13, color: '#27500A', fontWeight: 600, display: 'inline-block' }}>
-                  בפועל: {adminResults[selectedMatchId].resultA}:{adminResults[selectedMatchId].resultB}
-                  {' → '}{distributionData.actual === '1' ? distributionData.match.teamA : distributionData.actual === '2' ? distributionData.match.teamB : 'תיקו'}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-                <div style={{ width: 220, height: 220, flexShrink: 0 }}>
-                  <ResponsiveContainer width={220} height={220}>
-                    <PieChart>
-                      <Pie
-                        data={distributionData.pie}
-                        cx="50%" cy="50%"
-                        innerRadius={0} outerRadius={90}
-                        dataKey="value" paddingAngle={2}
-                        label={({ cx, cy, midAngle, innerRadius, outerRadius, index }) => {
-                          const RADIAN = Math.PI / 180
-                          const radius = innerRadius + (outerRadius - innerRadius) * 0.55
-                          const x = cx + radius * Math.cos(-midAngle * RADIAN)
-                          const y = cy + radius * Math.sin(-midAngle * RADIAN)
-                          const d = distributionData.pie[index]
-                          const pct = Math.round(d.value / distributionData.totalPreds * 100)
-                          if (pct < 8) return null
-                          const team = d.key === '1' ? distributionData.match.teamA
-                                     : d.key === '2' ? distributionData.match.teamB : null
-                          const emoji = team ? (FLAGS[team] ?? '') : ''
-                          const iso = flagToIso(emoji)
-                          const size = 28
-                          if (iso) {
-                            return (
-                              <image
-                                href={`https://flagcdn.com/w40/${iso}.png`}
-                                x={x - size / 2}
-                                y={y - size / 2 * 0.75}
-                                width={size}
-                                height={size * 0.75}
-                                style={{ borderRadius: 3 }}
-                              />
-                            )
-                          }
-                          // draw emoji as fallback (for draw slice)
-                          return (
-                            <text x={x} y={y} textAnchor="middle" dominantBaseline="central" style={{ fontSize: 22, userSelect: 'none' }}>
-                              🤝
-                            </text>
-                          )
-                        }}
-                        labelLine={false}
-                      >
-                        {distributionData.pie.map((_, i) => (
-                          <Cell key={i} fill={PIE_COLORS[i]} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(v: any) => [`${v} מהמרים (${Math.round(v / distributionData.totalPreds * 100)}%)`, '']} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {distributionData.pie.map((d, i) => {
-                    const pct = Math.round(d.value / distributionData.totalPreds * 100)
-                    const isWinner = d.key === distributionData.actual
+            style={{ marginBottom: 20, width: '100%', maxWidth: 400, padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', fontFamily: 'inherit', fontSize: 13 }}>
+            <optgroup label="שלב הבתים">
+              {MATCHES.map(m => (
+                <option key={m.id} value={m.id}>
+                  #{m.id} {m.teamA} נגד {m.teamB}{adminResults[m.id]?.isPlayed ? ' ✓' : ''}
+                </option>
+              ))}
+            </optgroup>
+            {(['R32','R16','QF','SF','3P','F'] as const).map(round => {
+              const roundMatches = KNOCKOUT_MATCHES.filter(km => {
+                const km2 = (knockoutMatches as any)[km.id]
+                return km2?.teamA && km2?.teamB
+              }).filter(km => km.round === round)
+              if (roundMatches.length === 0) return null
+              return (
+                <optgroup key={round} label={KNOCKOUT_ROUND_LABELS[round]}>
+                  {roundMatches.map(km => {
+                    const km2 = (knockoutMatches as any)[km.id]
                     return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div style={{ width: 12, height: 12, borderRadius: 3, background: PIE_COLORS[i], flexShrink: 0 }} />
-                        <div style={{ minWidth: 140, fontSize: 13, fontWeight: isWinner ? 700 : 400, color: isWinner ? '#1a7a44' : '#333' }}>
-                          {d.name} {isWinner && '✓'}
-                        </div>
-                        <div style={{ width: 120, height: 8, background: '#f0f0f0', borderRadius: 4, overflow: 'hidden' }}>
-                          <div style={{ width: `${pct}%`, height: 8, background: PIE_COLORS[i], borderRadius: 4 }} />
-                        </div>
-                        <div style={{ fontSize: 13, color: '#555', minWidth: 60 }}>{pct}% ({d.value})</div>
-                      </div>
+                      <option key={km.id} value={km.id}>
+                        #{km.id} {km2?.teamA} נגד {km2?.teamB}{km2?.isPlayed ? ' ✓' : ''}
+                      </option>
                     )
                   })}
-                  <div style={{ fontSize: 12, color: '#aaa', marginTop: 4 }}>{distributionData.totalPreds} מהמרים</div>
-                </div>
-              </div>
-            </>
-          )}
+                </optgroup>
+              )
+            })}
+          </select>
+
+          {(() => {
+            const isKO = selectedMatchId > 72
+            if (isKO) {
+              const km = KNOCKOUT_MATCHES.find(m => m.id === selectedMatchId)
+              const koAdmin = (knockoutMatches as any)[selectedMatchId]
+              if (!koAdmin?.teamA) return <div style={{ color: '#aaa', fontSize: 13 }}>אין נתונים למשחק זה עדיין</div>
+              return (
+                <FlagPieChart
+                  matchId={selectedMatchId}
+                  teamA={koAdmin.teamA} teamB={koAdmin.teamB}
+                  users={users} isKO={true} koAdminResult={koAdmin}
+                />
+              )
+            }
+            const match = MATCHES.find(m => m.id === selectedMatchId)
+            if (!match) return null
+            return (
+              <FlagPieChart
+                matchId={selectedMatchId}
+                teamA={match.teamA} teamB={match.teamB}
+                users={users} adminResult={adminResults[selectedMatchId]}
+                isKO={false}
+              />
+            )
+          })()}
         </div>
       )}
 

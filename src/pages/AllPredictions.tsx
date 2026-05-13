@@ -1232,6 +1232,7 @@ ${userRows}
               adminResults={adminResults}
               actualBonus={actualBonus as Record<string, string>}
               scoreBreakdown={scoreBreakdown}
+              knockoutMatches={knockoutAdminMatches}
               currentUserId={user?.uid}
               getDisplayName={getDisplayName}
             />
