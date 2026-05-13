@@ -1,3 +1,4 @@
+import Flag, { getFlagUrl, flagToIso } from '../components/Flag'
 import { useState, useMemo } from 'react'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -249,10 +250,25 @@ export default function StatsCharts({ users, adminResults, actualBonus, scoreBre
                           if (pct < 8) return null
                           const team = d.key === '1' ? distributionData.match.teamA
                                      : d.key === '2' ? distributionData.match.teamB : null
-                          const flag = team ? (FLAGS[team] ?? '🤝') : '🤝'
+                          const emoji = team ? (FLAGS[team] ?? '') : ''
+                          const iso = flagToIso(emoji)
+                          const size = 28
+                          if (iso) {
+                            return (
+                              <image
+                                href={`https://flagcdn.com/w40/${iso}.png`}
+                                x={x - size / 2}
+                                y={y - size / 2 * 0.75}
+                                width={size}
+                                height={size * 0.75}
+                                style={{ borderRadius: 3 }}
+                              />
+                            )
+                          }
+                          // draw emoji as fallback (for draw slice)
                           return (
                             <text x={x} y={y} textAnchor="middle" dominantBaseline="central" style={{ fontSize: 22, userSelect: 'none' }}>
-                              {flag}
+                              🤝
                             </text>
                           )
                         }}
@@ -333,7 +349,7 @@ export default function StatsCharts({ users, adminResults, actualBonus, scoreBre
             <>
               {actualBonus?.q105 && (
                 <div style={{ marginBottom: 12, padding: '8px 14px', background: '#EAF3DE', borderRadius: 8, fontSize: 13, color: '#27500A', fontWeight: 600, display: 'inline-block' }}>
-                  ✓ האלוף בפועל: {FLAGS[actualBonus.q105] ?? ''} {actualBonus.q105}
+                  ✓ האלוף בפועל: <><Flag emoji={FLAGS[actualBonus.q105]??''} size={22} /> {actualBonus.q105}</>
                 </div>
               )}
               <div style={{ fontSize: 12, color: '#aaa', marginBottom: 12 }}>סה״כ {users.filter(u => u.bonus?.q105).length} ניחושים</div>
