@@ -47,35 +47,34 @@ function FlagRing({ cx, cy, ir, or: outerR, slices, id, showPct }: {
         const lx    = cx + midR * Math.cos(toRad(midA))
         const ly    = cy + midR * Math.sin(toRad(midA))
 
-        // Flag image: sized so it visibly fills the slice but stays mostly within it.
-        // Width ≈ chord at midR, height ≈ 2/3 width (flag ratio)
-        const chord = 2 * midR * Math.sin((span / 2) * Math.PI / 180)
-        const imgW  = Math.min(chord * 1.1, (outerR - ir) * 1.5, outerR * 1.2)
-        const imgH  = imgW * 0.67
+        // Minimum image size to cover the full slice from centroid.
+        // Law of cosines: distance from centroid to farthest outer corner.
+        // d² = midR² + outerR² - 2·midR·outerR·cos(halfSpan)
+        const halfSpanRad = ((s.ea - s.sa) / 2) * Math.PI / 180
+        const dCorner = Math.sqrt(midR*midR + outerR*outerR - 2*midR*outerR*Math.cos(halfSpanRad))
+        const dCenter = ir <= 0 ? midR : 0   // for full pie, centroid→center matters too
+        const imgSize = Math.max(dCorner, dCenter) * 2 * 1.15  // 15% safety margin
 
         return (
           <g key={i}>
-            {/* Gray base so empty slices look clean */}
             <path d={path} fill="#d8d8d8" />
 
             {iso && (
               <>
-                {/* Flag centered at slice centroid, full image shown via "meet", clipped to slice */}
                 <image
                   href={`https://flagcdn.com/w160/${iso}.png`}
-                  x={lx - imgW / 2} y={ly - imgH / 2}
-                  width={imgW} height={imgH}
+                  x={lx - imgSize / 2} y={ly - imgSize / 2}
+                  width={imgSize} height={imgSize}
                   clipPath={`url(#cp-${id}-${i})`}
-                  preserveAspectRatio="xMidYMid meet"
+                  preserveAspectRatio="xMidYMid slice"
                 />
-                {/* Subtle overlay for readability */}
                 <path d={path} fill="rgba(0,0,0,0.10)" stroke="white" strokeWidth={3} />
               </>
             )}
             {!iso && <path d={path} fill="none" stroke="white" strokeWidth={3} />}
 
             {showPct && s.pct >= 5 && (
-              <text x={lx} y={ly + imgH / 2 + 13}
+              <text x={lx} y={ly}
                 textAnchor="middle" dominantBaseline="central"
                 style={{ fontSize: Math.max(13, Math.min(19, outerR * 0.13)),
                   fontWeight: 900, fill: '#fff',
