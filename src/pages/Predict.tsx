@@ -1,3 +1,4 @@
+import Flag from '../components/Flag'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -98,9 +99,9 @@ function RankingGap({ teamA, teamB, fifaA, fifaB, category, t, tn }: {
         <span className="ranking-gap-desc" style={{ color }}>{desc}</span>
       </div>
       <div className="ranking-gap-bottom">
-        <span className="ranking-fifa" style={{ color }}>{FLAGS[teamA]} {tn(teamA)} <strong>#{rankA}</strong></span>
-        <span className="ranking-arrow" style={{ color }}>{t.favoriteLabel}: {FLAGS[favTeam]} {tn(favTeam)} (#{favRank})</span>
-        <span className="ranking-fifa" style={{ color }}>{FLAGS[teamB]} {tn(teamB)} <strong>#{rankB}</strong></span>
+        <span className="ranking-fifa" style={{ color }}><><Flag emoji={FLAGS[teamA] ?? ''} size={16} /> {tn(teamA)}</> <strong>#{rankA}</strong></span>
+        <span className="ranking-arrow" style={{ color }}>{t.favoriteLabel}: <><Flag emoji={FLAGS[favTeam] ?? ''} size={16} /> {tn(favTeam)}</> (#{favRank})</span>
+        <span className="ranking-fifa" style={{ color }}><><Flag emoji={FLAGS[teamB] ?? ''} size={16} /> {tn(teamB)}</> <strong>#{rankB}</strong></span>
       </div>
       <div className="ranking-gap-ou" style={{ color }}>{ou}</div>
     </div>
@@ -457,7 +458,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                           <div className="match-body">
                             <span className="team-name">
-                              <span className="team-flag">{FLAGS[match.teamA] ?? '🏳️'}</span>
+                              <span className="team-flag"><Flag emoji={FLAGS[match.teamA] ?? ''} size={18} /></span>
                               {tn(match.teamA)}
                             </span>
                             <div className="score-inputs">
@@ -474,7 +475,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                               />
                             </div>
                             <span className="team-name team-name-b">
-                              <span className="team-flag">{FLAGS[match.teamB] ?? '🏳️'}</span>
+                              <span className="team-flag"><Flag emoji={FLAGS[match.teamB] ?? ''} size={18} /></span>
                               {tn(match.teamB)}
                             </span>
                           </div>
@@ -858,7 +859,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             background: isAdv ? '#DBEAFE' : 'transparent',
                             cursor: team ? 'pointer' : 'default',
                           }}>
-                          <span style={{ fontSize: 15, lineHeight: 1, flexShrink: 0 }}>{team ? (FLAGS[team] ?? '🏳') : ''}</span>
+                          <span style={{ lineHeight: 1, flexShrink: 0 }}>{team ? <Flag emoji={FLAGS[team] ?? ''} size={16} /> : ''}</span>
                           <span style={{
                             flex: 1, fontSize: 12, fontWeight: isAdv ? 700 : 500,
                             color: isAdv ? '#1a4fa8' : team ? '#222' : '#ccc',
@@ -1317,7 +1318,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                           <div style={{ padding: '12px 14px' }}>
                             <div className="match-body">
                               <div className="team-name">
-                                <span className="team-flag">{FLAGS[teamA!] ?? ''}</span>
+                                <span className="team-flag"><Flag emoji={FLAGS[teamA!] ?? ''} size={18} /></span>
                                 <span>{teamA}</span>
                               </div>
                               <div className="score-inputs">
@@ -1333,7 +1334,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                               </div>
                               <div className="team-name team-name-b">
                                 <span>{teamB}</span>
-                                <span className="team-flag">{FLAGS[teamB!] ?? ''}</span>
+                                <span className="team-flag"><Flag emoji={FLAGS[teamB!] ?? ''} size={18} /></span>
                               </div>
                             </div>
 

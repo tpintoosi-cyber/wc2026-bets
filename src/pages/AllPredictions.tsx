@@ -1,3 +1,4 @@
+import Flag from '../components/Flag'
 import { useState, useEffect } from 'react'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -231,7 +232,7 @@ function GroupPredTable({ group, users, actualResult, lang = "he" as Lang }: {
               borderBottom: idx < teams.length - 1 ? '1px solid #f0f0f0' : 'none',
               background: inActual ? '#f5fbf2' : 'transparent' }}>
               <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90, display: 'flex', alignItems: 'center', gap: 4 }}>
-                {FLAGS[team] ?? ''} {team}
+                <><Flag emoji={FLAGS[team]??''} size={14} /> {team}</>
                 {inActual && <span style={{ fontSize: 10, background: '#EAF3DE', color: '#3B6D11', padding: '1px 5px', borderRadius: 8 }}>#{actualPos! + 1}</span>}
               </span>
               <span style={{ fontSize: 12, color: '#555', flex: 1 }}>
@@ -671,7 +672,7 @@ ${userRows}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <span className="match-num">#{match.id}</span>
                               <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                              <span style={{ fontSize: 13 }}>{FLAGS[match.teamA]} {match.teamA} נגד {match.teamB} {FLAGS[match.teamB]}</span>
+                              <span style={{ fontSize: 13 }}><><Flag emoji={FLAGS[match.teamA]??''} size={16} /> {match.teamA}</> נגד <Flag emoji={FLAGS[match.teamB]??''} size={16} /> {match.teamB}</span>
                               <span style={{ marginRight: 'auto', fontSize: 12, color: '#ccc' }}>לא מולא</span>
                               {played && <PtsBadge pts={0} played={true} />}
                             </div>
@@ -682,7 +683,7 @@ ${userRows}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                               <span className="match-num">#{match.id}</span>
                               <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                              <span style={{ fontSize: 13, fontWeight: 500 }}>{FLAGS[match.teamA]} {match.teamA} נגד {match.teamB} {FLAGS[match.teamB]}</span>
+                              <span style={{ fontSize: 13, fontWeight: 500 }}><><Flag emoji={FLAGS[match.teamA]??''} size={16} /> {match.teamA}</> נגד <Flag emoji={FLAGS[match.teamB]??''} size={16} /> {match.teamB}</span>
                               <span style={{ marginRight: 'auto' }} />
                               {played && <PtsBadge pts={pts} played={true} />}
                             </div>
@@ -756,7 +757,7 @@ ${userRows}
                             <div key={idx} className="group-slot">
                               <span className="slot-num">{idx+1}.</span>
                               <span style={{ fontSize: 13, flex: 1, fontWeight: isExact ? 700 : 400, color: isExact ? '#1a7a44' : isCorrectWrongPos ? '#185FA5' : isWrong ? '#c00' : '#333' }}>
-                                {predTeam ? `${FLAGS[predTeam]??''} ${predTeam}` : <span style={{ color: '#ccc' }}>—</span>}
+                                {predTeam ? <><Flag emoji={FLAGS[predTeam]??''} size={14} /> {predTeam}</> : <span style={{ color: '#ccc' }}>—</span>}
                               </span>
                               {isExact && '✓✓'}{isCorrectWrongPos && '✓'}{(isWrong && hasResult) && <span style={{ color: '#c00' }}>✗</span>}
                             </div>
@@ -765,7 +766,7 @@ ${userRows}
                         {hasResult && (
                           <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
                             <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>{t.actual}:</div>
-                            {[0,1,2].map(idx => <div key={idx} style={{ fontSize: 12, color: '#555' }}>{idx+1}. {FLAGS[actual[idx]]??''} {actual[idx]}</div>)}
+                            {[0,1,2].map(idx => <div key={idx} style={{ fontSize: 12, color: '#555' }}>{idx+1}. <><Flag emoji={FLAGS[actual[idx]]??''} size={16} /> {actual[idx]}</></div>)}
                           </div>
                         )}
                       </div>
@@ -875,7 +876,7 @@ ${userRows}
                             {pred.advance && (
                               <div style={{ padding: '5px 10px', borderTop: '1px solid #f0f0f0', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, background: correctAdvance ? '#EAF3DE' : isPlayed && adminKm?.advanceTeam ? '#FCEBEB' : '#f8f9ff' }}>
                                 <span style={{ color: '#888' }}>{t.koAdvanceLabel}</span>
-                                <span style={{ fontWeight: 700, color: correctAdvance ? '#1a7a44' : isPlayed && adminKm?.advanceTeam ? '#A32D2D' : '#333' }}>{FLAGS[pred.advance] ?? ''} {pred.advance}</span>
+                                <span style={{ fontWeight: 700, color: correctAdvance ? '#1a7a44' : isPlayed && adminKm?.advanceTeam ? '#A32D2D' : '#333' }}><><Flag emoji={FLAGS[pred.advance]??''} size={14} /> {pred.advance}</></span>
                                 {correctAdvance && <span style={{ color: '#1a7a44' }}>✓</span>}
                                 {isPlayed && adminKm?.advanceTeam && !correctAdvance && <span style={{ color: '#A32D2D', fontSize: 11 }}>(עלה: {FLAGS[adminKm.advanceTeam] ?? ''} {adminKm.advanceTeam})</span>}
                               </div>
@@ -944,7 +945,7 @@ ${userRows}
                   <div className="match-row-view">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 12, padding: '2px 7px', borderRadius: 10, background: '#E6F1FB', color: '#0C447C', fontWeight: 700 }}>{km?.round}</span>
-                      <span style={{ fontSize: 15, fontWeight: 600 }}>{FLAGS[tA] ?? ''} {tA} נגד {tB} {FLAGS[tB] ?? ''}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600 }}><><Flag emoji={FLAGS[tA]??''} size={16} /> {tA}</> נגד {tB} {FLAGS[tB] ?? ''}</span>
                       {adminSchedule[selectedMatchId] && <span style={{ fontSize: 12, color: '#888' }}>{adminSchedule[selectedMatchId]}</span>}
                       {played && <span style={{ marginRight: 'auto', fontSize: 13, background: '#f5f5f5', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
                         בפועל: {tA} {actual.resultA}–{actual.resultB} {tB} → {actual.advanceTeam}
@@ -987,7 +988,7 @@ ${userRows}
                                 <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10,
                                   background: correctAdv ? '#EAF3DE' : played ? '#FCEBEB' : '#f0f0fb',
                                   color: correctAdv ? '#1a7a44' : played ? '#A32D2D' : '#333' }}>
-                                  {FLAGS[p.advance] ?? ''} {p.advance}
+                                  <><Flag emoji={FLAGS[p.advance]??''} size={14} /> {p.advance}</>
                                 </span>
                               ) : <span style={{ fontSize: 12, color: '#ccc' }}>—</span>}
                             </span>
@@ -1018,7 +1019,7 @@ ${userRows}
                 <div className="match-row-view">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                     <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                    <span style={{ fontSize: 15, fontWeight: 600 }}>{FLAGS[match.teamA]} {match.teamA} נגד {match.teamB} {FLAGS[match.teamB]}</span>
+                    <span style={{ fontSize: 15, fontWeight: 600 }}><><Flag emoji={FLAGS[match.teamA]??''} size={16} /> {match.teamA}</> נגד <Flag emoji={FLAGS[match.teamB]??''} size={16} /> {match.teamB}</span>
                     <span style={{ fontSize: 12, color: '#888' }}>{MATCH_SCHEDULE[match.id]}</span>
                     {played && <span style={{ marginRight: 'auto', fontSize: 13, background: '#f5f5f5', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
                       בפועל: {match.teamA} {result.resultA??0}–{result.resultB??0} {match.teamB}{result.hadRedCard?' 🟥':''}
@@ -1087,16 +1088,16 @@ ${userRows}
                       const total = preds.length
                       if (total === 0) return (
                         <div key={km.id} style={{ padding: '8px 10px', borderRadius: 8, background: '#f8f9fa', marginBottom: 6, fontSize: 12, color: '#888' }}>
-                          {FLAGS[tA] ?? ''} {tA} נגד {FLAGS[tB] ?? ''} {tB} — {t.noPredictions}
+                          <><Flag emoji={FLAGS[tA]??''} size={16} /> {tA}</> נגד <><Flag emoji={FLAGS[tB]??''} size={16} /> {tB}</> — {t.noPredictions}
                         </div>
                       )
                       return (
                         <div key={km.id} style={{ border: '1px solid #e8e8e8', borderRadius: 10, marginBottom: 8, overflow: 'hidden' }}>
                           <div style={{ padding: '8px 12px', background: '#f8f9fa', fontWeight: 700, fontSize: 13, display: 'flex', gap: 8, alignItems: 'center' }}>
                             <span>#{km.id}</span>
-                            <span>{FLAGS[tA] ?? ''} {tA}</span>
+                            <span><><Flag emoji={FLAGS[tA]??''} size={16} /> {tA}</></span>
                             {isPlayed ? <span style={{ fontWeight: 700 }}>{adminKm.resultA}–{adminKm.resultB}</span> : <span style={{ color: '#aaa', fontSize: 11 }}>טרם שוחק</span>}
-                            <span>{FLAGS[tB] ?? ''} {tB}</span>
+                            <span><><Flag emoji={FLAGS[tB]??''} size={16} /> {tB}</></span>
                           </div>
                           <div style={{ padding: '8px 12px' }}>
                             {[['1', tA], ['X', 'תיקו'], ['2', tB]].map(([x2, label]) => {
@@ -1125,7 +1126,7 @@ ${userRows}
                                 const isCorrect = isPlayed && adminKm?.advanceTeam === team
                                 return (
                                   <div key={team} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                                    <span style={{ fontSize: 12, minWidth: 72, color: isCorrect ? '#1a7a44' : '#555', fontWeight: isCorrect ? 700 : 400 }}>{FLAGS[team] ?? ''} {team}</span>
+                                    <span style={{ fontSize: 12, minWidth: 72, color: isCorrect ? '#1a7a44' : '#555', fontWeight: isCorrect ? 700 : 400 }}><><Flag emoji={FLAGS[team]??''} size={14} /> {team}</></span>
                                     <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 8, overflow: 'hidden' }}>
                                       <div style={{ height: 8, borderRadius: 4, width: `${pct}%`, background: isCorrect ? '#1a7a44' : '#b3d4f0' }} />
                                     </div>
@@ -1206,7 +1207,7 @@ ${userRows}
                   <div key={match.id} className="match-row-view" style={{ marginBottom: 8, padding: '10px 12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                       <span className="match-num">#{match.id}</span>
-                      <span style={{ fontSize: 13, fontWeight: 500 }}>{FLAGS[match.teamA]} {match.teamA} נגד {match.teamB} {FLAGS[match.teamB]}</span>
+                      <span style={{ fontSize: 13, fontWeight: 500 }}><><Flag emoji={FLAGS[match.teamA]??''} size={16} /> {match.teamA}</> נגד <Flag emoji={FLAGS[match.teamB]??''} size={16} /> {match.teamB}</span>
                       <span style={{ marginRight: 'auto', fontSize: 12 }}>
                         {played && actual ? (
                           <>
