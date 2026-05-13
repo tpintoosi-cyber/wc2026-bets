@@ -907,9 +907,11 @@ function buildUserPreds(
 function generateFullKnockoutData(r32base: Record<number, any>): {
   matches: Record<number, KnockoutMatch>
   preds: {
-    perfect: Record<number, KnockoutMatchPrediction>
+    perfect:   Record<number, KnockoutMatchPrediction>
     favorites: Record<number, KnockoutMatchPrediction>
     underdogs: Record<number, KnockoutMatchPrediction>
+    draws:     Record<number, KnockoutMatchPrediction>
+    exact:     Record<number, KnockoutMatchPrediction>
   }
 } {
   const matches: Record<number, KnockoutMatch> = { ...r32base }
@@ -975,10 +977,11 @@ function generateFullKnockoutData(r32base: Record<number, any>): {
     loser[id]   = los
   }
 
-  // Build predictions
   const perfect:   Record<number, KnockoutMatchPrediction> = {}
   const favorites: Record<number, KnockoutMatchPrediction> = {}
   const underdogs: Record<number, KnockoutMatchPrediction> = {}
+  const draws:     Record<number, KnockoutMatchPrediction> = {}
+  const exact:     Record<number, KnockoutMatchPrediction> = {}
 
   for (const [idStr, km] of Object.entries(matches)) {
     const id = Number(idStr)
@@ -990,11 +993,29 @@ function generateFullKnockoutData(r32base: Record<number, any>): {
     const favPick = aIsFav ? '1' : '2'
     const undPick = aIsFav ? '2' : '1'
     perfect[id]   = { matchId: id, prediction1X2: actual as any, scoreA: km.resultA!, scoreB: km.resultB!, advance: km.advanceTeam }
-    favorites[id] = { matchId: id, prediction1X2: favPick as any, scoreA: null, scoreB: null, advance: aIsFav ? km.teamA : km.teamB }
-    underdogs[id] = { matchId: id, prediction1X2: undPick as any, scoreA: null, scoreB: null, advance: aIsFav ? km.teamB : km.teamA }
+    favorites[id] = {
+      matchId: id, prediction1X2: favPick as any,
+      scoreA: aIsFav ? 2 : 0, scoreB: aIsFav ? 0 : 2,
+      advance: aIsFav ? km.teamA : km.teamB
+    }
+    underdogs[id] = {
+      matchId: id, prediction1X2: undPick as any,
+      scoreA: aIsFav ? 0 : 1, scoreB: aIsFav ? 1 : 0,
+      advance: aIsFav ? km.teamB : km.teamA
+    }
+    draws[id] = {
+      matchId: id, prediction1X2: 'X',
+      scoreA: 1, scoreB: 1,
+      advance: km.teamA  // always picks teamA to advance after draw
+    }
+    exact[id] = {
+      matchId: id, prediction1X2: actual as any,
+      scoreA: km.resultA! + 1, scoreB: km.resultB! + 1,  // correct margin, wrong exact
+      advance: km.advanceTeam
+    }
   }
 
-  return { matches, preds: { perfect, favorites, underdogs } }
+  return { matches, preds: { perfect, favorites, underdogs, draws, exact } }
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -1284,8 +1305,8 @@ export default function Simulator() {
 
       const gsTypes: Array<'perfect'|'favorites'|'underdogs'|'draws'|'exact'> =
         ['perfect','favorites','underdogs','draws','exact','perfect','favorites','underdogs','exact','draws']
-      const koTypes: Array<'perfect'|'favorites'|'underdogs'> =
-        ['perfect','favorites','underdogs','perfect','favorites','underdogs','perfect','favorites','underdogs','favorites']
+      const koTypes: Array<'perfect'|'favorites'|'underdogs'|'draws'|'exact'> =
+        ['perfect','favorites','underdogs','perfect','favorites','underdogs','perfect','draws','exact','favorites']
       const bonusCorrect = [13,7,2,6,4,8,1,3,5,4]
       const names = [
         '🥇 אנליסט מושלם','📊 מחנה המועדפים','💥 ציד האנדרדוגים',
