@@ -197,6 +197,108 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, lang = "he
   )
 }
 
+// Knockout score distribution — same 3-col layout as ScoreGroupTable
+function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, lang = 'he' as Lang }: {
+  matchId: number; users: UserData[]; teamA: string; teamB: string; lang?: Lang; adminResult?: any
+}) {
+  const t = T[lang]
+  const played = adminResult?.isPlayed ?? false
+  const rA = played ? Number(adminResult.resultA ?? 0) : null
+  const rB = played ? Number(adminResult.resultB ?? 0) : null
+  const groups: Record<string, UserData[]> = {}
+  users.forEach(u => {
+    const p = u.knockout?.[matchId]
+    if (!p || p.scoreA == null || p.scoreB == null) {
+      groups[t.notFilled] = groups[t.notFilled] ?? []; groups[t.notFilled].push(u)
+    } else {
+      const key = `${p.scoreA}-${p.scoreB}`
+      groups[key] = groups[key] ?? []; groups[key].push(u)
+    }
+  })
+  const sorted = Object.entries(groups).sort(([a], [b]) => {
+    if (a === t.notFilled) return 1; if (b === t.notFilled) return -1
+    const [aA, aB] = a.split('-').map(Number); const [bA, bB] = b.split('-').map(Number)
+    return (bA + bB) - (aA + aB) || aA - bA
+  })
+  const advanceCounts: Record<string, string[]> = {}
+  users.forEach(u => {
+    const adv = u.knockout?.[matchId]?.advance
+    if (adv) { advanceCounts[adv] = advanceCounts[adv] ?? []; advanceCounts[adv].push(getDisplayName(u)) }
+  })
+  const totalUsers = users.filter(u => u.knockout?.[matchId]?.prediction1X2).length || 1
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: '#1a1a2e', borderBottom: '2px solid #1a1a2e', paddingBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+        <span>פילוח לפי ניחוש — {teamB} נגד {teamA}</span>
+        <span style={{ fontSize: 12, fontWeight: 400, color: '#888' }}>{Object.values(groups).reduce((s, a) => s + a.length, 0)} הימורים</span>
+      </div>
+      <div className="score-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
+        {[{ label: teamA, x2: '1' }, { label: t.draw, x2: 'X' }, { label: teamB, x2: '2' }].map(col => {
+          const colScores = sorted.filter(([score]) => {
+            if (score === t.notFilled) return col.x2 === 'X'
+            const [sA, sB] = score.split('-').map(Number)
+            if (col.x2 === '1') return sA > sB; if (col.x2 === '2') return sB > sA; return sA === sB
+          })
+          const total = colScores.reduce((s, [, u]) => s + u.length, 0)
+          return (
+            <div key={col.x2}>
+              <div style={{ background: '#f0f0f0', color: '#444', fontWeight: 700, fontSize: 13, padding: '6px 10px', borderRadius: '8px 8px 0 0', textAlign: 'center', borderBottom: '2px solid #444' }}>
+                {col.label} <span style={{ fontWeight: 400, fontSize: 11, opacity: 0.8 }}>({total})</span>
+              </div>
+              <div style={{ border: '1px solid rgba(68,68,68,0.18)', borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
+                {colScores.length === 0 && <div style={{ padding: 10, fontSize: 12, color: '#ccc', textAlign: 'center' }}>{t.noPredictions}</div>}
+                {colScores.map(([score, scoreUsers], idx) => {
+                  const [sA, sB] = score === t.notFilled ? [null, null] : score.split('-').map(Number)
+                  const isExact = played && sA !== null && sA === rA && sB === rB
+                  const isMargin = played && sA !== null && !isExact && (sA! - sB!) === (rA! - rB!)
+                  return (
+                    <div key={score} style={{ borderBottom: idx < colScores.length - 1 ? '1px solid #f0f0f0' : 'none', background: isExact ? '#f0fbf4' : isMargin ? '#f0f6fb' : idx % 2 === 0 ? '#fafafa' : '#fff', padding: '7px 10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                        <span style={{ fontSize: 15, fontWeight: 800, direction: 'ltr', display: 'inline-block', color: isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#1a1a2e' }}>
+                          {score === t.notFilled ? '—' : `${sA}-${sB}`}
+                        </span>
+                        {isExact && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#EAF3DE', color: '#3B6D11' }}>✓</span>}
+                        {isMargin && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#E6F1FB', color: '#185FA5' }}>~</span>}
+                        <span style={{ fontSize: 11, color: '#aaa', marginRight: 'auto' }}>({scoreUsers.length})</span>
+                      </div>
+                      <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
+                        {scoreUsers.map((u, i) => (
+                          <span key={u.userId}>{getDisplayName(u)}{i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 5px' }}>·</span>}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      {Object.keys(advanceCounts).length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 6 }}>{t.koWhoAdvanceQ}</div>
+          {[teamA, teamB].map(team => {
+            const names = advanceCounts[team] ?? []
+            const isCorrect = played && adminResult?.advanceTeam === team
+            return (
+              <div key={team} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                <span style={{ fontSize: 13, minWidth: 100, display: 'flex', alignItems: 'center', gap: 5, fontWeight: isCorrect ? 700 : 400, color: isCorrect ? '#1a7a44' : '#444' }}>
+                  <Flag emoji={FLAGS[team]??''} size={20} /> {team} {isCorrect && '✓'}
+                </span>
+                <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 10, overflow: 'hidden' }}>
+                  <div style={{ height: 10, borderRadius: 4, width: `${Math.round(names.length / totalUsers * 100)}%`, background: isCorrect ? '#1a7a44' : '#b3d4f0' }} />
+                </div>
+                <span style={{ fontSize: 12, minWidth: 60, color: isCorrect ? '#1a7a44' : '#888' }}>{Math.round(names.length / totalUsers * 100)}% ({names.length})</span>
+                <span style={{ fontSize: 12, color: '#aaa' }}>{names.join(' · ')}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Group predictions table for Groups tab
 function GroupPredTable({ group, users, actualResult, lang = "he" as Lang }: {
   group: Group; users: UserData[]; lang?: Lang; actualResult?: [string, string, string]
@@ -985,63 +1087,8 @@ ${userRows}
                       </span>}
                     </div>
                     <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
-                      {/* Distribution bars */}
-                      {(() => {
-                        const koPreds = users.map(u => ({ name: getDisplayName(u), pred: u.knockout?.[selectedMatchId] })).filter(x => x.pred?.prediction1X2)
-                        const total = koPreds.length
-                        if (total === 0) return <div style={{ fontSize: 13, color: '#aaa', marginBottom: 8 }}>{t.noPredictions}</div>
-                        return (
-                          <div style={{ marginBottom: 12 }}>
-                            {([['1', tA], ['X', t.draw], ['2', tB]] as [string,string][]).map(([x2, label]) => {
-                              const group = koPreds.filter(p => p.pred?.prediction1X2 === x2)
-                              const pct = Math.round((group.length / total) * 100)
-                              const isWinner = played && actual?.resultA != null
-                                ? x2 === (Number(actual.resultA) > Number(actual.resultB) ? '1' : Number(actual.resultA) < Number(actual.resultB) ? '2' : 'X')
-                                : false
-                              return (
-                                <div key={x2} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                                  <span style={{ fontSize: 13, minWidth: 90, color: isWinner ? '#1a7a44' : '#555', fontWeight: isWinner ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                    {x2 !== 'X' && <Flag emoji={FLAGS[x2 === '1' ? tA : tB]??''} size={20} />} {label}
-                                  </span>
-                                  <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 10, overflow: 'hidden' }}>
-                                    <div style={{ height: 10, borderRadius: 4, width: `${pct}%`, background: isWinner ? '#1a7a44' : '#bbb' }} />
-                                  </div>
-                                  <HoverTooltip names={group.map(p => `${p.name}: ${p.pred?.scoreA ?? '?'}–${p.pred?.scoreB ?? '?'}`)}>
-                                    <span style={{ fontSize: 12, minWidth: 60, color: isWinner ? '#1a7a44' : '#888', cursor: group.length > 0 ? 'pointer' : 'default', textDecoration: group.length > 0 ? 'underline dotted' : 'none' }}>
-                                      {pct}% ({group.length})
-                                    </span>
-                                  </HoverTooltip>
-                                </div>
-                              )
-                            })}
-                            {/* Advance distribution */}
-                            <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #f0f0f0' }}>
-                              <div style={{ fontSize: 11, color: '#888', marginBottom: 5 }}>{t.koWhoAdvanceQ}</div>
-                              {[tA, tB].map(team => {
-                                const group = koPreds.filter(p => p.pred?.advance === team)
-                                const pct = Math.round((group.length / total) * 100)
-                                const isCorrect = played && actual?.advanceTeam === team
-                                return (
-                                  <div key={team} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                    <span style={{ fontSize: 12, minWidth: 90, color: isCorrect ? '#1a7a44' : '#555', fontWeight: isCorrect ? 700 : 400, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                      <Flag emoji={FLAGS[team]??''} size={18} /> {team}
-                                    </span>
-                                    <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 8, overflow: 'hidden' }}>
-                                      <div style={{ height: 8, borderRadius: 4, width: `${pct}%`, background: isCorrect ? '#1a7a44' : '#b3d4f0' }} />
-                                    </div>
-                                    <HoverTooltip names={group.map(p => p.name)}>
-                                      <span style={{ fontSize: 12, minWidth: 60, color: isCorrect ? '#1a7a44' : '#888', cursor: group.length > 0 ? 'pointer' : 'default', textDecoration: group.length > 0 ? 'underline dotted' : 'none' }}>
-                                        {pct}% ({group.length})
-                                      </span>
-                                    </HoverTooltip>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        )
-                      })()}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600, borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                      <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} />
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600, borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
                         <span style={{ flex: 1 }}>{lang === 'he' ? 'משתמש' : 'User'}</span>
                         <span style={{ minWidth: 56, textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Prediction'}</span>
                         <span style={{ minWidth: 80, textAlign: 'center' }}>1X2</span>
@@ -1194,6 +1241,11 @@ ${userRows}
           {statsSubTab === 'matches' && (
             <div>
               <div id="chart-matches" style={{ marginBottom: 20 }} />
+
+              {/* ── שלב הבתים ── */}
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#888', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid #e8e8e8', letterSpacing: '0.04em' }}>
+                {t.matchesGroupStage}
+              </div>
               {MATCHES.map(match => {
                 const preds = users.map(u => ({
                   x2: u.matches[match.id]?.prediction1X2,
@@ -1246,6 +1298,78 @@ ${userRows}
                               {pct}% ({rowPreds.length})
                             </span>
                           </HoverTooltip>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })}
+
+              {/* ── נוקאאוט ── */}
+              {(['R32','R16','QF','SF','3P','F'] as const).map(round => {
+                const roundMatches = KNOCKOUT_MATCHES.filter(km => {
+                  const adminKm = knockoutAdminMatches[km.id]
+                  return adminKm?.teamA && users.some(u => u.knockout?.[km.id]?.prediction1X2)
+                })
+                  .filter(km => km.round === round)
+                if (roundMatches.length === 0) return null
+                return (
+                  <div key={round}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#888', margin: '20px 0 10px', paddingBottom: 6, borderBottom: '1px solid #e8e8e8', letterSpacing: '0.04em' }}>
+                      {KNOCKOUT_ROUND_LABELS[round]}
+                    </div>
+                    {roundMatches.map(km => {
+                      const adminKm = knockoutAdminMatches[km.id]
+                      const tA = adminKm?.teamA ?? '?'
+                      const tB = adminKm?.teamB ?? '?'
+                      const preds = users.map(u => ({
+                        x2: u.knockout?.[km.id]?.prediction1X2,
+                        name: getDisplayName(u),
+                        scoreA: u.knockout?.[km.id]?.scoreA,
+                        scoreB: u.knockout?.[km.id]?.scoreB,
+                      })).filter(p => p.x2)
+                      if (preds.length === 0) return null
+                      const total = preds.length
+                      const played = adminKm?.isPlayed ?? false
+                      const rA = played ? Number(adminKm.resultA??0) : null
+                      const rB = played ? Number(adminKm.resultB??0) : null
+                      const actual = rA !== null && rB !== null ? (rA > rB ? '1' : rA < rB ? '2' : 'X') : null
+                      return (
+                        <div key={km.id} className="match-row-view" style={{ marginBottom: 8, padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                            <span className="match-num">#{km.id}</span>
+                            <span style={{ fontSize: 13, fontWeight: 500 }}>
+                              <Flag emoji={FLAGS[tA]??''} size={22} /> {tA} נגד <Flag emoji={FLAGS[tB]??''} size={22} /> {tB}
+                            </span>
+                            <span style={{ marginRight: 'auto', fontSize: 12 }}>
+                              {played && actual ? (
+                                <>
+                                  <span style={{ color: '#888' }}>בפועל: {rA}–{rB} → </span>
+                                  <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 10, background: '#EAF3DE', color: '#3B6D11' }}>
+                                    {adminKm.advanceTeam}
+                                  </span>
+                                </>
+                              ) : <span style={{ fontSize: 11, color: '#bbb' }}>טרם שוחק</span>}
+                            </span>
+                          </div>
+                          {[{ label: tA, x2: '1' }, { label: t.draw, x2: 'X' }, { label: tB, x2: '2' }].map(row => {
+                            const rowPreds = preds.filter(p => p.x2 === row.x2)
+                            const pct = Math.round((rowPreds.length / total) * 100)
+                            const isWinner = played && row.x2 === actual
+                            return (
+                              <div key={row.x2} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                                <span style={{ fontSize: 12, minWidth: 70, color: isWinner ? '#1a7a44' : '#555', fontWeight: isWinner ? 700 : 400 }}>{row.label}</span>
+                                <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 12, overflow: 'hidden' }}>
+                                  <div style={{ height: 12, borderRadius: 4, width: `${pct}%`, background: isWinner ? '#1a7a44' : '#bbb' }} />
+                                </div>
+                                <HoverTooltip names={rowPreds.map(p => `${p.name}: ${p.scoreA??'?'}-${p.scoreB??'?'}`)}>
+                                  <span style={{ fontSize: 12, minWidth: 55, color: isWinner ? '#1a7a44' : '#888', fontWeight: isWinner ? 700 : 400, cursor: rowPreds.length > 0 ? 'pointer' : 'default', textDecoration: rowPreds.length > 0 ? 'underline dotted' : 'none' }}>
+                                    {pct}% ({rowPreds.length})
+                                  </span>
+                                </HoverTooltip>
+                              </div>
+                            )
+                          })}
                         </div>
                       )
                     })}
