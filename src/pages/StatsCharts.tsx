@@ -41,19 +41,11 @@ function FlagRing({ cx, cy, ir, or: outerR, slices, id, showPct }: {
         const iso   = s.team ? flagToIso(FLAGS[s.team] ?? '') : ''
         const span  = s.ea - s.sa   // degrees
 
-        // Centroid of the slice
+        // Label at slice centroid (for % text only)
         const midA  = (s.sa + s.ea) / 2
         const midR  = ir <= 0 ? outerR * 0.60 : (ir + outerR) / 2
         const lx    = cx + midR * Math.cos(toRad(midA))
         const ly    = cy + midR * Math.sin(toRad(midA))
-
-        // Minimum image size to cover the full slice from centroid.
-        // Law of cosines: distance from centroid to farthest outer corner.
-        // d² = midR² + outerR² - 2·midR·outerR·cos(halfSpan)
-        const halfSpanRad = ((s.ea - s.sa) / 2) * Math.PI / 180
-        const dCorner = Math.sqrt(midR*midR + outerR*outerR - 2*midR*outerR*Math.cos(halfSpanRad))
-        const dCenter = ir <= 0 ? midR : 0   // for full pie, centroid→center matters too
-        const imgSize = Math.max(dCorner, dCenter) * 2 * 1.15  // 15% safety margin
 
         return (
           <g key={i}>
@@ -61,10 +53,11 @@ function FlagRing({ cx, cy, ir, or: outerR, slices, id, showPct }: {
 
             {iso && (
               <>
+                {/* Flag centered at PIE CENTER, covers full circle, clipped to slice */}
                 <image
-                  href={`https://flagcdn.com/w160/${iso}.png`}
-                  x={lx - imgSize / 2} y={ly - imgSize / 2}
-                  width={imgSize} height={imgSize}
+                  href={`https://flagcdn.com/w320/${iso}.png`}
+                  x={cx - outerR} y={cy - outerR}
+                  width={outerR * 2} height={outerR * 2}
                   clipPath={`url(#cp-${id}-${i})`}
                   preserveAspectRatio="xMidYMid slice"
                 />
