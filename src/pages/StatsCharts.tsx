@@ -44,43 +44,34 @@ function FlagRing({ cx, cy, ir, or: outerR, slices, id, showPct }: {
         const path = arcPath(cx, cy, ir, outerR, s.sa, s.ea)
         const iso = s.team ? flagToIso(FLAGS[s.team] ?? '') : ''
 
-        // Midpoint of the slice for centering the flag
+        // Label position: midpoint of arc
         const midA = (s.sa + s.ea) / 2
-        const midR  = ir <= 0 ? outerR * 0.52 : (ir + outerR) / 2
-        const fx = cx + midR * Math.cos(toRad(midA))
-        const fy = cy + midR * Math.sin(toRad(midA))
-
-        // Flag size scales with slice proportion (bigger % → bigger flag)
-        const ringH   = outerR - ir
-        const baseSize = Math.min(ringH * 0.85, outerR * 0.55)
-        const scale    = 0.4 + (s.pct / 100) * 1.2   // 0.4–1.6 range
-        const imgW     = Math.max(24, Math.min(baseSize * 2, baseSize * scale))
-        const imgH     = imgW * 0.67  // standard flag ratio 3:2
+        const midR  = ir <= 0 ? outerR * 0.58 : (ir + outerR) / 2
+        const lx = cx + midR * Math.cos(toRad(midA))
+        const ly = cy + midR * Math.sin(toRad(midA))
 
         return (
           <g key={i}>
             {iso ? (
               <>
-                <path d={path} fill="#e8e8e8" />
+                {/* Flag fills the entire slice as background */}
                 <image
-                  href={`https://flagcdn.com/w80/${iso}.png`}
-                  x={fx - imgW / 2}
-                  y={fy - imgH / 2}
-                  width={imgW}
-                  height={imgH}
+                  href={`https://flagcdn.com/w160/${iso}.png`}
+                  x={cx - outerR} y={cy - outerR}
+                  width={outerR * 2} height={outerR * 2}
                   clipPath={`url(#cp-${id}-${i})`}
-                  preserveAspectRatio="xMidYMid meet"
+                  preserveAspectRatio="xMidYMid slice"
                 />
-                <path d={path} fill="rgba(0,0,0,0.12)" stroke="white" strokeWidth={2.5} />
+                {/* Subtle dark overlay so % text is readable */}
+                <path d={path} fill="rgba(0,0,0,0.15)" stroke="white" strokeWidth={3} />
               </>
             ) : (
-              <path d={path} fill="#cccccc" stroke="white" strokeWidth={2.5} />
+              <path d={path} fill="#cccccc" stroke="white" strokeWidth={3} />
             )}
-            {showPct && s.pct >= 7 && (
-              <text x={fx} y={fy + imgH / 2 + 11}
-                textAnchor="middle" dominantBaseline="central"
-                style={{ fontSize: Math.max(11, Math.min(16, imgW * 0.22)), fontWeight: 800,
-                  fill: '#fff', stroke: 'rgba(0,0,0,0.65)', strokeWidth: 3.5,
+            {showPct && s.pct >= 6 && (
+              <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central"
+                style={{ fontSize: Math.max(13, Math.min(20, outerR * 0.14)), fontWeight: 900,
+                  fill: '#fff', stroke: 'rgba(0,0,0,0.7)', strokeWidth: 4,
                   paintOrder: 'stroke fill' }}>
                 {s.pct}%
               </text>
@@ -96,7 +87,7 @@ function FlagPieChart({ matchId, teamA, teamB, users, adminResult, isKO, koAdmin
   matchId: number; teamA: string; teamB: string
   users: UserData[]; adminResult?: any; isKO: boolean; koAdminResult?: any
 }) {
-  const SIZE = 340, cx = 170, cy = 170
+  const SIZE = 380, cx = 190, cy = 190
   const title = `${teamA} — ${teamB}`
 
   // 1X2 data
@@ -132,9 +123,9 @@ function FlagPieChart({ matchId, teamA, teamB, users, adminResult, isKO, koAdmin
     ], users.length)
   }
 
-  const outerR = isKO ? 110 : 155
-  const innerR = isKO ? 50  : 0
-  const advInnerR = 118, advOuterR = 158
+  const outerR = isKO ? 125 : 175
+  const innerR = isKO ? 55  : 0
+  const advInnerR = 132, advOuterR = 178
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
