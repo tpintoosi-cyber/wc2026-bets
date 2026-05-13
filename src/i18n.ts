@@ -34,6 +34,17 @@ export type Translations = {
   cancel: string; maxLabel: string; select1x2: string;
   // Pending approval
   pendingTitle: string; pendingMsg: string;
+  // General UI
+  notFilled: string; versus: string; itsMe: string;
+  actual: string; actualResult: string; myPrediction: string;
+  selectMatch: string; noPredictions: string; predStillOpen: string;
+  downloadReport: string; refresh: string; allBetsTitle: string;
+  adminMode: string; nobody: string; whoPickedTeam: string;
+  clickToAdvance: string; totalPts: string; zeroPtsMatch: string;
+  maxIfCorrect: string; actualEarned: string; warning1x2: string;
+  displayNamePlaceholder: string; save: string; matchesGroupStage: string;
+  resultExact: string; resultWrong: string; result1x2ok: string; resultMargin: string;
+  ptsThisMatch: string; goToPrediction: string;
 }
 
 export const T: Record<Lang, Translations> = {
@@ -119,7 +130,37 @@ export const T: Record<Lang, Translations> = {
     maxLabel: 'מקסימום',
     select1x2: 'בחר 1X2 לניקוד',
     pendingTitle: 'הבקשה בטיפול',
-    pendingMsg: 'בקשת ההצטרפות שלך נשלחה. האדמין יאשר אותה בקרוב.',
+    pendingMsg: 'ברגע שמנהל יאשר את בקשתך תוכל להיכנס לאפליקציה.',
+    notFilled: 'לא מולא',
+    versus: 'נגד',
+    itsMe: '(אני)',
+    actual: 'בפועל',
+    actualResult: 'תוצאה:',
+    myPrediction: 'ניחוש שלי',
+    selectMatch: 'בחר משחק:',
+    noPredictions: 'אין הימורים עדיין',
+    predStillOpen: 'ההימורים עוד פתוחים — ניתן לצפות בהימורים לאחר סגירת ההגשות',
+    downloadReport: '📥 הורד דוח',
+    refresh: '🔄 רענן',
+    allBetsTitle: 'הימורי כולם',
+    adminMode: 'מצב אדמין',
+    nobody: 'אף אחד',
+    whoPickedTeam: 'מי הימר על כל נבחרת',
+    clickToAdvance: 'לחץ לבחירת עולה ←',
+    totalPts: 'סה״כ',
+    zeroPtsMatch: '0 נק׳ במשחק זה',
+    maxIfCorrect: 'מקסימום אם הכל נכון',
+    actualEarned: 'נצבר בפועל',
+    warning1x2: 'לא בחרת 1X2 — המשחק לא נספר בסיכום',
+    displayNamePlaceholder: 'שם תצוגה...',
+    save: 'שמור',
+    matchesGroupStage: 'שלב הבתים',
+    resultExact: '✓ מדויק',
+    resultWrong: '✗ שגוי',
+    result1x2ok: '✓ 1X2 נכון',
+    resultMargin: 'הפרש נכון',
+    ptsThisMatch: 'נק׳ במשחק זה',
+    goToPrediction: 'עבור להימור',
   },
   en: {
     tabMatches: 'Matches',
@@ -204,6 +245,36 @@ export const T: Record<Lang, Translations> = {
     select1x2: 'Select 1X2 to score',
     pendingTitle: 'Request pending',
     pendingMsg: 'Your join request has been sent. The admin will approve it shortly.',
+    notFilled: 'Not filled',
+    versus: 'vs',
+    itsMe: '(me)',
+    actual: 'Actual',
+    actualResult: 'Result:',
+    myPrediction: 'My prediction',
+    selectMatch: 'Select match:',
+    noPredictions: 'No predictions yet',
+    predStillOpen: 'Predictions still open — visible after submissions close',
+    downloadReport: '📥 Download report',
+    refresh: '🔄 Refresh',
+    allBetsTitle: 'All Predictions',
+    adminMode: 'Admin mode',
+    nobody: 'Nobody',
+    whoPickedTeam: 'Who picked each team',
+    clickToAdvance: 'Tap to pick who advances →',
+    totalPts: 'Total',
+    zeroPtsMatch: '0 pts this match',
+    maxIfCorrect: 'Max if all correct',
+    actualEarned: 'Actually earned',
+    warning1x2: 'No 1X2 selected — match not counted',
+    displayNamePlaceholder: 'Display name...',
+    save: 'Save',
+    matchesGroupStage: 'Group Stage',
+    resultExact: '✓ Exact',
+    resultWrong: '✗ Wrong',
+    result1x2ok: '✓ 1X2 correct',
+    resultMargin: 'Correct margin',
+    ptsThisMatch: 'pts this match',
+    goToPrediction: 'Go to prediction',
   },
 } as Record<Lang, Translations>
 

@@ -395,10 +395,10 @@ export default function Predict({ lang }: { lang: Lang }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <input value={nickInput} onChange={e => setNickInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') saveNickname(); if (e.key === 'Escape') setEditingNick(false) }}
-                placeholder="שם תצוגה..."
+                placeholder={t.displayNamePlaceholder}
                 style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, border: '1px solid #1a1a2e', outline: 'none', width: 120 }}
                 autoFocus />
-              <button onClick={saveNickname} style={{ fontSize: 12, background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>שמור</button>
+              <button onClick={saveNickname} style={{ fontSize: 12, background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>{t.save}</button>
               <button onClick={() => setEditingNick(false)} style={{ fontSize: 12, background: 'none', border: '1px solid #ddd', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>{t.cancel}</button>
             </div>
           )}
@@ -803,7 +803,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                     : (isPlayed ? 'linear-gradient(135deg, #8B6914, #CD853F)' : 'linear-gradient(135deg, #6b4f00, #8B6914)'))
                   : (isPlayed ? '#1a7a44' : '#4a5568')
 
-                const headerLabel = isFinal ? '🏆 גמר' : isThird ? '🥉 מקום שלישי' : km
+                const headerLabel = isFinal ? ('🏆 '+t.shortF) : isThird ? ('🥉 '+t.short3P) : km
                   ? ({ R32: t.shortR32, R16: t.shortR16, QF: t.shortQF, SF: t.shortSF, '3P': t.short3P, F: t.shortF } as Record<string, string>)[km.round]
                   : ''
 
@@ -834,7 +834,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700 }}>{dynCat}</span>
                         <button
                           onClick={() => handleMatchClick(id)}
-                          title="עבור להימור"
+                          title={t.goToPrediction}
                           style={{
                             fontSize: 10, lineHeight: 1, padding: '1px 5px', borderRadius: 4,
                             background: 'rgba(255,255,255,0.15)', color: '#fff',
@@ -882,7 +882,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         background: '#f0f0f0',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
                       }}>
-                        <span style={{ fontSize: 10, color: '#666', fontWeight: 600 }}>תוצאה:</span>
+                        <span style={{ fontSize: 10, color: '#666', fontWeight: 600 }}>{t.actualResult}</span>
                         <span style={{ fontSize: 12, fontWeight: 800, color: '#333' }}>
                           {actualA}:{actualB}
                         </span>
@@ -920,7 +920,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         {isPlayed && hasScore && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                             <span style={{ fontSize: 11, color: ptsScore > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>
-                              {ptsScore > 0 ? '✓' : '✗'} תוצאה
+                              {ptsScore > 0 ? '✓' : '✗'} {t.exactScore}
                             </span>
                             {ptsScore > 0 && (
                               <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsScore}</span>
@@ -985,7 +985,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                       )
                     })() : (tA && tB && (
                       <div style={{ padding: '4px 7px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
-                        <span style={{ fontSize: 10, color: '#aaa' }}>לחץ לבחירת עולה ←</span>
+                        <span style={{ fontSize: 10, color: '#aaa' }}>{t.clickToAdvance}</span>
                       </div>
                     ))}
 
@@ -998,14 +998,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                           padding: '3px 7px', background: '#1a7a44',
                           display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 4,
                         }}>
-                          <span style={{ fontSize: 11, color: '#fff', fontWeight: 800 }}>סה״כ: +{safeTotal} נק׳</span>
+                          <span style={{ fontSize: 11, color: '#fff', fontWeight: 800 }}>{t.totalPts}: +{safeTotal} {t.pts}</span>
                         </div>
                       ) : (
                         <div style={{
                           padding: '3px 7px', background: '#e8e8e8',
                           display: 'flex', justifyContent: 'center',
                         }}>
-                          <span style={{ fontSize: 10, color: '#888' }}>0 נק׳ במשחק זה</span>
+                          <span style={{ fontSize: 10, color: '#888' }}>{t.zeroPtsMatch}</span>
                         </div>
                       )
                     })()}
@@ -1158,7 +1158,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                           {/* Max possible */}
                           <div style={{ flex: 1, minWidth: 180 }}>
-                            <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>מקסימום אם הכל נכון</div>
+                            <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{t.maxIfCorrect}</div>
                             {maxTotal > 0 ? (
                               <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                                 <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#E6F1FB', color: '#0C447C', fontWeight: 600 }}>1X2: {maxPts1x2}</span>
@@ -1180,7 +1180,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                             {/* Actual earned */}
                             <div style={{ flex: 1, minWidth: 180 }}>
-                              <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>נצבר בפועל</div>
+                              <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{t.actualEarned}</div>
                               <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                                 <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#E6F1FB', color: '#0C447C', fontWeight: 600 }}>1X2: {actPts1x2}</span>
                                 <span style={{ fontSize: 10, color: '#ccc' }}>+</span>
@@ -1253,7 +1253,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                   {maxRedCards && (
                     <div style={{ margin: '0 0 12px', padding: '10px 14px', background: '#fff5f5', border: '1px solid #fdd', borderRadius: 10 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, color: '#A32D2D', marginBottom: 8 }}>
-                        🟥 בחר {maxRedCards} {maxRedCards === 1 ? 'משחק' : 'משחקים'} שיהיה בהם כרטיס אדום
+                        🟥 {maxRedCards === 1 ? t.redCard : t.redCards} — {t.redCards}
                         <span style={{ fontWeight: 400, color: '#999', marginRight: 6 }}>({redCardPicks.length}/{maxRedCards} נבחרו | 2 נק׳ לכל ניחוש נכון)</span>
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1379,7 +1379,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>
                               {!pred?.prediction1X2 ? (
                                 <div style={{ background: '#FAEEDA', borderRadius: 8, padding: '7px 10px', fontSize: 12, color: '#633806', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span>⚠️</span> לא בחרת 1X2 — המשחק לא נספר בסיכום
+                                  <span>⚠️</span> {t.warning1x2}
                                 </div>
                               ) : (() => {
                                 const catIdx = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
@@ -1426,13 +1426,13 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   const pickedUnderdog = (pred.advance === teamA && !aIsFavForm) || (pred.advance === teamB && aIsFavForm)
                                   const advPts = advBase + (pickedUnderdog ? advCatBonus : 0)
                                   const advFlag = pred.advance === teamA ? (FLAGS[teamA!] ?? '') : (FLAGS[teamB!] ?? '')
-                                  breakdown.push(`עולה (${advFlag} ${pred.advance}): ${advPts}`)
+                                  breakdown.push(`${t.koAdvance} (${advFlag} ${pred.advance}): ${advPts}`)
                                   total += advPts
                                 }
 
                                 return (
                                   <div className="max-pts-bar">
-                                    <span className="max-pts-label">מקסימום:</span>
+                                    <span className="max-pts-label">{t.maxLabel}:</span>
                                     <span className="max-pts-value">{total}</span>
                                     <span className="max-pts-label">נק׳</span>
                                     <div className="max-pts-breakdown">

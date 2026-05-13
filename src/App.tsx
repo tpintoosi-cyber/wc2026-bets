@@ -98,7 +98,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/predict" element={<RequireAuth lang={lang}><Predict lang={lang} /></RequireAuth>} />
-        <Route path="/all" element={<RequireAuth lang={lang}><AllPredictions /></RequireAuth>} />
+        <Route path="/all" element={<RequireAuth lang={lang}><AllPredictions lang={lang} /></RequireAuth>} />
         <Route path="/leaderboard" element={<RequireAuth lang={lang}><Leaderboard /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="/sim" element={<RequireAdmin><Simulator /></RequireAdmin>} />

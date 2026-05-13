@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
+import { Lang, T } from '../i18n'
 import StatsCharts from './StatsCharts'
 import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, KNOCKOUT_BRACKET } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Match, KnockoutMatchPrediction } from '../types'
@@ -87,9 +88,10 @@ function HoverTooltip({ names, children }: { names: string[]; children: React.Re
 }
 
 // Group predictions by score table (like the image)
-function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
-  matchId: number; users: UserData[]; teamA: string; teamB: string; adminResult?: Match
+function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, lang = "he" as Lang }: {
+  matchId: number; users: UserData[]; teamA: string; teamB: string; lang?: Lang; adminResult?: Match
 }) {
+  const t = T[lang]
   const played = adminResult?.isPlayed ?? false
   const rA = played ? Number(adminResult!.resultA ?? 0) : null
   const rB = played ? Number(adminResult!.resultB ?? 0) : null
@@ -109,8 +111,8 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
   })
 
   const sorted = Object.entries(groups).sort(([a], [b]) => {
-    if (a === 'לא מולא') return 1
-    if (b === 'לא מולא') return -1
+    if (a === t.notFilled) return 1
+    if (b === t.notFilled) return -1
     const [aA, aB] = a.split('-').map(Number)
     const [bA, bB] = b.split('-').map(Number)
     return (bA + bB) - (aA + aB) || aA - bA
@@ -127,12 +129,12 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
       <div className="score-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
         {[
         { label: teamA, x2: '1', color: '#444', bg: '#f0f0f0' },
-          { label: 'תיקו', x2: 'X', color: '#444', bg: '#f0f0f0' },
+          { label: t.draw, x2: 'X', color: '#444', bg: '#f0f0f0' },
           { label: teamB, x2: '2', color: '#444', bg: '#f0f0f0' },
         ].map(col => {
           // Filter scores for this 1X2 outcome
           const colScores = sorted.filter(([score]) => {
-            if (score === 'לא מולא') return col.x2 === 'X' // show "not filled" under draw
+            if (score === t.notFilled) return col.x2 === 'X' // show "not filled" under draw
             const [sA, sB] = score.split('-').map(Number)
             if (col.x2 === '1') return sA > sB
             if (col.x2 === '2') return sB > sA
@@ -152,10 +154,10 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
               {/* Score groups in this column */}
               <div style={{ border: `1px solid ${col.color}30`, borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
                 {colScores.length === 0 && (
-                  <div style={{ padding: '10px', fontSize: 12, color: '#ccc', textAlign: 'center' }}>אין הימורים</div>
+                  <div style={{ padding: '10px', fontSize: 12, color: '#ccc', textAlign: 'center' }}>{t.noPredictions}</div>
                 )}
                 {colScores.map(([score, scoreUsers], idx) => {
-                  const [sA, sB] = score === 'לא מולא' ? [null, null] : score.split('-').map(Number)
+                  const [sA, sB] = score === t.notFilled ? [null, null] : score.split('-').map(Number)
                   const isExact = played && sA !== null && sA === rA && sB === rB
                   const isMargin = played && sA !== null && !isExact && (sA! - sB!) === (rA! - rB!)
                   return (
@@ -166,7 +168,7 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                         <span style={{ fontSize: 15, fontWeight: 800, direction: 'ltr', display: 'inline-block',
                           color: isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#1a1a2e' }}>
-                          {score === 'לא מולא' ? '—' : `${sA}-${sB}`}
+                          {score === t.notFilled ? '—' : `${sA}-${sB}`}
                         </span>
                         {isExact && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#EAF3DE', color: '#3B6D11' }}>✓</span>}
                         {isMargin && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#E6F1FB', color: '#185FA5' }}>~</span>}
@@ -195,9 +197,10 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult }: {
 }
 
 // Group predictions table for Groups tab
-function GroupPredTable({ group, users, actualResult }: {
-  group: Group; users: UserData[]; actualResult?: [string, string, string]
+function GroupPredTable({ group, users, actualResult, lang = "he" as Lang }: {
+  group: Group; users: UserData[]; lang?: Lang; actualResult?: [string, string, string]
 }) {
+  const t = T[lang]
   const teams = GROUPS_TEAMS[group]
   const positions: Record<string, { pos: number; users: UserData[] }[]> = {}
 
@@ -217,7 +220,7 @@ function GroupPredTable({ group, users, actualResult }: {
 
   return (
     <div style={{ marginTop: 12 }}>
-      <div style={{ fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6 }}>מי הימר על כל נבחרת</div>
+      <div style={{ fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6 }}>{t.whoPickedTeam}</div>
       <div style={{ border: '1px solid #e5e5e5', borderRadius: 8, overflow: 'hidden' }}>
         {teams.map((team, idx) => {
           const teamPreds = positions[team] ?? []
@@ -232,7 +235,7 @@ function GroupPredTable({ group, users, actualResult }: {
                 {inActual && <span style={{ fontSize: 10, background: '#EAF3DE', color: '#3B6D11', padding: '1px 5px', borderRadius: 8 }}>#{actualPos! + 1}</span>}
               </span>
               <span style={{ fontSize: 12, color: '#555', flex: 1 }}>
-                {teamPreds.length === 0 ? <span style={{ color: '#ccc' }}>אף אחד</span> :
+                {teamPreds.length === 0 ? <span style={{ color: '#ccc' }}>{t.nobody}</span> :
                   teamPreds.flatMap(({ pos, users: us }) =>
                     us.map((u, i) => (
                       <span key={u.userId + pos}>
@@ -251,9 +254,10 @@ function GroupPredTable({ group, users, actualResult }: {
 }
 
 // Group bonus answers table
-function BonusPredTable({ qId, users, actualVal }: {
-  qId: string; users: UserData[]; actualVal?: string
+function BonusPredTable({ qId, users, actualVal, lang = "he" as Lang }: {
+  qId: string; users: UserData[]; lang?: Lang; actualVal?: string
 }) {
+  const t = T[lang]
   const groups: Record<string, UserData[]> = {}
   users.forEach(u => {
     const val = (u.bonus as any)?.[qId] ?? 'לא מולא'
@@ -263,7 +267,7 @@ function BonusPredTable({ qId, users, actualVal }: {
 
   return (
     <div style={{ border: '1px solid #e5e5e5', borderRadius: 8, overflow: 'hidden', marginTop: 8 }}>
-      {Object.entries(groups).sort(([a], [b]) => a === 'לא מולא' ? 1 : b === 'לא מולא' ? -1 : a.localeCompare(b)).map(([val, valUsers], idx, arr) => {
+      {Object.entries(groups).sort(([a], [b]) => a === t.notFilled ? 1 : b === t.notFilled ? -1 : a.localeCompare(b)).map(([val, valUsers], idx, arr) => {
         const isCorrect = actualVal && val !== 'לא מולא' && val.trim().toLowerCase() === actualVal.trim().toLowerCase()
         return (
           <div key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
@@ -285,7 +289,8 @@ function BonusPredTable({ qId, users, actualVal }: {
   )
 }
 
-export default function AllPredictions() {
+export default function AllPredictions({ lang = 'he' as Lang }) {
+  const t = T[lang]
   const { user, isAdmin, loading: authLoading } = useAuth()
   const [users, setUsers] = useState<UserData[]>([])
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
@@ -435,15 +440,15 @@ export default function AllPredictions() {
     const rA = Number(result.resultA ?? 0), rB = Number(result.resultB ?? 0)
     const pA = pred.scoreA != null ? Number(pred.scoreA) : null
     const pB = pred.scoreB != null ? Number(pred.scoreB) : null
-    if (pts === 0) return { label: '✗ שגוי', type: 'bad' }
+    if (pts === 0) return { label: t.resultWrong, type: 'bad' as const }
     const actual1x2 = rA > rB ? '1' : rA < rB ? '2' : 'X'
     const correct1x2 = pred.prediction1X2 === actual1x2
     const exact = pA === rA && pB === rB
     const marginOk = pA !== null && pB !== null && (pA - pB) === (rA - rB)
-    if (exact && correct1x2) return { label: '✓ מדויק', type: 'ok' }
-    if (correct1x2 && marginOk) return { label: '1X2 + הפרש', type: 'ok' }
-    if (correct1x2) return { label: '✓ 1X2 נכון', type: 'ok' }
-    if (marginOk) return { label: 'הפרש נכון', type: 'warn' }
+    if (exact && correct1x2) return { label: t.resultExact, type: 'ok' }
+    if (correct1x2 && marginOk) return { label: t.result1x2ok+' + '+t.resultMargin, type: 'ok' }
+    if (correct1x2) return { label: t.result1x2ok, type: 'ok' }
+    if (marginOk) return { label: t.resultMargin, type: 'warn' }
     return { label: `+${pts} נק׳`, type: 'warn' }
   }
 
@@ -520,7 +525,7 @@ export default function AllPredictions() {
             <tbody>${bonusRows}</tbody></table>` : ''}
           ${koRows ? `
             <h4>נוקאאוט</h4>
-            <table><thead><tr><th>#</th><th>שלב</th><th>1X2</th><th>תוצאה</th><th>עולה</th></tr></thead>
+            <table><thead><tr><th>#</th><th>שלב</th><th>1X2</th><th>תוצאה</th><th>{t.koAdvance}</th></tr></thead>
             <tbody>${koRows}</tbody></table>` : ''}
         </div>`
     }).join('')
@@ -573,7 +578,7 @@ ${userRows}
       <p>ניתן לראות את ההימורים של כולם רק לאחר סגירת ההגשות</p>
     </div></div>
   )
-  if (!users.length) return <div className="page"><div className="empty-state"><p>אין הימורים עדיין</p></div></div>
+  if (!users.length) return <div className="page"><div className="empty-state"><p>{t.noPredictions}</p></div></div>
 
   const current = users.find(u => u.userId === selectedUser)
   const playedMatches = MATCHES.filter(m => adminResults[m.id]?.isPlayed)
@@ -587,18 +592,18 @@ ${userRows}
   return (
     <div className="page">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <h1 style={{ margin: 0 }}>הימורי כולם {isAdmin && isOpen && <span className="badge badge-red">מצב אדמין</span>}</h1>
+        <h1 style={{ margin: 0 }}>הימורי כולם {isAdmin && isOpen && <span className="badge badge-red">{t.adminMode}</span>}</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={downloadReport} style={{
             padding: '6px 12px', borderRadius: 8, border: '1px solid #1a7a44',
             background: '#EAF3DE', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
             color: '#1a5c30', fontWeight: 600,
-          }} title="הורד דוח HTML עם כל ההימורים כהוכחה לזמן הנעילה">📥 הורד דוח</button>
+          }} title="הורד דוח HTML עם כל ההימורים כהוכחה לזמן הנעילה">{t.downloadReport}</button>
           <button onClick={() => { setLoading(true); setRefreshKey(k => k + 1) }} style={{
             padding: '6px 12px', borderRadius: 8, border: '1px solid #ddd',
             background: '#fff', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit',
             color: '#555',
-          }} title="טוען מחדש את כל ההימורים והתוצאות מהשרת">🔄 רענן</button>
+          }} title="טוען מחדש את כל ההימורים והתוצאות מהשרת">{t.refresh}</button>
         </div>
       </div>
 
@@ -623,7 +628,7 @@ ${userRows}
               <button key={u.userId}
                 className={`user-btn ${u.userId === selectedUser ? 'active' : ''} ${u.userId === user?.uid ? 'me' : ''}`}
                 onClick={() => setSelectedUser(u.userId)}>
-                { adminDisplayName(u) }{u.userId === user?.uid ? ' (אני)' : ''}
+                { adminDisplayName(u) }{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
               </button>
             ))}
           </div>
@@ -631,10 +636,10 @@ ${userRows}
             <>
               <div className="tabs" style={{ marginTop: 12 }}>
                 {([
-                  { id: 'matches',  label: '⚽ בתים' },
-                  { id: 'groups',   label: '🏠 עולות' },
-                  { id: 'bonus',    label: '🎯 בונוס' },
-                  { id: 'knockout', label: '🏆 נוקאאוט' },
+                  { id: 'matches',  label: `⚽ ${t.tabMatches}` },
+                  { id: 'groups',   label: `🏠 ${t.tabGroups}` },
+                  { id: 'bonus',    label: `🎯 ${t.tabBonus}` },
+                  { id: 'knockout', label: `🏆 ${t.roundF.slice(0,0)}${t.tabKnockout.replace('🏆 ','')}` },
                 ] as const).map(t => (
                   <button key={t.id}
                     className={userSubTab === t.id ? 'tab active' : 'tab'}
@@ -647,12 +652,12 @@ ${userRows}
               {/* Matches */}
               {userSubTab === 'matches' && [1,2,3].map(round => (
                 <div key={round}>
-                  <h2 className="round-title">סיבוב {round}</h2>
+                  <h2 className="round-title">{t.round} {round}</h2>
                   {GROUPS.map(group => {
                     const ms = MATCHES.filter(m => m.round === round && m.group === group)
                     if (!ms.length) return null
                     return <div key={group} className="group-block">
-                      <div className="group-label">בית {group}</div>
+                      <div className="group-label">{t.group} {group}</div>
                       {ms.map(match => {
                         const p = current.matches[match.id]
                         const result = adminResults[match.id]
@@ -683,7 +688,7 @@ ${userRows}
                             </div>
                             <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8, display: 'flex', gap: 0 }}>
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, marginBottom: 5 }}>ניחוש שלי</div>
+                                <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, marginBottom: 5 }}>{t.myPrediction}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                                   <span style={{ fontSize: 13, fontWeight: 600 }}>{match.teamB}</span>
                                   <span style={{ fontSize: 15, fontWeight: 700 }}>{p.scoreB ?? '?'}</span>
@@ -738,7 +743,7 @@ ${userRows}
                     return (
                       <div key={group} className="group-card" style={hasResult && pts > 0 ? { borderColor: '#1a7a44', borderWidth: 2 } : {}}>
                         <div className="group-card-title" style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>בית {group}</span>
+                          <span>{t.group} {group}</span>
                           {hasResult && <PtsBadge pts={pts} played={true} />}
                         </div>
                         {[0,1,2].map(idx => {
@@ -759,7 +764,7 @@ ${userRows}
                         })}
                         {hasResult && (
                           <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
-                            <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>בפועל:</div>
+                            <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>{t.actual}:</div>
                             {[0,1,2].map(idx => <div key={idx} style={{ fontSize: 12, color: '#555' }}>{idx+1}. {FLAGS[actual[idx]]??''} {actual[idx]}</div>)}
                           </div>
                         )}
@@ -815,7 +820,7 @@ ${userRows}
               } catch { return undefined }
             }
             const hasKO = KNOCKOUT_MATCHES.some(km => current.knockout?.[km.id]?.prediction1X2)
-            if (!hasKO) return <div style={{ color: '#aaa', fontSize: 13, padding: '12px 0' }}>לא הוגשו הימורי נוקאאוט עדיין</div>
+            if (!hasKO) return <div style={{ color: '#aaa', fontSize: 13, padding: '12px 0' }}>{t.koNoPreds}</div>
             return (
               <div style={{ marginTop: 24 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, paddingTop: 16, borderTop: '2px solid #e8e8e8' }}>
@@ -869,7 +874,7 @@ ${userRows}
                             </div>
                             {pred.advance && (
                               <div style={{ padding: '5px 10px', borderTop: '1px solid #f0f0f0', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, background: correctAdvance ? '#EAF3DE' : isPlayed && adminKm?.advanceTeam ? '#FCEBEB' : '#f8f9ff' }}>
-                                <span style={{ color: '#888' }}>מעלה:</span>
+                                <span style={{ color: '#888' }}>{t.koAdvanceLabel}</span>
                                 <span style={{ fontWeight: 700, color: correctAdvance ? '#1a7a44' : isPlayed && adminKm?.advanceTeam ? '#A32D2D' : '#333' }}>{FLAGS[pred.advance] ?? ''} {pred.advance}</span>
                                 {correctAdvance && <span style={{ color: '#1a7a44' }}>✓</span>}
                                 {isPlayed && adminKm?.advanceTeam && !correctAdvance && <span style={{ color: '#A32D2D', fontSize: 11 }}>(עלה: {FLAGS[adminKm.advanceTeam] ?? ''} {adminKm.advanceTeam})</span>}
@@ -893,10 +898,10 @@ ${userRows}
       {mainTab === 'match' && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <label style={{ fontSize: 13, color: '#666' }}>בחר משחק:</label>
+            <label style={{ fontSize: 13, color: '#666' }}>{t.selectMatch}</label>
             <select value={selectedMatchId} onChange={e => setSelectedMatchId(Number(e.target.value))}
               style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', flex: 1 }}>
-              <optgroup label="שלב הבתים">
+              <optgroup label={t.matchesGroupStage}>
                 {MATCHES.map(m => (
                   <option key={m.id} value={m.id}>
                     #{m.id} {m.teamA} נגד {m.teamB} ({m.category}) {MATCH_SCHEDULE[m.id] ? `— ${MATCH_SCHEDULE[m.id]}` : ''}
@@ -947,10 +952,10 @@ ${userRows}
                     </div>
                     <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600 }}>
-                        <span style={{ flex: 1 }}>משתמש</span>
-                        <span style={{ minWidth: 56, textAlign: 'center' }}>ניחוש</span>
+                        <span style={{ flex: 1 }}>{lang === 'he' ? 'משתמש' : 'User'}</span>
+                        <span style={{ minWidth: 56, textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Prediction'}</span>
                         <span style={{ minWidth: 80, textAlign: 'center' }}>1X2</span>
-                        <span style={{ minWidth: 80, textAlign: 'center' }}>עולה</span>
+                        <span style={{ minWidth: 80, textAlign: 'center' }}>{t.koAdvance}</span>
                         {played && <span style={{ minWidth: 44 }}>נק׳</span>}
                       </div>
                       {users.map(u => {
@@ -965,7 +970,7 @@ ${userRows}
                             borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap',
                             background: u.userId === user?.uid ? '#f8f9ff' : 'transparent' }}>
                             <span style={{ flex: 1, fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, minWidth: 70 }}>
-                              {adminDisplayName(u)}{u.userId === user?.uid ? ' (אני)' : ''}
+                              {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
                             </span>
                             <span style={{ minWidth: 56, textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr', display: 'inline-block' }}>
                               {p?.scoreA ?? '?'}–{p?.scoreB ?? '?'}
@@ -1021,8 +1026,8 @@ ${userRows}
                   </div>
                   <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600 }}>
-                      <span style={{ flex: 1 }}>משתמש</span>
-                      <span style={{ minWidth: 56, textAlign: 'center' }}>ניחוש</span>
+                      <span style={{ flex: 1 }}>{lang === 'he' ? 'משתמש' : 'User'}</span>
+                      <span style={{ minWidth: 56, textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Prediction'}</span>
                       <span style={{ minWidth: 68, textAlign: 'center' }}>1X2</span>
                       <span style={{ minWidth: 22, textAlign: 'center' }}>🟥</span>
                       {played && <span style={{ minWidth: 44 }}>נק׳</span>}
@@ -1036,7 +1041,7 @@ ${userRows}
                           borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap',
                           background: u.userId === user?.uid ? '#f8f9ff' : 'transparent' }}>
                           <span style={{ flex: 1, fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, minWidth: 70 }}>
-                            { adminDisplayName(u) }{u.userId === user?.uid ? ' (אני)' : ''}
+                            { adminDisplayName(u) }{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
                           </span>
                           {p ? <>
                             <span style={{ minWidth: 56, textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr', display: 'inline-block' }}>{p.scoreA??'?'}–{p.scoreB??'?'}</span>
@@ -1082,7 +1087,7 @@ ${userRows}
                       const total = preds.length
                       if (total === 0) return (
                         <div key={km.id} style={{ padding: '8px 10px', borderRadius: 8, background: '#f8f9fa', marginBottom: 6, fontSize: 12, color: '#888' }}>
-                          {FLAGS[tA] ?? ''} {tA} נגד {FLAGS[tB] ?? ''} {tB} — אין הימורים
+                          {FLAGS[tA] ?? ''} {tA} נגד {FLAGS[tB] ?? ''} {tB} — {t.noPredictions}
                         </div>
                       )
                       return (
@@ -1156,8 +1161,8 @@ ${userRows}
             {([
               { id: 'overview', label: '📋 סקירה' },
               { id: 'matches',  label: '⚽ 1X2' },
-              { id: 'groups',   label: '🏠 עולות' },
-              { id: 'bonus',    label: '🎯 בונוס' },
+              { id: 'groups',   label: `🏠 ${t.tabGroups}` },
+              { id: 'bonus',    label: `🎯 ${t.tabBonus}` },
             ] as const).map(t => (
               <button key={t.id}
                 className={statsSubTab === t.id ? 'tab active' : 'tab'}
@@ -1217,7 +1222,7 @@ ${userRows}
                     </div>
                     {[
                       { label: match.teamA, x2: '1' },
-                      { label: 'תיקו', x2: 'X' },
+                      { label: t.draw, x2: 'X' },
                       { label: match.teamB, x2: '2' },
                     ].map(row => {
                       const rowPreds = preds.filter(p => p.x2 === row.x2)
@@ -1250,7 +1255,7 @@ ${userRows}
               <div id="chart-groups" style={{ marginBottom: 20 }} />
               {GROUPS.map(group => (
                 <div key={group} style={{ marginBottom: 16 }}>
-                  <div className="group-label">בית {group}</div>
+                  <div className="group-label">{t.group} {group}</div>
                   <GroupPredTable group={group} users={users} actualResult={actualGroups[group]} />
                 </div>
               ))}
