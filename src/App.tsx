@@ -7,7 +7,7 @@ import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
 import AllPredictions from './pages/AllPredictions'
 import Simulator from './pages/Simulator'
-import { Lang } from './i18n'
+import { Lang, T } from './i18n'
 import './styles/global.css'
 
 function Nav({ dark, toggleDark, lang, toggleLang }: {
@@ -48,27 +48,25 @@ function Nav({ dark, toggleDark, lang, toggleLang }: {
   )
 }
 
-function PendingApproval({ logout }: { logout: () => void }) {
+function PendingApproval({ logout, lang }: { logout: () => void; lang: Lang }) {
+  const t = T[lang]
   return (
     <div className="center-screen" style={{ flexDirection: 'column', gap: 16, textAlign: 'center', padding: 32 }}>
       <div style={{ fontSize: 48 }}>⏳</div>
-      <h2 style={{ margin: 0 }}>הבקשה שלך בטיפול</h2>
-      <p style={{ color: 'var(--text-secondary)', maxWidth: 320, margin: 0 }}>
-        ברגע שמנהל יאשר את בקשתך תוכל להיכנס לאפליקציה.
-        <br />ניתן לרענן את הדף לאחר קבלת אישור.
-      </p>
+      <h2 style={{ margin: 0 }}>{t.pendingTitle}</h2>
+      <p style={{ color: 'var(--text-secondary)', maxWidth: 320, margin: 0 }}>{t.pendingMsg}</p>
       <button className="btn-secondary" onClick={logout} style={{ marginTop: 8 }}>
-        התנתק
+        {lang === 'he' ? 'התנתק' : 'Sign out'}
       </button>
     </div>
   )
 }
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
+function RequireAuth({ children, lang }: { children: React.ReactNode; lang: Lang }) {
   const { user, isApproved, loading, logout } = useAuth()
-  if (loading) return <div className="center-screen">טוען...</div>
+  if (loading) return <div className="center-screen">{lang === 'he' ? 'טוען...' : 'Loading...'}</div>
   if (!user) return <Navigate to="/login" replace />
-  if (!isApproved) return <PendingApproval logout={logout} />
+  if (!isApproved) return <PendingApproval logout={logout} lang={lang} />
   return <>{children}</>
 }
 
@@ -99,9 +97,9 @@ export default function App() {
       <Nav dark={dark} toggleDark={() => setDark(d => !d)} lang={lang} toggleLang={toggleLang} />
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/predict" element={<RequireAuth><Predict lang={lang} /></RequireAuth>} />
-        <Route path="/all" element={<RequireAuth><AllPredictions /></RequireAuth>} />
-        <Route path="/leaderboard" element={<RequireAuth><Leaderboard /></RequireAuth>} />
+        <Route path="/predict" element={<RequireAuth lang={lang}><Predict lang={lang} /></RequireAuth>} />
+        <Route path="/all" element={<RequireAuth lang={lang}><AllPredictions /></RequireAuth>} />
+        <Route path="/leaderboard" element={<RequireAuth lang={lang}><Leaderboard /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="/sim" element={<RequireAdmin><Simulator /></RequireAdmin>} />
         <Route path="*" element={<Navigate to="/predict" replace />} />

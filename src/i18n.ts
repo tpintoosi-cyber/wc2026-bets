@@ -25,6 +25,15 @@ export type Translations = {
   koPoints: string;
   // Rounds
   roundR32: string; roundR16: string; roundQF: string; roundSF: string; round3P: string; roundF: string;
+  // Short round labels (bracket)
+  shortR32: string; shortR16: string; shortQF: string; shortSF: string; short3P: string; shortF: string;
+  // Deadline banner
+  deadlineOpen: string; deadlineLocked: string; deadlineUntil: string;
+  deadlineDays: string; deadlineHours: string; deadlineMinutes: string; deadlineRemains: string;
+  // UI actions
+  cancel: string; maxLabel: string; select1x2: string;
+  // Pending approval
+  pendingTitle: string; pendingMsg: string;
 }
 
 export const T: Record<Lang, Translations> = {
@@ -98,6 +107,19 @@ export const T: Record<Lang, Translations> = {
     roundSF: 'חצי גמר',
     round3P: 'מקום שלישי',
     roundF: 'גמר',
+    shortR32: 'שלב 32', shortR16: 'שמינית', shortQF: 'רבע', shortSF: 'חצי', short3P: 'מקום 3', shortF: 'גמר',
+    deadlineOpen: 'פתוח',
+    deadlineLocked: 'נעול — לא ניתן לשינוי',
+    deadlineUntil: 'עד',
+    deadlineDays: 'ימים',
+    deadlineHours: 'שעות',
+    deadlineMinutes: 'דקות',
+    deadlineRemains: 'נותרו',
+    cancel: 'ביטול',
+    maxLabel: 'מקסימום',
+    select1x2: 'בחר 1X2 לניקוד',
+    pendingTitle: 'הבקשה בטיפול',
+    pendingMsg: 'בקשת ההצטרפות שלך נשלחה. האדמין יאשר אותה בקרוב.',
   },
   en: {
     tabMatches: 'Matches',
@@ -169,6 +191,19 @@ export const T: Record<Lang, Translations> = {
     roundSF: 'Semi-final',
     round3P: 'Third place',
     roundF: 'Final',
+    shortR32: 'R32', shortR16: 'R16', shortQF: 'QF', shortSF: 'SF', short3P: '3rd', shortF: 'Final',
+    deadlineOpen: 'Open',
+    deadlineLocked: 'Locked — no changes allowed',
+    deadlineUntil: 'Until',
+    deadlineDays: 'days',
+    deadlineHours: 'hours',
+    deadlineMinutes: 'minutes',
+    deadlineRemains: 'Remaining:',
+    cancel: 'Cancel',
+    maxLabel: 'Max',
+    select1x2: 'Select 1X2 to score',
+    pendingTitle: 'Request pending',
+    pendingMsg: 'Your join request has been sent. The admin will approve it shortly.',
   },
 } as Record<Lang, Translations>
 

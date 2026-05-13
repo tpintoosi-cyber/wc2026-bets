@@ -341,21 +341,21 @@ export default function Predict({ lang }: { lang: Lang }) {
   }, [])
 
   const formatTimeLeft = (deadline: number | null): { label: string; color: string; icon: string } => {
-    if (!deadline) return { label: 'פתוח', color: '#1a7a44', icon: '🟢' }
+    if (!deadline) return { label: t.deadlineOpen, color: '#1a7a44', icon: '🟢' }
     const diff = deadline - now
-    if (diff <= 0) return { label: 'נעול — לא ניתן לשינוי', color: '#c0392b', icon: '🔒' }
+    if (diff <= 0) return { label: t.deadlineLocked, color: '#c0392b', icon: '🔒' }
     const d = Math.floor(diff / 86400000)
     const h = Math.floor((diff % 86400000) / 3600000)
     const m = Math.floor((diff % 3600000) / 60000)
     const s = Math.floor((diff % 60000) / 1000)
-    if (d > 0) return { label: `נותרו ${d} ימים ו-${h} שעות`, color: '#1a7a44', icon: '🟢' }
-    if (h > 0) return { label: `נותרו ${h} שעות ו-${m} דקות`, color: h < 3 ? '#e67e22' : '#1a7a44', icon: h < 3 ? '🟠' : '🟢' }
-    return { label: `נותרו ${m}:${String(s).padStart(2, '0')} דקות`, color: '#c0392b', icon: '🔴' }
+    if (d > 0) return { label: `${t.deadlineRemains} ${d} ${t.deadlineDays} ${h} ${t.deadlineHours}`, color: '#1a7a44', icon: '🟢' }
+    if (h > 0) return { label: `${t.deadlineRemains} ${h} ${t.deadlineHours} ${m} ${t.deadlineMinutes}`, color: h < 3 ? '#e67e22' : '#1a7a44', icon: h < 3 ? '🟠' : '🟢' }
+    return { label: `${t.deadlineRemains} ${m}:${String(s).padStart(2, '0')} ${t.deadlineMinutes}`, color: '#c0392b', icon: '🔴' }
   }
 
   const DeadlineBanner = ({ deadline, locked }: { deadline: number | null; locked: boolean }) => {
     const { label, color, icon } = locked
-      ? { label: 'נעול — לא ניתן לשינוי', color: '#c0392b', icon: '🔒' }
+      ? { label: t.deadlineLocked, color: '#c0392b', icon: '🔒' }
       : formatTimeLeft(deadline)
     return (
       <div style={{
@@ -368,7 +368,7 @@ export default function Predict({ lang }: { lang: Lang }) {
         <span style={{ fontSize: 13, fontWeight: 600, color }}>{label}</span>
         {!locked && deadline && (
           <span style={{ fontSize: 12, color: '#888', marginRight: 'auto' }}>
-            עד {new Date(deadline).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })}
+            {t.deadlineUntil} {new Date(deadline).toLocaleString(lang === 'en' ? 'en-IL' : 'he-IL', { dateStyle: 'short', timeStyle: 'short' })}
           </span>
         )}
       </div>
@@ -399,7 +399,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 style={{ fontSize: 12, padding: '3px 8px', borderRadius: 6, border: '1px solid #1a1a2e', outline: 'none', width: 120 }}
                 autoFocus />
               <button onClick={saveNickname} style={{ fontSize: 12, background: '#1a1a2e', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>שמור</button>
-              <button onClick={() => setEditingNick(false)} style={{ fontSize: 12, background: 'none', border: '1px solid #ddd', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>ביטול</button>
+              <button onClick={() => setEditingNick(false)} style={{ fontSize: 12, background: 'none', border: '1px solid #ddd', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>{t.cancel}</button>
             </div>
           )}
         </div>
@@ -418,7 +418,7 @@ export default function Predict({ lang }: { lang: Lang }) {
         {(knockoutOpen || Object.keys(knockoutPreds).length > 0) && (
           <button className={tab === 'knockout' ? 'tab active' : 'tab'} onClick={() => setTab('knockout')}>
             {t.tabKnockout}
-            {knockoutOpen && <span className="badge" style={{ background: '#EAF3DE', color: '#3B6D11' }}>פתוח</span>}
+            {knockoutOpen && <span className="badge" style={{ background: '#EAF3DE', color: '#3B6D11' }}>{t.deadlineOpen}</span>}
           </button>
         )}
       </div>
@@ -506,7 +506,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                           {p.prediction1X2 ? (
                             <div className="max-pts-bar">
-                              <span className="max-pts-label">מקסימום:</span>
+                              <span className="max-pts-label">{t.maxLabel}:</span>
                               <span className="max-pts-value">{maxPts}</span>
                               <span className="max-pts-label">נק׳</span>
                               <div className="max-pts-breakdown">
@@ -515,7 +515,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             </div>
                           ) : (
                             <div className="max-pts-bar" style={{ opacity: 0.45 }}>
-                              <span className="max-pts-label">בחר 1X2 לניקוד</span>
+                              <span className="max-pts-label">{t.select1x2}</span>
                             </div>
                           )}
                         </div>
@@ -804,7 +804,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                   : (isPlayed ? '#1a7a44' : '#4a5568')
 
                 const headerLabel = isFinal ? '🏆 גמר' : isThird ? '🥉 מקום שלישי' : km
-                  ? ({ R32: 'שלב 32', R16: 'שמינית', QF: 'רבע', SF: 'חצי', '3P': 'מקום 3', F: 'גמר' } as Record<string, string>)[km.round]
+                  ? ({ R32: t.shortR32, R16: t.shortR16, QF: t.shortQF, SF: t.shortSF, '3P': t.short3P, F: t.shortF } as Record<string, string>)[km.round]
                   : ''
 
                 return (

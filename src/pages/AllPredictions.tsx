@@ -25,20 +25,30 @@ type UserTab = 'matches' | 'groups' | 'bonus'
 function getDisplayName(u: UserData) { return u.nickname || u.userName }
 
 // ── Helpers ──────────────────────────────────────────────────────
-function getNextMatchId(): number {
-  const now = new Date()
-  const israelNow = new Date(now.getTime() + 3 * 60 * 60 * 1000)
-  let closestId = 1, closestDiff = Infinity, firstPast = 1
-  for (const [idStr, timeStr] of Object.entries(MATCH_SCHEDULE)) {
-    const [datePart, timePart] = timeStr.split(' ')
-    const [day, month] = datePart.split('/').map(Number)
-    const [hour, minute] = timePart.split(':').map(Number)
-    const matchDate = new Date(2026, month - 1, day, hour, minute)
-    const diff = matchDate.getTime() - israelNow.getTime()
-    if (diff > 0 && diff < closestDiff) { closestDiff = diff; closestId = Number(idStr) }
-    if (diff <= 0) firstPast = Number(idStr)
+function getBestMatchId(fullSchedule: Record<number | string, string>): number {
+  const now = Date.now()
+  const TWO_HOURS = 2 * 60 * 60 * 1000
+  let nextId = 1, nextTime = Infinity
+  let recentId: number | null = null, recentTime = -Infinity
+  for (const [idStr, timeStr] of Object.entries(fullSchedule)) {
+    try {
+      const [datePart, timePart] = timeStr.split(' ')
+      const [day, month] = datePart.split('/').map(Number)
+      const [hour, minute] = (timePart ?? '00:00').split(':').map(Number)
+      const matchTime = new Date(2026, month - 1, day, hour, minute).getTime()
+      const diff = matchTime - now
+      if (diff <= 0 && diff > -TWO_HOURS) {
+        if (matchTime > recentTime) { recentTime = matchTime; recentId = Number(idStr) }
+      } else if (diff > 0 && diff < nextTime) {
+        nextTime = diff; nextId = Number(idStr)
+      }
+    } catch { /* skip */ }
   }
-  return closestDiff === Infinity ? firstPast : closestId
+  return recentId ?? nextId
+}
+
+function getNextMatchId(): number {
+  return getBestMatchId(MATCH_SCHEDULE)
 }
 
 function PtsBadge({ pts, played }: { pts: number; played: boolean }) {
@@ -294,6 +304,7 @@ export default function AllPredictions() {
   }>>({})
   const [knockoutScores, setKnockoutScores] = useState<Record<string, number>>({})
   const [knockoutAdminMatches, setKnockoutAdminMatches] = useState<Record<number, any>>({})
+  const [adminSchedule, setAdminSchedule] = useState<Record<number, string>>({})
   const [koSubTab, setKoSubTab] = useState<'byUser' | 'byMatch'>('byUser')
   const [statsSubTab, setStatsSubTab] = useState<'overview' | 'matches' | 'groups' | 'bonus'>('overview')
   const [userSubTab, setUserSubTab] = useState<'matches' | 'groups' | 'bonus' | 'knockout'>('matches')
@@ -308,11 +319,12 @@ export default function AllPredictions() {
       const isClosed = !open || (deadline && Date.now() > deadline)
       setIsOpen(!isClosed)
 
-      const [resultsSnap, predsSnap, scoresSnap, koSnap] = await Promise.all([
+      const [resultsSnap, predsSnap, scoresSnap, koSnap, schedSnap] = await Promise.all([
         getDoc(doc(db, 'admin', 'results')),
         (isClosed || isAdmin) ? getDocs(collection(db, 'predictions')) : Promise.resolve(null),
         (isClosed || isAdmin) ? getDocs(collection(db, 'scores')) : Promise.resolve(null),
         getDoc(doc(db, 'admin', 'knockout')),
+        getDoc(doc(db, 'admin', 'schedule')),
       ])
 
       if (resultsSnap.exists()) {
@@ -321,13 +333,18 @@ export default function AllPredictions() {
         setActualBonus(resultsSnap.data().bonus ?? {})
       }
       if (koSnap.exists()) {
-        // Firestore stores keys as strings — convert to numbers
         const raw = koSnap.data().matches ?? {}
         const normalized: Record<number, any> = {}
         for (const [k, v] of Object.entries(raw)) {
           normalized[Number(k)] = v
         }
         setKnockoutAdminMatches(normalized)
+      }
+      if (schedSnap.exists()) {
+        const raw = schedSnap.data().schedule ?? {}
+        const normalized: Record<number, string> = {}
+        for (const [k, v] of Object.entries(raw)) normalized[Number(k)] = v as string
+        setAdminSchedule(normalized)
       }
 
       if (predsSnap) {
@@ -369,7 +386,12 @@ export default function AllPredictions() {
     })()
   }, [isAdmin, authLoading, refreshKey])
 
-  // ── Scoring helpers ──────────────────────────────────────────────
+  // Re-compute best match when full schedule (incl. knockout) loads
+  useEffect(() => {
+    const fullSchedule = { ...MATCH_SCHEDULE, ...adminSchedule }
+    const best = getBestMatchId(fullSchedule)
+    setSelectedMatchId(best)
+  }, [adminSchedule])
   function getMatchPts(matchId: number, pred: MatchPrediction | undefined) {
     if (!pred) return 0
     const result = adminResults[matchId]
@@ -874,16 +896,116 @@ ${userRows}
             <label style={{ fontSize: 13, color: '#666' }}>בחר משחק:</label>
             <select value={selectedMatchId} onChange={e => setSelectedMatchId(Number(e.target.value))}
               style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', flex: 1 }}>
-              {MATCHES.map(m => (
-                <option key={m.id} value={m.id}>
-                  #{m.id} {m.teamA} נגד {m.teamB} ({m.category}) {MATCH_SCHEDULE[m.id] ? `— ${MATCH_SCHEDULE[m.id]}` : ''}
-                  {adminResults[m.id]?.isPlayed ? ' ✓' : ''}
-                </option>
-              ))}
+              <optgroup label="שלב הבתים">
+                {MATCHES.map(m => (
+                  <option key={m.id} value={m.id}>
+                    #{m.id} {m.teamA} נגד {m.teamB} ({m.category}) {MATCH_SCHEDULE[m.id] ? `— ${MATCH_SCHEDULE[m.id]}` : ''}
+                    {adminResults[m.id]?.isPlayed ? ' ✓' : ''}
+                  </option>
+                ))}
+              </optgroup>
+              {(['R32','R16','QF','SF','3P','F'] as const).map(round => {
+                const roundMatches = KNOCKOUT_MATCHES.filter(km => km.round === round)
+                const hasAny = roundMatches.some(km => knockoutAdminMatches[km.id]?.teamA || adminSchedule[km.id])
+                if (!hasAny) return null
+                return (
+                  <optgroup key={round} label={KNOCKOUT_ROUND_LABELS[round]}>
+                    {roundMatches.map(km => {
+                      const actual = knockoutAdminMatches[km.id]
+                      const tA = actual?.teamA ?? '?'
+                      const tB = actual?.teamB ?? '?'
+                      const sched = adminSchedule[km.id] ? ` — ${adminSchedule[km.id]}` : ''
+                      return (
+                        <option key={km.id} value={km.id}>
+                          #{km.id} {tA} נגד {tB}{sched}{actual?.isPlayed ? ' ✓' : ''}
+                        </option>
+                      )
+                    })}
+                  </optgroup>
+                )
+              })}
             </select>
           </div>
           {(() => {
-            const match = MATCHES.find(m => m.id === selectedMatchId)!
+            const isKO = selectedMatchId > 72
+            if (isKO) {
+              const km = KNOCKOUT_MATCHES.find(m => m.id === selectedMatchId)
+              const actual = knockoutAdminMatches[selectedMatchId]
+              const tA = actual?.teamA ?? km?.teamA ?? '?'
+              const tB = actual?.teamB ?? km?.teamB ?? '?'
+              const played = actual?.isPlayed ?? false
+              return (
+                <>
+                  <div className="match-row-view">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12, padding: '2px 7px', borderRadius: 10, background: '#E6F1FB', color: '#0C447C', fontWeight: 700 }}>{km?.round}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600 }}>{FLAGS[tA] ?? ''} {tA} נגד {tB} {FLAGS[tB] ?? ''}</span>
+                      {adminSchedule[selectedMatchId] && <span style={{ fontSize: 12, color: '#888' }}>{adminSchedule[selectedMatchId]}</span>}
+                      {played && <span style={{ marginRight: 'auto', fontSize: 13, background: '#f5f5f5', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
+                        בפועל: {tA} {actual.resultA}–{actual.resultB} {tB} → {actual.advanceTeam}
+                      </span>}
+                    </div>
+                    <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600 }}>
+                        <span style={{ flex: 1 }}>משתמש</span>
+                        <span style={{ minWidth: 56, textAlign: 'center' }}>ניחוש</span>
+                        <span style={{ minWidth: 80, textAlign: 'center' }}>1X2</span>
+                        <span style={{ minWidth: 80, textAlign: 'center' }}>עולה</span>
+                        {played && <span style={{ minWidth: 44 }}>נק׳</span>}
+                      </div>
+                      {users.map(u => {
+                        const p = u.knockout?.[selectedMatchId]
+                        const label1x2 = p?.prediction1X2 === '1' ? tA : p?.prediction1X2 === '2' ? tB : p?.prediction1X2 === 'X' ? 'תיקו' : '—'
+                        const correct1x2 = played && p?.prediction1X2 && actual?.resultA != null
+                          ? p.prediction1X2 === (actual.resultA > actual.resultB ? '1' : actual.resultA < actual.resultB ? '2' : 'X')
+                          : null
+                        const correctAdv = played && p?.advance && p.advance === actual?.advanceTeam
+                        return (
+                          <div key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 0',
+                            borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap',
+                            background: u.userId === user?.uid ? '#f8f9ff' : 'transparent' }}>
+                            <span style={{ flex: 1, fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, minWidth: 70 }}>
+                              {adminDisplayName(u)}{u.userId === user?.uid ? ' (אני)' : ''}
+                            </span>
+                            <span style={{ minWidth: 56, textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr', display: 'inline-block' }}>
+                              {p?.scoreA ?? '?'}–{p?.scoreB ?? '?'}
+                            </span>
+                            <span style={{ minWidth: 80, textAlign: 'center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10,
+                                background: correct1x2 === true ? '#EAF3DE' : correct1x2 === false ? '#FCEBEB' : '#f0f0f0',
+                                color: correct1x2 === true ? '#1a7a44' : correct1x2 === false ? '#A32D2D' : '#333' }}>
+                                {label1x2}
+                              </span>
+                            </span>
+                            <span style={{ minWidth: 80, textAlign: 'center' }}>
+                              {p?.advance ? (
+                                <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10,
+                                  background: correctAdv ? '#EAF3DE' : played ? '#FCEBEB' : '#f0f0fb',
+                                  color: correctAdv ? '#1a7a44' : played ? '#A32D2D' : '#333' }}>
+                                  {FLAGS[p.advance] ?? ''} {p.advance}
+                                </span>
+                              ) : <span style={{ fontSize: 12, color: '#ccc' }}>—</span>}
+                            </span>
+                            {played && (() => {
+                              if (!p) return <span style={{ fontSize: 12, color: '#ccc' }}>0</span>
+                              const ptA = TEAM_FIFA_POINTS[tA] ?? 1500
+                              const ptB = TEAM_FIFA_POINTS[tB] ?? 1500
+                              const cat = calcCategoryByRound(ptA, ptB, km!.round) as any
+                              const p1x2 = p.prediction1X2 ? calc1X2KnockoutPoints(p.prediction1X2, Number(actual.resultA), Number(actual.resultB), ptA, ptB, cat, km!.round) : 0
+                              const pScore = p.scoreA != null ? calcScoreKnockoutPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB), cat, km!.round) : 0
+                              const pAdv = p.advance ? calcAdvancePoints(p.advance, actual.advanceTeam, km!.round, cat, ptA, ptB, tA, tB) : 0
+                              return <PtsBadge pts={p1x2 + pScore + pAdv} played={true} />
+                            })()}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </>
+              )
+            }
+            const match = MATCHES.find(m => m.id === selectedMatchId)
+            if (!match) return null
             const result = adminResults[selectedMatchId]
             const played = result?.isPlayed ?? false
             return (
