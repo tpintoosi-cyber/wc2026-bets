@@ -41,11 +41,25 @@ function FlagRing({ cx, cy, ir, or: outerR, slices, id, showPct }: {
         const iso   = s.team ? flagToIso(FLAGS[s.team] ?? '') : ''
         const span  = s.ea - s.sa   // degrees
 
-        // Label at slice centroid (for % text only)
-        const midA  = (s.sa + s.ea) / 2
-        const midR  = ir <= 0 ? outerR * 0.60 : (ir + outerR) / 2
-        const lx    = cx + midR * Math.cos(toRad(midA))
-        const ly    = cy + midR * Math.sin(toRad(midA))
+        // Slice centroid — where the flag is centered
+        const midA = (s.sa + s.ea) / 2
+        const midR = ir <= 0 ? outerR * 0.60 : (ir + outerR) / 2
+        const lx   = cx + midR * Math.cos(toRad(midA))
+        const ly   = cy + midR * Math.sin(toRad(midA))
+
+        // Minimum bbox to cover every corner of the slice from the centroid.
+        // The farthest point is the outer-arc corner at half-span from mid-angle.
+        const halfSpanRad = ((s.ea - s.sa) / 2) * Math.PI / 180
+        const dCorner = Math.sqrt(
+          midR * midR + outerR * outerR - 2 * midR * outerR * Math.cos(halfSpanRad)
+        )
+        const dCenter  = ir <= 0 ? midR : 0        // pie center matters for full-pie slices
+        const maxDist  = Math.max(dCorner, dCenter) * 1.12   // 12% safety
+
+        // Use flag's natural 3:2 ratio for the bbox → full flag shown, no zoom
+        // Half-diagonal of a 3:2 rect = 0.601 × width → width = maxDist / 0.601 × 2
+        const imgW = (maxDist / 0.601) * 1.0
+        const imgH = imgW * (2 / 3)
 
         return (
           <g key={i}>
@@ -53,11 +67,10 @@ function FlagRing({ cx, cy, ir, or: outerR, slices, id, showPct }: {
 
             {iso && (
               <>
-                {/* Flag centered at PIE CENTER, covers full circle, clipped to slice */}
                 <image
                   href={`https://flagcdn.com/w320/${iso}.png`}
-                  x={cx - outerR} y={cy - outerR}
-                  width={outerR * 2} height={outerR * 2}
+                  x={lx - imgW / 2} y={ly - imgH / 2}
+                  width={imgW} height={imgH}
                   clipPath={`url(#cp-${id}-${i})`}
                   preserveAspectRatio="xMidYMid slice"
                 />
