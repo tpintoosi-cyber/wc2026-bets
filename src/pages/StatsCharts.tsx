@@ -231,17 +231,41 @@ export default function StatsCharts({ users, adminResults, actualBonus, scoreBre
               )}
 
               <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-                <ResponsiveContainer width={220} height={220}>
-                  <PieChart>
-                    <Pie data={distributionData.pie} cx="50%" cy="50%" innerRadius={55} outerRadius={90}
-                      dataKey="value" paddingAngle={3}>
-                      {distributionData.pie.map((_, i) => (
-                        <Cell key={i} fill={PIE_COLORS[i]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(v: any) => [`${v} מהמרים (${Math.round(v / distributionData.totalPreds * 100)}%)`, '']} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div style={{ width: 220, height: 220, flexShrink: 0 }}>
+                  <ResponsiveContainer width={220} height={220}>
+                    <PieChart>
+                      <Pie
+                        data={distributionData.pie}
+                        cx="50%" cy="50%"
+                        innerRadius={0} outerRadius={90}
+                        dataKey="value" paddingAngle={2}
+                        label={({ cx, cy, midAngle, innerRadius, outerRadius, index }) => {
+                          const RADIAN = Math.PI / 180
+                          const radius = innerRadius + (outerRadius - innerRadius) * 0.55
+                          const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                          const y = cy + radius * Math.sin(-midAngle * RADIAN)
+                          const d = distributionData.pie[index]
+                          const pct = Math.round(d.value / distributionData.totalPreds * 100)
+                          if (pct < 8) return null
+                          const team = d.key === '1' ? distributionData.match.teamA
+                                     : d.key === '2' ? distributionData.match.teamB : null
+                          const flag = team ? (FLAGS[team] ?? '🤝') : '🤝'
+                          return (
+                            <text x={x} y={y} textAnchor="middle" dominantBaseline="central" style={{ fontSize: 22, userSelect: 'none' }}>
+                              {flag}
+                            </text>
+                          )
+                        }}
+                        labelLine={false}
+                      >
+                        {distributionData.pie.map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(v: any) => [`${v} מהמרים (${Math.round(v / distributionData.totalPreds * 100)}%)`, '']} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {distributionData.pie.map((d, i) => {
