@@ -1,11 +1,28 @@
 // Flag.tsx — renders flag images via flagcdn.com (works on Windows, Android, all platforms)
 // Falls back to emoji if the image fails to load
 
-/** Extract ISO 3166-1 alpha-2 country code from a flag emoji (e.g. 🇧🇷 → 'br') */
+/** Extract ISO code from a flag emoji — handles regional-indicator AND TAG sequences (England, Scotland, Wales) */
 export function flagToIso(emoji: string): string {
   if (!emoji) return ''
   const chars = [...emoji]
-  if (chars.length !== 2) return ''
+
+  // TAG-encoded subdivision flags: 🏴 + tag letters + U+E007F
+  // England 🏴󠁧󠁢󠁥󠁮󠁧󠁿 → "gb-eng", Scotland → "gb-sct", Wales → "gb-wls"
+  if (chars[0]?.codePointAt(0) === 0x1F3F4) {
+    const tagLetters: string[] = []
+    for (let i = 1; i < chars.length; i++) {
+      const cp = chars[i].codePointAt(0) ?? 0
+      if (cp === 0xE007F) break
+      if (cp >= 0xE0061 && cp <= 0xE007A) tagLetters.push(String.fromCharCode(cp - 0xE0020))
+    }
+    if (tagLetters.length >= 4) {
+      const raw = tagLetters.join('').toLowerCase()   // e.g. "gbeng"
+      return raw.slice(0, 2) + '-' + raw.slice(2)     // e.g. "gb-eng"
+    }
+  }
+
+  // Standard regional-indicator country flags (e.g. 🇧🇷 → "br")
+  if (chars.length < 2) return ''
   const a = chars[0].codePointAt(0)! - 0x1F1E6
   const b = chars[1].codePointAt(0)! - 0x1F1E6
   if (a < 0 || a > 25 || b < 0 || b > 25) return ''

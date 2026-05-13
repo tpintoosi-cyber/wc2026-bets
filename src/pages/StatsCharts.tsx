@@ -30,48 +30,56 @@ function FlagRing({ cx, cy, ir, or: outerR, slices, id, showPct }: {
   return (
     <g>
       <defs>
-        {slices.map((s, i) => {
-          const iso = s.team ? flagToIso(FLAGS[s.team] ?? '') : ''
-          if (!iso) return null
-          return (
-            <clipPath key={i} id={`cp-${id}-${i}`}>
-              <path d={arcPath(cx, cy, ir, outerR, s.sa, s.ea)} />
-            </clipPath>
-          )
-        })}
+        {slices.map((s, i) => (
+          <clipPath key={i} id={`cp-${id}-${i}`}>
+            <path d={arcPath(cx, cy, ir, outerR, s.sa, s.ea)} />
+          </clipPath>
+        ))}
       </defs>
       {slices.map((s, i) => {
-        const path = arcPath(cx, cy, ir, outerR, s.sa, s.ea)
-        const iso = s.team ? flagToIso(FLAGS[s.team] ?? '') : ''
+        const path  = arcPath(cx, cy, ir, outerR, s.sa, s.ea)
+        const iso   = s.team ? flagToIso(FLAGS[s.team] ?? '') : ''
+        const span  = s.ea - s.sa   // degrees
 
-        // Label position: midpoint of arc
-        const midA = (s.sa + s.ea) / 2
-        const midR  = ir <= 0 ? outerR * 0.58 : (ir + outerR) / 2
-        const lx = cx + midR * Math.cos(toRad(midA))
-        const ly = cy + midR * Math.sin(toRad(midA))
+        // Centroid of the slice
+        const midA  = (s.sa + s.ea) / 2
+        const midR  = ir <= 0 ? outerR * 0.60 : (ir + outerR) / 2
+        const lx    = cx + midR * Math.cos(toRad(midA))
+        const ly    = cy + midR * Math.sin(toRad(midA))
+
+        // Flag image: sized so it visibly fills the slice but stays mostly within it.
+        // Width ≈ chord at midR, height ≈ 2/3 width (flag ratio)
+        const chord = 2 * midR * Math.sin((span / 2) * Math.PI / 180)
+        const imgW  = Math.min(chord * 1.1, (outerR - ir) * 1.5, outerR * 1.2)
+        const imgH  = imgW * 0.67
 
         return (
           <g key={i}>
-            {iso ? (
+            {/* Gray base so empty slices look clean */}
+            <path d={path} fill="#d8d8d8" />
+
+            {iso && (
               <>
-                {/* Flag fills the entire slice as background */}
+                {/* Flag centered at slice centroid, full image shown via "meet", clipped to slice */}
                 <image
                   href={`https://flagcdn.com/w160/${iso}.png`}
-                  x={cx - outerR} y={cy - outerR}
-                  width={outerR * 2} height={outerR * 2}
+                  x={lx - imgW / 2} y={ly - imgH / 2}
+                  width={imgW} height={imgH}
                   clipPath={`url(#cp-${id}-${i})`}
-                  preserveAspectRatio="xMidYMid slice"
+                  preserveAspectRatio="xMidYMid meet"
                 />
-                {/* Subtle dark overlay so % text is readable */}
-                <path d={path} fill="rgba(0,0,0,0.15)" stroke="white" strokeWidth={3} />
+                {/* Subtle overlay for readability */}
+                <path d={path} fill="rgba(0,0,0,0.10)" stroke="white" strokeWidth={3} />
               </>
-            ) : (
-              <path d={path} fill="#cccccc" stroke="white" strokeWidth={3} />
             )}
-            {showPct && s.pct >= 6 && (
-              <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central"
-                style={{ fontSize: Math.max(13, Math.min(20, outerR * 0.14)), fontWeight: 900,
-                  fill: '#fff', stroke: 'rgba(0,0,0,0.7)', strokeWidth: 4,
+            {!iso && <path d={path} fill="none" stroke="white" strokeWidth={3} />}
+
+            {showPct && s.pct >= 5 && (
+              <text x={lx} y={ly + imgH / 2 + 13}
+                textAnchor="middle" dominantBaseline="central"
+                style={{ fontSize: Math.max(13, Math.min(19, outerR * 0.13)),
+                  fontWeight: 900, fill: '#fff',
+                  stroke: 'rgba(0,0,0,0.75)', strokeWidth: 4.5,
                   paintOrder: 'stroke fill' }}>
                 {s.pct}%
               </text>
