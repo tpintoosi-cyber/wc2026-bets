@@ -903,6 +903,33 @@ function buildUserPreds(
   return preds
 }
 
+function computeBest8Thirds(
+  groups: Record<string, [string,string,string]>,
+  results: Record<number, Partial<Match>>
+): string[] {
+  const thirds = Object.entries(groups).map(([g, teams]) => {
+    const third = teams[2]
+    if (!third) return null
+    let pts = 0, gd = 0, gf = 0
+    for (const m of MATCHES.filter(m => m.group === g)) {
+      const r = results[m.id]
+      if (!r) continue
+      const isA = m.teamA === third, isB = m.teamB === third
+      if (!isA && !isB) continue
+      const rA = r.resultA ?? 0, rB = r.resultB ?? 0
+      if (rA > rB) { if (isA) { pts += 3; gd += rA-rB; gf += rA } else { gd -= rA-rB; gf += rB } }
+      else if (rB > rA) { if (isB) { pts += 3; gd += rB-rA; gf += rB } else { gd -= rB-rA; gf += rA } }
+      else { pts += 1; gd += 0; gf += isA ? rA : rB }
+    }
+    return { team: third, pts, gd, gf }
+  }).filter(Boolean) as { team: string; pts: number; gd: number; gf: number }[]
+
+  return thirds
+    .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
+    .slice(0, 8)
+    .map(t => t.team)
+}
+
 // ── Full Knockout generator ───────────────────────────────────────────────────
 function generateFullKnockoutData(r32base: Record<number, any>): {
   matches: Record<number, KnockoutMatch>
@@ -1279,12 +1306,17 @@ export default function Simulator() {
         Object.entries(gsResults).map(([k, v]) => [Number(k), v])
       ) as Record<number, Partial<Match>>
 
+      const best8Thirds = computeBest8Thirds(groups, gsResults)
       const { updatedKnockout: r32base } = populateR32Teams(
-        groups as any, BEST_8_THIRDS, {}, TEAM_FIFA_POINTS, calcCategoryByRound
+        groups as any, best8Thirds, {}, TEAM_FIFA_POINTS, calcCategoryByRound
       )
+      addLog(`📋 Best-8 thirds: ${best8Thirds.join(', ')}`)
       const { matches: koMatches, preds: koPreds } = generateFullKnockoutData(r32base)
       const playedKO   = Object.values(koMatches).filter(km => km.isPlayed) as KnockoutMatch[]
       const koMatchMap = Object.fromEntries(playedKO.map(km => [km.id, km])) as Record<number, KnockoutMatch>
+      const missingTeams = Object.values(koMatches).filter(km => !km.teamA || !km.teamB).length
+      if (missingTeams > 0) addLog(`⚠️ ${missingTeams} משחקים ללא נבחרות — בדוק best8Thirds`)
+      addLog(`✅ KO: ${playedKO.length}/32 משחקים עם תוצאות`)
 
       const champion   = koMatches[104]?.advanceTeam ?? 'צרפת'
       const finalist   = koMatches[104]?.teamA === champion ? koMatches[104]?.teamB : koMatches[104]?.teamA
