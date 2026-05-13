@@ -547,7 +547,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                       <select value={gp.advancing[idx] ?? ''} disabled={!isOpen}
                         onChange={e => updateGroup(group, idx, e.target.value)}>
                         <option value="">{t.selectPlaceholder}</option>
-                        {teams.map(tm => <option key={tm} value={tm}>{FLAGS[tm] ?? ''} {tm}</option>)}
+                        {teams.map(tm => <option key={tm} value={tm}>{FLAGS[tm] ?? ''} {tn(tm)}</option>)}
                       </select>
                     </div>
                   ))}
@@ -569,7 +569,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 <span className="pts-badge">{q.points} {t.pts}</span>
                 {q.note && lang === 'he' && <span className="bonus-note">{q.note}</span>}
               </div>
-              <BonusInput q={q} value={(bonus as any)[q.id] ?? ''} disabled={!isOpen} t={t}
+              <BonusInput q={q} value={(bonus as any)[q.id] ?? ''} disabled={!isOpen} t={t} lang={lang}
                 onChange={val => updateBonus(q.id as keyof BonusPredictions, val)} />
             </div>
           ))}
@@ -772,7 +772,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 })()
 
                 // 1X2 display label
-                const pred1x2Label = predResult === '1' ? (tA ?? '1') : predResult === '2' ? (tB ?? '2') : predResult === 'X' ? t.draw : null
+                const pred1x2Label = predResult === '1' ? (tA ? tn(tA) : '1') : predResult === '2' ? (tB ? tn(tB) : '2') : predResult === 'X' ? t.draw : null
                 const pred1x2Flag = predResult === '1' ? (tA ? FLAGS[tA] ?? '' : '') : predResult === '2' ? (tB ? FLAGS[tB] ?? '' : '') : null
 
                 const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
@@ -864,7 +864,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             color: isAdv ? '#1a4fa8' : team ? '#222' : '#ccc',
                             fontStyle: team ? 'normal' : 'italic',
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          }}>{team ?? '...'}</span>
+                          }}>{team ? tn(team) : '...'}</span>
                           {hasThisScore && (
                             <span style={{ fontSize: 14, fontWeight: 700, color: isAdv ? '#1a4fa8' : '#555', minWidth: 16, textAlign: 'right' }}>
                               {predScore}
@@ -888,7 +888,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         </span>
                         {actualAdvance && (
                           <span style={{ fontSize: 10, color: '#333', fontWeight: 600, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 4 }}>
-                            {FLAGS[actualAdvance] ?? ''} {actualAdvance} →
+                            {FLAGS[actualAdvance] ?? ''} {tn(actualAdvance)} →
                           </span>
                         )}
                       </div>
@@ -964,7 +964,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             )}
                             <span style={{ fontSize: 11, fontWeight: 700,
                               color: advCorrect ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555' }}>
-                              {advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} {advPicked}
+                              {advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} {tn(advPicked)}
                               {isSpecial && advPicked && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
                               {isSpecial && advPicked && isPlayed && advCorrect && (isFinal ? ' 🏆' : ' 🥉')}
                             </span>
@@ -1276,7 +1276,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 cursor: canPick ? 'pointer' : 'not-allowed',
                                 fontFamily: 'inherit', opacity: (!isPicked && redCardPicks.length >= maxRedCards) ? 0.4 : 1,
                               }}>
-                              {FLAGS[tA] ?? ''} {tA} vs {FLAGS[tB] ?? ''} {tB}
+                              {FLAGS[tA] ?? ''} {tn(tA)} vs {FLAGS[tB] ?? ''} {tn(tB)}
                               {isPicked && ' 🟥'}
                             </button>
                           )
@@ -1339,7 +1339,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                             <div className="match-1x2-row">
                               <div className="btn-group-1x2">
-                                {([['1', teamA!], ['X', 'תיקו'], ['2', teamB!]] as [Result1X2, string][]).map(([val, label]) => (
+                                {([['1', teamA!], ['X', t.draw.replace('✖ ','')], ['2', teamB!]] as [Result1X2, string][]).map(([val, label]) => (
                                   <button key={val}
                                     className={`btn-1x2 ${pred?.prediction1X2 === val ? 'selected' : ''}`}
                                     disabled={roundLocked}
@@ -1456,15 +1456,16 @@ export default function Predict({ lang }: { lang: Lang }) {
   )
 }
 
-function BonusInput({ q, value, disabled, onChange, t }: {
+function BonusInput({ q, value, disabled, onChange, t, lang }: {
   q: typeof BONUS_QUESTIONS[number]; value: string; disabled: boolean
-  onChange: (v: string) => void; t: Translations
+  onChange: (v: string) => void; t: Translations; lang: Lang
 }) {
   const allTeams = Object.values(GROUPS_TEAMS).flat()
+  const tnLocal = (name: string) => lang === 'en' ? (TEAM_EN[name] ?? name) : name
   if (q.type === 'team') return (
     <select value={value} disabled={disabled} onChange={e => onChange(e.target.value)}>
       <option value="">{t.selectTeam}</option>
-      {[...allTeams].sort().map(tm => <option key={tm} value={tm}>{FLAGS[tm] ?? ''} {tm}</option>)}
+      {[...allTeams].sort().map(tm => <option key={tm} value={tm}>{FLAGS[tm] ?? ''} {tnLocal(tm)}</option>)}
     </select>
   )
   if (q.type === 'group') return (
