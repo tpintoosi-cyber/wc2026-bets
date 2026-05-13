@@ -854,9 +854,9 @@ ${userRows}
                           <div key={km.id} style={{ border: '1px solid #e8e8e8', borderRadius: 10, marginBottom: 6, overflow: 'hidden' }}>
                             <div style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', gap: 8, flexWrap: 'wrap' }}>
                               <span style={{ fontSize: 12, color: '#aaa' }}>#{km.id}</span>
-                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tA ? `${FLAGS[tA] ?? ''} ${tA}` : '?'}</span>
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tA ? <><Flag emoji={FLAGS[tA]??''} size={22} /> {tA}</> : '?'}</span>
                               <span style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>{pred.scoreA ?? '?'}–{pred.scoreB ?? '?'}</span>
-                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tB ? `${FLAGS[tB] ?? ''} ${tB}` : '?'}</span>
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tB ? <><Flag emoji={FLAGS[tB]??''} size={22} /> {tB}</> : '?'}</span>
                               <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: correct1x2 ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f0f0f0', color: correct1x2 ? '#1a7a44' : isPlayed ? '#A32D2D' : '#666', fontWeight: 600 }}>
                                 {pred.prediction1X2 === '1' ? (tA ?? '1') : pred.prediction1X2 === '2' ? (tB ?? '2') : 'תיקו'}
                               </span>
@@ -878,7 +878,7 @@ ${userRows}
                                 <span style={{ color: '#888' }}>{t.koAdvanceLabel}</span>
                                 <span style={{ fontWeight: 700, color: correctAdvance ? '#1a7a44' : isPlayed && adminKm?.advanceTeam ? '#A32D2D' : '#333' }}><><Flag emoji={FLAGS[pred.advance]??''} size={22} /> {pred.advance}</></span>
                                 {correctAdvance && <span style={{ color: '#1a7a44' }}>✓</span>}
-                                {isPlayed && adminKm?.advanceTeam && !correctAdvance && <span style={{ color: '#A32D2D', fontSize: 11 }}>(עלה: {FLAGS[adminKm.advanceTeam] ?? ''} {adminKm.advanceTeam})</span>}
+                                {isPlayed && adminKm?.advanceTeam && !correctAdvance && <span style={{ color: '#A32D2D', fontSize: 11 }}>(עלה: <><Flag emoji={FLAGS[adminKm.advanceTeam]??''} size={18} /> {adminKm.advanceTeam}</>)</span>}
                               </div>
                             )}
                           </div>
@@ -945,10 +945,10 @@ ${userRows}
                   <div className="match-row-view">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 12, padding: '2px 7px', borderRadius: 10, background: '#E6F1FB', color: '#0C447C', fontWeight: 700 }}>{km?.round}</span>
-                      <span style={{ fontSize: 15, fontWeight: 600 }}><><Flag emoji={FLAGS[tA]??''} size={22} /> {tA}</> נגד {tB} {FLAGS[tB] ?? ''}</span>
+                      <span style={{ fontSize: 15, fontWeight: 600 }}><><Flag emoji={FLAGS[tA]??''} size={22} /> {tA}</> נגד <><Flag emoji={FLAGS[tB]??''} size={22} /> {tB}</></span>
                       {adminSchedule[selectedMatchId] && <span style={{ fontSize: 12, color: '#888' }}>{adminSchedule[selectedMatchId]}</span>}
                       {played && <span style={{ marginRight: 'auto', fontSize: 13, background: '#f5f5f5', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
-                        בפועל: {tA} {actual.resultA}–{actual.resultB} {tB} → {actual.advanceTeam}
+                        {t.actual}: <Flag emoji={FLAGS[tA]??''} size={16} /> {tA} {actual.resultA}–{actual.resultB} <Flag emoji={FLAGS[tB]??''} size={16} /> {tB} → <Flag emoji={FLAGS[actual.advanceTeam]??''} size={16} /> {actual.advanceTeam}
                       </span>}
                     </div>
                     <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
@@ -1106,7 +1106,7 @@ ${userRows}
                               const isWinner = actual1x2 === x2
                               return (
                                 <div key={x2} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                                  <span style={{ fontSize: 12, minWidth: 72, color: isWinner ? '#1a7a44' : '#555', fontWeight: isWinner ? 700 : 400 }}>{FLAGS[label] ?? ''} {label}</span>
+                                  <span style={{ fontSize: 12, minWidth: 72, color: isWinner ? '#1a7a44' : '#555', fontWeight: isWinner ? 700 : 400 }}><><Flag emoji={FLAGS[label]??''} size={20} /> {label}</></span>
                                   <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 10, overflow: 'hidden' }}>
                                     <div style={{ height: 10, borderRadius: 4, width: `${pct}%`, background: isWinner ? '#1a7a44' : '#bbb' }} />
                                   </div>

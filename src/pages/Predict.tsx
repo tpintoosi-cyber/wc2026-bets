@@ -489,9 +489,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   onClick={() => updateMatch(match.id, 'prediction1X2', opt)}
                                 >
                                   {opt === '1'
-                                    ? `${FLAGS[match.teamA] ?? ''} ${tn(match.teamA).slice(0,5)}`
+                                    ? <><Flag emoji={FLAGS[match.teamA] ?? ''} size={20} /> {tn(match.teamA).slice(0,5)}</>
                                     : opt === '2'
-                                    ? `${tn(match.teamB).slice(0,5)} ${FLAGS[match.teamB] ?? ''}`
+                                    ? <>{tn(match.teamB).slice(0,5)} <Flag emoji={FLAGS[match.teamB] ?? ''} size={20} /></>
                                     : t.draw}
                                 </button>
                               ))}
@@ -889,7 +889,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         </span>
                         {actualAdvance && (
                           <span style={{ fontSize: 10, color: '#333', fontWeight: 600, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 4 }}>
-                            {FLAGS[actualAdvance] ?? ''} {tn(actualAdvance)} →
+                            <><Flag emoji={FLAGS[actualAdvance] ?? ''} size={22} /> {tn(actualAdvance)} →</>
                           </span>
                         )}
                       </div>
@@ -906,7 +906,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                               </span>
                             )}
                             <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                              {pred1x2Flag}{pred1x2Flag ? ' ' : ''}{pred1x2Label}
+                              {pred1x2Flag ? <><Flag emoji={pred1x2Flag} size={18} />{'  '}</> : ''}{pred1x2Label}
                             </span>
                             {isPlayed && pts1x2 > 0 && (
                               <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{pts1x2}</span>
@@ -965,7 +965,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             )}
                             <span style={{ fontSize: 11, fontWeight: 700,
                               color: advCorrect ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555' }}>
-                              {advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} {tn(advPicked)}
+                              <><Flag emoji={advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} size={22} /> {tn(advPicked)}</>
                               {isSpecial && advPicked && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
                               {isSpecial && advPicked && isPlayed && advCorrect && (isFinal ? ' 🏆' : ' 🥉')}
                             </span>
@@ -1277,7 +1277,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 cursor: canPick ? 'pointer' : 'not-allowed',
                                 fontFamily: 'inherit', opacity: (!isPicked && redCardPicks.length >= maxRedCards) ? 0.4 : 1,
                               }}>
-                              {FLAGS[tA] ?? ''} {tn(tA)} vs {FLAGS[tB] ?? ''} {tn(tB)}
+                              <><Flag emoji={FLAGS[tA] ?? ''} size={22} /> {tn(tA)} vs <Flag emoji={FLAGS[tB] ?? ''} size={22} /> {tn(tB)}</>
                               {isPicked && ' 🟥'}
                             </button>
                           )
@@ -1305,7 +1305,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                           <span className={`cat-badge cat-${dynCat.toLowerCase()}`}>{dynCat}</span>
                           {teamsReady ? (
                             <span style={{ fontSize: 13, fontWeight: 600 }}>
-                              {FLAGS[teamA!] ?? ''} {teamA} נגד {teamB} {FLAGS[teamB!] ?? ''}
+                              <><Flag emoji={FLAGS[teamA!] ?? ''} size={22} /> {tn(teamA)} {t.versus} {tn(teamB)} <Flag emoji={FLAGS[teamB!] ?? ''} size={22} /></>
                             </span>
                           ) : (
                             <span style={{ fontSize: 12, color: '#bbb' }}>
@@ -1345,7 +1345,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                     className={`btn-1x2 ${pred?.prediction1X2 === val ? 'selected' : ''}`}
                                     disabled={roundLocked}
                                     onClick={() => updateKnockout(km.id, 'prediction1X2', val)}>
-                                    {FLAGS[label] ? `${FLAGS[label]} ${label}` : label}
+                                    <>{FLAGS[label] ? <><Flag emoji={FLAGS[label]} size={20} /> {tn(label)}</> : label}</>
                                   </button>
                                 ))}
                               </div>
@@ -1370,7 +1370,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                         fontSize: 12, cursor: roundLocked ? 'not-allowed' : 'pointer',
                                         fontFamily: 'inherit', opacity: roundLocked ? 0.5 : 1,
                                       }}>
-                                      {FLAGS[team] ?? ''} {team}
+                                      <><Flag emoji={FLAGS[team] ?? ''} size={20} /> {tn(team)}</>
                                     </button>
                                   )
                                 })}
@@ -1390,7 +1390,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 const p1x2 = pred.prediction1X2 === 'X'
                                   ? roundBase + Math.max(0, catBonus - 1)
                                   : isFav ? roundBase : roundBase + catBonus
-                                const breakdown: string[] = [`1X2: ${p1x2}`]
+                                const breakdown: React.ReactNode[] = [`1X2: ${p1x2}`]
                                 let total = p1x2
 
                                 if (pred.scoreA !== null && pred.scoreA !== undefined) {
@@ -1426,8 +1426,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
                                   const pickedUnderdog = (pred.advance === teamA && !aIsFavForm) || (pred.advance === teamB && aIsFavForm)
                                   const advPts = advBase + (pickedUnderdog ? advCatBonus : 0)
-                                  const advFlag = pred.advance === teamA ? (FLAGS[teamA!] ?? '') : (FLAGS[teamB!] ?? '')
-                                  breakdown.push(`${t.koAdvance} (${advFlag} ${pred.advance}): ${advPts}`)
+                                  const advEmoji = pred.advance === teamA ? (FLAGS[teamA!] ?? '') : (FLAGS[teamB!] ?? '')
+                                  breakdown.push(<span key="adv">{t.koAdvance} (<Flag emoji={advEmoji} size={14} /> {pred.advance}): {advPts}</span>)
                                   total += advPts
                                 }
 
