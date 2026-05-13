@@ -510,8 +510,11 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
       }).filter(Boolean).join('')
 
       return `
-        <div class="user-block">
-          <div class="user-header">${name} <span class="score-badge">${totalScore} נק׳</span></div>
+        <div class="user-block" id="user-${u.userId}">
+          <div class="user-header">
+            ${name} <span class="score-badge">${totalScore} נק׳</span>
+            <a href="#toc" class="back-link">↑ חזור לרשימה</a>
+          </div>
           ${matchRows ? `
             <h4>שלב הבתים</h4>
             <table><thead><tr><th>#</th><th>משחק</th><th>1X2</th><th>תוצאה</th><th>🟥</th><th>בפועל</th></tr></thead>
@@ -526,9 +529,22 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
             <tbody>${bonusRows}</tbody></table>` : ''}
           ${koRows ? `
             <h4>נוקאאוט</h4>
-            <table><thead><tr><th>#</th><th>שלב</th><th>1X2</th><th>תוצאה</th><th>{t.koAdvance}</th></tr></thead>
+            <table><thead><tr><th>#</th><th>שלב</th><th>1X2</th><th>תוצאה</th><th>עולה</th></tr></thead>
             <tbody>${koRows}</tbody></table>` : ''}
         </div>`
+    }).join('')
+
+    const sortedUsers = [...users].sort((a, b) => (scores[b.userId] ?? 0) - (scores[a.userId] ?? 0))
+
+    const tocRows = sortedUsers.map((u, i) => {
+      const name = adminDisplayName(u)
+      const total = scores[u.userId] ?? 0
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`
+      return `<tr>
+        <td style="font-weight:700;font-size:15px">${medal}</td>
+        <td><a href="#user-${u.userId}" style="color:#1a1a2e;font-weight:600;text-decoration:none">${name}</a></td>
+        <td style="text-align:center"><span style="background:#1a7a44;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${total}</span></td>
+      </tr>`
     }).join('')
 
     const html = `<!DOCTYPE html>
@@ -542,15 +558,23 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   .report-header h1 { margin: 0 0 6px; font-size: 22px; }
   .report-header .stamp { font-size: 13px; color: #aaa; }
   .report-header .warning { margin-top: 10px; font-size: 12px; background: rgba(255,200,0,0.15); border: 1px solid rgba(255,200,0,0.3); border-radius: 6px; padding: 6px 10px; color: #ffd966; }
+  .toc { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .toc h2 { margin: 0 0 12px; font-size: 15px; color: #1a1a2e; }
+  .toc table { width: auto; min-width: 300px; }
+  .toc td { padding: 7px 10px; border-bottom: 1px solid #f5f5f5; }
+  .toc tr:last-child td { border-bottom: none; }
+  .toc tr:hover td { background: #f8f9ff; }
   .user-block { background: #fff; border-radius: 10px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); page-break-inside: avoid; }
   .user-header { font-size: 17px; font-weight: 700; margin-bottom: 12px; color: #1a1a2e; border-bottom: 2px solid #e0e0f0; padding-bottom: 8px; display: flex; align-items: center; gap: 10px; }
   .score-badge { background: #1a7a44; color: #fff; font-size: 13px; padding: 2px 10px; border-radius: 12px; font-weight: 700; }
+  .back-link { margin-right: auto; font-size: 12px; color: #888; text-decoration: none; padding: 3px 8px; border: 1px solid #ddd; border-radius: 6px; }
+  .back-link:hover { background: #f0f0f8; }
   h4 { margin: 14px 0 6px; font-size: 13px; color: #555; border-bottom: 1px solid #eee; padding-bottom: 4px; }
   table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 8px; }
   th { background: #f0f0f8; text-align: right; padding: 5px 8px; font-weight: 600; color: #444; }
   td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; }
   tr:last-child td { border-bottom: none; }
-  @media print { body { padding: 0; } .user-block { box-shadow: none; border: 1px solid #ddd; } }
+  @media print { body { padding: 0; } .user-block { box-shadow: none; border: 1px solid #ddd; } .toc { display: none; } }
 </style>
 </head>
 <body>
@@ -560,6 +584,15 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   <div class="stamp">${users.length} משתתפים</div>
   <div class="warning">⚠️ מסמך זה מייצג את מצב ההימורים בזמן ההורדה. שמור אותו כהוכחה שלא בוצעו שינויים לאחר נעילת השלב.</div>
 </div>
+
+<div class="toc" id="toc">
+  <h2>📋 רשימת משתתפים — לחץ לדילוג ישיר</h2>
+  <table>
+    <thead><tr><th style="width:40px"></th><th>שם</th><th style="width:80px;text-align:center">נקודות</th></tr></thead>
+    <tbody>${tocRows}</tbody>
+  </table>
+</div>
+
 ${userRows}
 </body>
 </html>`
