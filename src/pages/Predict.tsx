@@ -112,6 +112,7 @@ export default function Predict({ lang }: { lang: Lang }) {
   const { user } = useAuth()
   const t = T[lang]
   const [tab, setTab] = useState<Tab>('matches')
+  const [bonusStandingsOpen, setBonusStandingsOpen] = useState(false)
   const [isOpen, setIsOpen] = useState(true)
   const [groupDeadline, setGroupDeadline] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
@@ -610,65 +611,57 @@ export default function Predict({ lang }: { lang: Lang }) {
           <p className="hint">{t.bonusHint}</p>
 
           {/* Collapsible group standings reference */}
-          {(() => {
-            const [open, setOpen] = useState(false)
-            const hasAny = MATCHES.some(m => {
-              const p = matchPreds[m.id]
-              return p?.scoreA != null && p?.scoreB != null
-            })
-            if (!hasAny) return null
-            return (
-              <div style={{ marginBottom: 16, border: '1px solid #e8e8e8', borderRadius: 10, overflow: 'hidden' }}>
-                <button onClick={() => setOpen(o => !o)}
-                  style={{ width: '100%', padding: '10px 14px', background: '#f8f9ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit', fontWeight: 600, fontSize: 13, color: '#1a1a2e' }}>
-                  <span style={{ fontSize: 16 }}>📊</span>
-                  <span>{lang === 'he' ? 'טבלאות בתים לפי הימוריי' : 'Group standings from my predictions'}</span>
-                  <span style={{ marginRight: 'auto', color: '#888', fontSize: 12 }}>{open ? '▲' : '▼'}</span>
-                </button>
-                {open && (
-                  <div style={{ padding: '12px 14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
-                    {GROUPS.map(group => {
-                      const teams = GROUPS_TEAMS[group]
-                      const groupMatches = MATCHES.filter(m => m.group === group)
-                      const standings = teams.map(team => {
-                        let pts = 0, gf = 0, ga = 0, played = 0
-                        groupMatches.forEach(m => {
-                          const pred = matchPreds[m.id]
-                          if (pred?.scoreA == null || pred?.scoreB == null) return
-                          const isA = m.teamA === team, isB = m.teamB === team
-                          if (!isA && !isB) return
-                          played++
-                          const rA = Number(pred.scoreA), rB = Number(pred.scoreB)
-                          if (isA) { gf += rA; ga += rB; pts += rA > rB ? 3 : rA === rB ? 1 : 0 }
-                          else     { gf += rB; ga += rA; pts += rB > rA ? 3 : rA === rB ? 1 : 0 }
-                        })
-                        return { team, pts, gd: gf - ga, played }
-                      }).sort((a, b) => b.pts - a.pts || b.gd - a.gd)
-                      if (standings.every(s => s.played === 0)) return null
-                      return (
-                        <div key={group} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8', fontSize: 12 }}>
-                          <div style={{ background: '#1a1a2e', color: '#fff', padding: '4px 8px', fontWeight: 700, fontSize: 11 }}>{lang === 'he' ? 'בית' : 'Group'} {group}</div>
-                          {standings.map((s, i) => (
-                            <div key={s.team} style={{
-                              display: 'flex', alignItems: 'center', gap: 5, padding: '4px 7px',
-                              background: i === 0 ? '#EAF3DE' : i === 1 ? '#EDF5FF' : '#FFF4F4',
-                              borderBottom: i < standings.length - 1 ? '1px solid #eee' : 'none',
-                            }}>
-                              <span style={{ fontWeight: 700, fontSize: 10, color: i < 2 ? '#1a7a44' : '#c00', minWidth: 10 }}>{i + 1}</span>
-                              <Flag emoji={FLAGS[s.team] ?? ''} size={13} />
-                              <span style={{ flex: 1, fontSize: 11, fontWeight: i < 2 ? 600 : 400, color: i < 2 ? '#1a1a2e' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tn(s.team)}</span>
-                              <span style={{ fontWeight: 700, color: '#1a1a2e', fontSize: 11 }}>{s.pts}</span>
-                              <span style={{ color: '#aaa', fontSize: 10, minWidth: 24, textAlign: 'right' }}>{s.gd > 0 ? '+' : ''}{s.gd}</span>
-                            </div>
-                          ))}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-              </div>
-            )
-          })()}
+          {MATCHES.some(m => { const p = matchPreds[m.id]; return p?.scoreA != null && p?.scoreB != null }) && (
+            <div style={{ marginBottom: 16, border: '1px solid #e8e8e8', borderRadius: 10, overflow: 'hidden' }}>
+              <button onClick={() => setBonusStandingsOpen(o => !o)}
+                style={{ width: '100%', padding: '10px 14px', background: '#f8f9ff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'inherit', fontWeight: 600, fontSize: 13, color: '#1a1a2e' }}>
+                <span style={{ fontSize: 16 }}>📊</span>
+                <span>{lang === 'he' ? 'טבלאות בתים לפי הימוריי' : 'Group standings from my predictions'}</span>
+                <span style={{ marginRight: 'auto', color: '#888', fontSize: 12 }}>{bonusStandingsOpen ? '▲' : '▼'}</span>
+              </button>
+              {bonusStandingsOpen && (
+                <div style={{ padding: '12px 14px', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+                  {GROUPS.map(group => {
+                    const teams = GROUPS_TEAMS[group]
+                    const groupMatches = MATCHES.filter(m => m.group === group)
+                    const standings = teams.map(team => {
+                      let pts = 0, gf = 0, ga = 0, played = 0
+                      groupMatches.forEach(m => {
+                        const pred = matchPreds[m.id]
+                        if (pred?.scoreA == null || pred?.scoreB == null) return
+                        const isA = m.teamA === team, isB = m.teamB === team
+                        if (!isA && !isB) return
+                        played++
+                        const rA = Number(pred.scoreA), rB = Number(pred.scoreB)
+                        if (isA) { gf += rA; ga += rB; pts += rA > rB ? 3 : rA === rB ? 1 : 0 }
+                        else     { gf += rB; ga += rA; pts += rB > rA ? 3 : rA === rB ? 1 : 0 }
+                      })
+                      return { team, pts, gd: gf - ga, played }
+                    }).sort((a, b) => b.pts - a.pts || b.gd - a.gd)
+                    if (standings.every(s => s.played === 0)) return null
+                    return (
+                      <div key={group} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8', fontSize: 12 }}>
+                        <div style={{ background: '#1a1a2e', color: '#fff', padding: '4px 8px', fontWeight: 700, fontSize: 11 }}>{lang === 'he' ? 'בית' : 'Group'} {group}</div>
+                        {standings.map((s, i) => (
+                          <div key={s.team} style={{
+                            display: 'flex', alignItems: 'center', gap: 5, padding: '4px 7px',
+                            background: i === 0 ? '#EAF3DE' : i === 1 ? '#EDF5FF' : '#FFF4F4',
+                            borderBottom: i < standings.length - 1 ? '1px solid #eee' : 'none',
+                          }}>
+                            <span style={{ fontWeight: 700, fontSize: 10, color: i < 2 ? '#1a7a44' : '#c00', minWidth: 10 }}>{i + 1}</span>
+                            <Flag emoji={FLAGS[s.team] ?? ''} size={13} />
+                            <span style={{ flex: 1, fontSize: 11, fontWeight: i < 2 ? 600 : 400, color: i < 2 ? '#1a1a2e' : '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tn(s.team)}</span>
+                            <span style={{ fontWeight: 700, color: '#1a1a2e', fontSize: 11 }}>{s.pts}</span>
+                            <span style={{ color: '#aaa', fontSize: 10, minWidth: 24, textAlign: 'right' }}>{s.gd > 0 ? '+' : ''}{s.gd}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           {BONUS_QUESTIONS.map(q => (
             <div key={q.id} className="bonus-row">
               <div className="bonus-label">
