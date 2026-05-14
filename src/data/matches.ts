@@ -152,7 +152,7 @@ export const ALL_TEAMS = Object.values(GROUPS_TEAMS).flat().sort()
 
 export const BONUS_QUESTIONS = [
   { id: 'q105', label: 'אלוף העולם 2026', type: 'team', points: '17–20', note: 'צרפת/ספרד/אנגליה = 17 נק׳' },
-  { id: 'q106', label: 'גמר — סגן אלוף (הפסדן)', type: 'team', points: '6' },
+  { id: 'q106', label: 'גמר — סגן האלוף', type: 'team', points: '6' },
   { id: 'q107', label: 'מקום שלישי', type: 'team', points: '5' },
   { id: 'q108', label: 'מלך השערים (שם שחקן)', type: 'text', points: '8' },
   { id: 'q109', label: 'כמה שערים יכבוש מלך השערים?', type: 'number', points: '4' },
@@ -162,7 +162,7 @@ export const BONUS_QUESTIONS = [
   { id: 'q113', label: 'הבית עם הכי הרבה שערים', type: 'group', points: '5' },
   { id: 'q114', label: 'הבית עם הכי מעט שערים', type: 'group', points: '5' },
   { id: 'q115', label: 'ההגנה הטובה ביותר בשלב הבתים', type: 'team', points: '5' },
-  { id: 'q116', label: 'כמה משחקי playoff יוכרעו בפנדלים? (מתוך 32)', type: 'number', points: '3' },
+  { id: 'q116', label: 'כמה משחקי נוקאאוט יוכרעו בפנדלים? (מתוך 32)', type: 'number', points: '3' },
   { id: 'q117', label: 'כמה כרטיסים אדומים בכל הטורניר?', type: 'number', points: '3' },
 ]
 
