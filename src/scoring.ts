@@ -270,44 +270,42 @@ export function computeUserScore(
 
   // ── Knockout scoring ──────────────────────────────────────────────────────
   let knockoutPoints = 0
+  const koByRound: Record<string, number> = { R32: 0, R16: 0, QF: 0, SF: 0, '3P': 0, F: 0 }
   if (knockoutPredictions && playedKnockout) {
     for (const km of playedKnockout) {
       if (!km.isPlayed || km.resultA === undefined || km.resultB === undefined) continue
       const pred = knockoutPredictions[km.id]
       if (!pred) continue
+      let matchPts = 0
 
-      // 1X2 — round-aware
       if (pred.prediction1X2) {
-        knockoutPoints += calc1X2KnockoutPoints(
+        matchPts += calc1X2KnockoutPoints(
           pred.prediction1X2, km.resultA, km.resultB,
           km.fifaPointsA, km.fifaPointsB, km.category, km.round
         )
       }
-
-      // Score — round-aware over/under
       if (pred.scoreA !== null && pred.scoreA !== undefined &&
           pred.scoreB !== null && pred.scoreB !== undefined) {
-        knockoutPoints += calcScoreKnockoutPoints(
+        matchPts += calcScoreKnockoutPoints(
           Number(pred.scoreA), Number(pred.scoreB),
           km.resultA, km.resultB, km.category, km.round
         )
       }
-
-      // Advance
       if (km.advanceTeam) {
         if (km.round === 'R32' && pred.advance) {
-          knockoutPoints += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
+          matchPts += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
         }
         if (km.round !== 'R32' && km.teamA && km.teamB) {
           const advancePred = findAdvancePrediction(km.teamA, km.teamB, knockoutPredictions)
           if (advancePred) {
-            knockoutPoints += calcAdvancePoints(advancePred, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
+            matchPts += calcAdvancePoints(advancePred, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
           }
         }
       }
+      koByRound[km.round] = (koByRound[km.round] ?? 0) + matchPts
+      knockoutPoints += matchPts
     }
 
-    // Red cards — per-round picks
     if (knockoutRedCards) {
       knockoutPoints += calcKnockoutRedCardPoints(knockoutRedCards, playedKnockout)
     }
@@ -321,6 +319,11 @@ export function computeUserScore(
     bonusPoints,
     redCardPoints,
     knockoutPoints,
+    koR32: koByRound['R32'] ?? 0,
+    koR16: koByRound['R16'] ?? 0,
+    koQF:  koByRound['QF']  ?? 0,
+    koSF:  (koByRound['SF'] ?? 0) + (koByRound['3P'] ?? 0),
+    koF:   koByRound['F']   ?? 0,
     total: matchPoints + redCardPoints + groupPoints + bonusPoints + knockoutPoints,
     matchDetails,
     lastUpdated: Date.now(),

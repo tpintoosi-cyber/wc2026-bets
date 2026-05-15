@@ -4,8 +4,6 @@ import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
 import { UserScore } from '../types'
 
-const DELTA_TTL = 10_000
-
 export default function Leaderboard() {
   const { user } = useAuth()
   const [scores,    setScores]    = useState<UserScore[]>([])
@@ -15,6 +13,12 @@ export default function Leaderboard() {
   const prevRef = useRef<Record<string, number>>({})
 
   useEffect(() => {
+    // Restore previous scores and deltas from last session
+    const savedPrev = localStorage.getItem('lb_prev_scores')
+    if (savedPrev) prevRef.current = JSON.parse(savedPrev)
+    const savedDeltas = localStorage.getItem('lb_deltas')
+    if (savedDeltas) setDeltas(JSON.parse(savedDeltas))
+
     getDocs(collection(db, 'predictions')).then(snap => {
       const nicks: Record<string, string> = {}
       snap.docs.forEach(d => { if (d.data().nickname) nicks[d.id] = d.data().nickname })
@@ -22,7 +26,6 @@ export default function Leaderboard() {
     })
 
     const q = query(collection(db, 'scores'), orderBy('total', 'desc'))
-    let timer: ReturnType<typeof setTimeout>
     return onSnapshot(q, snap => {
       const newScores = snap.docs.map(d => d.data() as UserScore)
       const newDeltas: Record<string, number> = {}
@@ -34,13 +37,17 @@ export default function Leaderboard() {
           anyDelta = true
         }
       })
+      // Save current scores for next comparison
       prevRef.current = Object.fromEntries(newScores.map(s => [s.userId, s.total]))
+      localStorage.setItem('lb_prev_scores', JSON.stringify(prevRef.current))
+
       setScores(newScores)
       setLoading(false)
+
       if (anyDelta) {
         setDeltas(newDeltas)
-        clearTimeout(timer)
-        timer = setTimeout(() => setDeltas({}), DELTA_TTL)
+        localStorage.setItem('lb_deltas', JSON.stringify(newDeltas))
+        // No timeout — deltas stay until the next real score update
       }
     })
   }, [])
@@ -63,17 +70,25 @@ export default function Leaderboard() {
   const maxTotal = leader?.total ?? 1
   const tournamentStarted = scores.some(s => s.total > 0)
 
-  const COLS = [
-    { key: 'match',    label: 'בתים',    hint: '1X2 + תוצאה + 🟥' },
-    { key: 'group',    label: 'עולות',   hint: 'עולות מהבתים' },
-    { key: 'knockout', label: 'נוקאאוט', hint: 'שלב הנוקאאוט' },
-    { key: 'bonus',    label: 'בונוס',   hint: 'שאלות בונוס' },
+  const COLS: { key: string; label: string; hint: string; sub?: boolean }[] = [
+    { key: 'match',    label: 'בתים',     hint: '1X2 + תוצאה + 🟥' },
+    { key: 'group',    label: 'עולות',    hint: 'עולות מהבתים' },
+    { key: 'koR32',    label: 'ה-32',     hint: 'שלב ה-32',      sub: true },
+    { key: 'koR16',    label: 'ה-16',     hint: 'שמינית גמר',    sub: true },
+    { key: 'koQF',     label: 'רבע',      hint: 'רבע גמר',       sub: true },
+    { key: 'koSF',     label: 'חצי',      hint: 'חצי גמר + מקום 3', sub: true },
+    { key: 'koF',      label: 'גמר',      hint: 'גמר',           sub: true },
+    { key: 'bonus',    label: 'בונוס',    hint: 'שאלות בונוס' },
   ]
   const colVal = (s: UserScore, key: string) => {
-    if (key === 'match')    return (s.matchPoints ?? 0) + (s.redCardPoints ?? 0)
-    if (key === 'group')    return s.groupPoints    ?? 0
-    if (key === 'knockout') return s.knockoutPoints ?? 0
-    if (key === 'bonus')    return s.bonusPoints    ?? 0
+    if (key === 'match')  return (s.matchPoints ?? 0) + (s.redCardPoints ?? 0)
+    if (key === 'group')  return s.groupPoints    ?? 0
+    if (key === 'koR32')  return s.koR32           ?? 0
+    if (key === 'koR16')  return s.koR16           ?? 0
+    if (key === 'koQF')   return s.koQF            ?? 0
+    if (key === 'koSF')   return s.koSF            ?? 0
+    if (key === 'koF')    return s.koF             ?? 0
+    if (key === 'bonus')  return s.bonusPoints     ?? 0
     return 0
   }
 
@@ -171,7 +186,10 @@ export default function Leaderboard() {
           <span className="lb-rank">#</span>
           <span className="lb-name">שחקן</span>
           {COLS.map(c => (
-            <span key={c.key} className="lb-pts" title={c.hint}>{c.label}</span>
+            <span key={c.key} className="lb-pts" title={c.hint}
+              style={c.sub ? { color: '#93A8CC', fontSize: 11 } : undefined}>
+              {c.label}
+            </span>
           ))}
           <span className="lb-total">סה"כ</span>
         </div>

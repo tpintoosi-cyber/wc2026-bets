@@ -113,6 +113,11 @@ export interface UserScore {
   bonusPoints: number
   redCardPoints: number
   knockoutPoints: number
+  koR32?: number
+  koR16?: number
+  koQF?:  number
+  koSF?:  number   // SF + 3P
+  koF?:   number   // Final
   matchDetails: Record<number, MatchScore>
   lastUpdated: number
 }
