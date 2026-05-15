@@ -34,6 +34,8 @@ body.dark {
 /* ── Reset & Base ──────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+html { overflow-x: hidden; }
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif;
   font-size: 18px;
@@ -42,6 +44,7 @@ body {
   color: var(--text);
   direction: rtl;
   transition: background 0.2s, color 0.2s;
+  overflow-x: hidden;
 }
 
 input, select, button { font-family: inherit; font-size: 16px; direction: rtl; }
@@ -72,6 +75,7 @@ select { cursor: pointer; }
   height: 52px;
   gap: 20px;
   position: sticky; top: 0; z-index: 100;
+  overflow: hidden;
 }
 .nav-logo { font-weight: 700; font-size: 19px; }
 .nav-links { display: flex; gap: 4px; flex: 1; }
@@ -446,15 +450,15 @@ body.dark .lang-toggle:hover { border-color: #94a3b8; color: #f1f5f9; background
   .page { padding: 10px; }
 
   /* Nav — icon-only on mobile */
-  .nav { padding: 0 12px; height: 48px; gap: 8px; }
-  .nav-logo { font-size: 16px; }
-  .nav-links { gap: 2px; }
-  .nav-links a {
-    padding: 5px 7px; font-size: 12px; border-radius: 8px;
-  }
+  .nav { padding: 0 8px; height: 48px; gap: 4px; }
+  .nav-logo { font-size: 15px; }
+  .nav-links { gap: 1px; flex-shrink: 1; min-width: 0; }
+  .nav-links a { padding: 5px 6px; font-size: 13px; border-radius: 8px; }
   .nav-links a span.nav-label { display: none; }
-  .nav-btn { padding: 5px 8px; font-size: 12px; }
-  .btn-ghost { padding: 4px 8px; font-size: 12px; }
+  .nav-controls { gap: 4px; flex-shrink: 0; }
+  .nav-btn { padding: 5px 7px; font-size: 12px; }
+  .btn-ghost { padding: 4px 7px; font-size: 12px; }
+  .nav-logout-name { display: none; } /* hide name, keep ↩ only */
 
   /* Match cards */
   .match-row, .match-row-view { border-radius: 12px; margin-bottom: 8px; }

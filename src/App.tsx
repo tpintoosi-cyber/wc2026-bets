@@ -41,7 +41,7 @@ function Nav({ dark, toggleDark, lang, toggleLang }: {
           {dark ? '☀️' : '🌙'}
         </button>
         <button className="btn-ghost" onClick={logout}>
-          {user.displayName?.split(' ')[0]} ↩
+          <span className="nav-logout-name">{user.displayName?.split(' ')[0]} </span>↩
         </button>
       </div>
     </nav>
