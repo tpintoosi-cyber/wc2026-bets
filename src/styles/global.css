@@ -528,6 +528,71 @@ body.dark .lb-pts { color: var(--text-secondary, #ccc); }
 body.dark .lb-total { color: var(--text, #fff); }
 body.dark .admin-section { background: var(--bg-card); border-color: var(--border); }
 body.dark .admin-match-row { border-color: var(--border); color: var(--text); }
+body.dark .admin-match-team { color: var(--text); }
+
+/* ── Match rows — team names & metadata ── */
+body.dark .team-name { color: var(--text); }
+body.dark .match-datetime { color: var(--text-secondary); }
+body.dark .match-num { color: var(--text-muted); }
+body.dark .score-sep { color: var(--text-muted); }
+body.dark .match-header { background: var(--bg-secondary); border-color: var(--border); }
+body.dark .match-1x2-row { background: var(--bg-secondary); border-color: var(--border); }
+body.dark .match-body { background: var(--bg-card); }
+
+/* ── Category badges ── */
+body.dark .cat-a { background: #0a3320; color: #6ee7b7; }
+body.dark .cat-b { background: #0c2748; color: #93c5fd; }
+body.dark .cat-c { background: #3d2100; color: #fcd34d; }
+body.dark .cat-d { background: #3d1000; color: #fca5a5; }
+
+/* ── Groups tab ── */
+body.dark .group-card-title { color: var(--text); border-color: var(--border); }
+body.dark .group-slot select { background: var(--bg-input); color: var(--text); border-color: var(--border); }
+body.dark .slot-num { color: var(--text-muted); }
+
+/* ── Bonus tab ── */
+body.dark .bonus-label { color: var(--text); }
+body.dark .bonus-note { color: var(--text-muted); }
+body.dark .bonus-row select,
+body.dark .bonus-row input[type="text"],
+body.dark .bonus-row input[type="number"] {
+  background: var(--bg-input); color: var(--text); border-color: var(--border);
+}
+
+/* ── Max pts bar ── */
+body.dark .max-pts-bar { background: var(--bg-secondary); border-color: var(--border); }
+body.dark .max-pts-label { color: #7EC8E3; }
+body.dark .max-pts-value { color: #7EC8E3; }
+body.dark .max-pts-item { color: var(--text-secondary); }
+
+/* ── Score 3-col table ── */
+body.dark .score-3col > div > div:first-child {
+  background: var(--bg-secondary) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+body.dark .score-3col > div > div:not(:first-child) {
+  border-color: var(--border) !important;
+}
+
+/* ── AllPredictions match rows ── */
+body.dark .match-row-view { background: var(--bg-card); border-color: var(--border); }
+body.dark .match-row-view .match-num { color: var(--text-muted); }
+
+/* ── Round & group labels ── */
+body.dark .round-title { color: var(--text-secondary); border-color: var(--border); }
+body.dark .group-label { color: var(--text-muted); }
+body.dark .group-card { background: var(--bg-card); border-color: var(--border); }
+
+/* ── Knockout bracket ── */
+body.dark .match-card { background: var(--bg-card); border-color: var(--border); color: var(--text); }
+body.dark .bracket-team { color: var(--text); }
+
+/* ── Page titles ── */
+body.dark .page h1,
+body.dark .page h2,
+body.dark .page h3 { color: var(--text); }
+body.dark .hint { color: var(--text-secondary); }
 body.dark .max-pts-bar { background: #1e3a5f; border-color: #3b82f640; }
 body.dark .max-pts-item { background: #1e40af; color: #bfdbfe; }
 body.dark .max-pts-label { color: #93c5fd; }
