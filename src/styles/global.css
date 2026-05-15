@@ -304,7 +304,18 @@ select { cursor: pointer; }
 .lb-header .lb-pts, .lb-header .lb-total { color: #fff; }
 .lb-header .lb-rank, .lb-header .lb-name { color: #fff; }
 
-/* ── Admin ───────────────────────────────────────── */
+.lb-row-mobile {
+  display: none;
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.lb-row-mobile:last-child { border-bottom: none; }
+
+@media (max-width: 600px) {
+  .lb-header { display: none; }
+  .lb-row-desktop { display: none !important; }
+  .lb-row-mobile { display: block; }
+}
 .admin-page h1 { margin-bottom: 20px; }
 .admin-section {
   background: #fff; border-radius: 12px; padding: 20px;

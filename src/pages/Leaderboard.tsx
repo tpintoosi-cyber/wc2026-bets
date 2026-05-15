@@ -202,28 +202,22 @@ export default function Leaderboard() {
           const delta = deltas[s.userId]
           const rank  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1
 
-          return (
-            <div key={s.userId}
-              className={`lb-row ${isMe ? 'lb-me' : ''}`}
-              style={{ position: 'relative', overflow: 'hidden' }}>
-
+          const rowContent = (
+            <>
               {tournamentStarted && (
                 <div className="lb-row-bar" style={{ width: `${pct}%` }} />
               )}
-
               <span className="lb-rank" style={{ fontWeight: 800 }}>{rank}</span>
               <span className="lb-name" style={{ fontWeight: isMe ? 700 : 400 }}>
                 {displayName(s)}
                 {isMe && <span style={{ fontSize: 11, color: '#185FA5', marginRight: 4 }}>(אני)</span>}
               </span>
-
               {COLS.map(c => (
                 <span key={c.key} className="lb-pts"
                   style={{ color: colVal(s, c.key) === 0 && tournamentStarted ? '#ccc' : undefined }}>
                   {colVal(s, c.key)}
                 </span>
               ))}
-
               <span className="lb-total" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                 <span>{s.total}</span>
                 {delta != null && delta !== 0 && (
@@ -236,6 +230,55 @@ export default function Leaderboard() {
                   </span>
                 )}
               </span>
+            </>
+          )
+
+          return (
+            <div key={s.userId}>
+              {/* Desktop row */}
+              <div className={`lb-row lb-row-desktop ${isMe ? 'lb-me' : ''}`}
+                style={{ position: 'relative', overflow: 'hidden' }}>
+                {rowContent}
+              </div>
+
+              {/* Mobile card */}
+              <div className={`lb-row-mobile ${isMe ? 'lb-me' : ''}`}
+                style={{ position: 'relative', overflow: 'hidden' }}>
+                {tournamentStarted && (
+                  <div className="lb-row-bar" style={{ width: `${pct}%` }} />
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontWeight: 800, fontSize: 16, minWidth: 28 }}>{rank}</span>
+                  <span style={{ flex: 1, fontWeight: isMe ? 700 : 500, fontSize: 14 }}>
+                    {displayName(s)}
+                    {isMe && <span style={{ fontSize: 11, color: '#185FA5', marginRight: 4 }}>(אני)</span>}
+                  </span>
+                  <span style={{ fontWeight: 800, fontSize: 20, minWidth: 44, textAlign: 'left' }}>
+                    {s.total}
+                  </span>
+                  {delta != null && delta !== 0 && (
+                    <span className="delta-badge" style={{
+                      fontSize: 11, fontWeight: 800, padding: '1px 6px', borderRadius: 20,
+                      background: delta > 0 ? '#EAF3DE' : '#FCEBEB',
+                      color:      delta > 0 ? '#1a7a44' : '#c0392b',
+                    }}>
+                      {delta > 0 ? `+${delta}` : delta}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 5, paddingRight: 36, flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'בתים',    val: colVal(s, 'match') },
+                    { label: 'עולות',   val: colVal(s, 'group') },
+                    { label: 'נוקאאוט', val: s.knockoutPoints ?? 0 },
+                    { label: 'בונוס',   val: colVal(s, 'bonus') },
+                  ].map(item => (
+                    <span key={item.label} style={{ fontSize: 12, color: item.val === 0 && tournamentStarted ? '#ccc' : '#888' }}>
+                      {item.label} <b style={{ color: item.val === 0 && tournamentStarted ? '#ccc' : 'var(--text, #1a1a2e)' }}>{item.val}</b>
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           )
         })}
