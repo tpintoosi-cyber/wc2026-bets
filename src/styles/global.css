@@ -390,7 +390,7 @@ body.dark .lang-toggle:hover { border-color: #94a3b8; color: #f1f5f9; background
 .ranking-arrow { font-weight: 600; font-size: 11px; }
 .ranking-fifa { font-size: 11px; }
 .ranking-gap-desc { font-size: 11px; opacity: 0.8; }
-.ranking-gap-ou { font-size: 11px; opacity: 0.7; font-style: italic; margin-top: 2px; }
+.ranking-gap-ou { font-size: 11px; opacity: 0.85; margin-top: 4px; white-space: normal; line-height: 1.5; }
 
 /* ── 1X2 row (centered below score) ─────────────── */
 .match-1x2-row {
