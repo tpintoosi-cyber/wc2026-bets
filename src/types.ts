@@ -116,8 +116,9 @@ export interface UserScore {
   koR32?: number
   koR16?: number
   koQF?:  number
-  koSF?:  number   // SF + 3P
-  koF?:   number   // Final
+  koSF?:  number
+  ko3P?:  number
+  koF?:   number
   matchDetails: Record<number, MatchScore>
   lastUpdated: number
 }

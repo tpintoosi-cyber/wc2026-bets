@@ -288,8 +288,8 @@ select { cursor: pointer; }
 .leaderboard { background: #fff; border-radius: 12px; border: 1px solid #e5e5e5; overflow: hidden; }
 .lb-header, .lb-row {
   display: grid;
-  grid-template-columns: 36px 1fr 54px 54px 46px 46px 46px 46px 54px 54px 64px;
-  align-items: center; padding: 10px 14px; gap: 6px;
+  grid-template-columns: 32px 1fr 50px 50px 72px 68px 58px 58px 68px 44px 50px 62px;
+  align-items: center; padding: 10px 12px; gap: 4px;
 }
 .lb-header {
   background: #1a1a2e; color: #fff; font-size: 13px; font-weight: 600;

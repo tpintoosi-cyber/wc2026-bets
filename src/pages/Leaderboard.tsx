@@ -71,24 +71,26 @@ export default function Leaderboard() {
   const tournamentStarted = scores.some(s => s.total > 0)
 
   const COLS: { key: string; label: string; hint: string; sub?: boolean }[] = [
-    { key: 'match',    label: 'בתים',     hint: '1X2 + תוצאה + 🟥' },
-    { key: 'group',    label: 'עולות',    hint: 'עולות מהבתים' },
-    { key: 'koR32',    label: 'ה-32',     hint: 'שלב ה-32',      sub: true },
-    { key: 'koR16',    label: 'ה-16',     hint: 'שמינית גמר',    sub: true },
-    { key: 'koQF',     label: 'רבע',      hint: 'רבע גמר',       sub: true },
-    { key: 'koSF',     label: 'חצי',      hint: 'חצי גמר + מקום 3', sub: true },
-    { key: 'koF',      label: 'גמר',      hint: 'גמר',           sub: true },
-    { key: 'bonus',    label: 'בונוס',    hint: 'שאלות בונוס' },
+    { key: 'match',    label: 'בתים',         hint: '1X2 + תוצאה + 🟥' },
+    { key: 'group',    label: 'עולות',         hint: 'עולות מהבתים' },
+    { key: 'koR32',    label: '32 האחרונות',   hint: 'שלב ה-32',            sub: true },
+    { key: 'koR16',    label: 'שמינית גמר',    hint: 'שמינית גמר',          sub: true },
+    { key: 'koQF',     label: 'רבע גמר',       hint: 'רבע גמר',             sub: true },
+    { key: 'koSF',     label: 'חצי גמר',       hint: 'חצי גמר',             sub: true },
+    { key: 'koSF3P',   label: 'מקום שלישי',    hint: 'מקום שלישי',          sub: true },
+    { key: 'koF',      label: 'גמר',           hint: 'גמר',                 sub: true },
+    { key: 'bonus',    label: 'בונוס',         hint: 'שאלות בונוס' },
   ]
   const colVal = (s: UserScore, key: string) => {
-    if (key === 'match')  return (s.matchPoints ?? 0) + (s.redCardPoints ?? 0)
-    if (key === 'group')  return s.groupPoints    ?? 0
-    if (key === 'koR32')  return s.koR32           ?? 0
-    if (key === 'koR16')  return s.koR16           ?? 0
-    if (key === 'koQF')   return s.koQF            ?? 0
-    if (key === 'koSF')   return s.koSF            ?? 0
-    if (key === 'koF')    return s.koF             ?? 0
-    if (key === 'bonus')  return s.bonusPoints     ?? 0
+    if (key === 'match')    return (s.matchPoints ?? 0) + (s.redCardPoints ?? 0)
+    if (key === 'group')    return s.groupPoints ?? 0
+    if (key === 'koR32')    return s.koR32 ?? 0
+    if (key === 'koR16')    return s.koR16 ?? 0
+    if (key === 'koQF')     return s.koQF  ?? 0
+    if (key === 'koSF')     return s.koSF  ?? 0
+    if (key === 'koSF3P')   return s.ko3P  ?? 0
+    if (key === 'koF')      return s.koF   ?? 0
+    if (key === 'bonus')    return s.bonusPoints ?? 0
     return 0
   }
 
