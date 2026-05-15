@@ -1,4 +1,4 @@
-import Flag from '../components/Flag'
+import Flag, { flagToIso } from '../components/Flag'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -99,9 +99,11 @@ function RankingGap({ teamA, teamB, fifaA, fifaB, category, t, tn }: {
         <span className="ranking-gap-desc" style={{ color }}>{desc}</span>
       </div>
       <div className="ranking-gap-bottom">
-        <span className="ranking-fifa" style={{ color }}><><Flag emoji={FLAGS[teamA] ?? ''} size={22} /> {tn(teamA)}</> <strong>#{rankA}</strong></span>
-        <span className="ranking-arrow" style={{ color }}>{t.favoriteLabel}: <><Flag emoji={FLAGS[favTeam] ?? ''} size={22} /> {tn(favTeam)}</> (#{favRank})</span>
-        <span className="ranking-fifa" style={{ color }}><><Flag emoji={FLAGS[teamB] ?? ''} size={22} /> {tn(teamB)}</> <strong>#{rankB}</strong></span>
+        <span className="ranking-fifa" style={{ color }}><Flag emoji={FLAGS[teamA] ?? ''} size={18} /> {tn(teamA)} <strong>#{rankA}</strong></span>
+        <span className="ranking-arrow" style={{ color }}>
+          {favTeam === teamA ? '← ' : ''}{t.favoriteLabel}{favTeam === teamB ? ' →' : ''}
+        </span>
+        <span className="ranking-fifa" style={{ color }}><Flag emoji={FLAGS[teamB] ?? ''} size={18} /> {tn(teamB)} <strong>#{rankB}</strong></span>
       </div>
       <div className="ranking-gap-ou" style={{ color }}>{ou}</div>
     </div>
@@ -443,7 +445,17 @@ export default function Predict({ lang }: { lang: Lang }) {
                         ? calcMaxPoints(p, match.category, match.fifaPointsA, match.fifaPointsB, t)
                         : { total: 0, breakdown: [] }
                       return (
-                        <div key={match.id} className="match-row">
+                        <div key={match.id} className="match-row" style={{ position: 'relative', overflow: 'hidden' }}>
+                          {/* Flag background — favorite team's flag at low opacity */}
+                          {(() => {
+                            const favTeamBg = match.fifaPointsA >= match.fifaPointsB ? match.teamA : match.teamB
+                            const iso = favTeamBg ? flagToIso(FLAGS[favTeamBg] ?? '') : ''
+                            return iso ? (
+                              <img src={`https://flagcdn.com/w160/${iso}.png`}
+                                style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: 'auto',
+                                  opacity: 0.06, pointerEvents: 'none', objectFit: 'cover' }} />
+                            ) : null
+                          })()}
                           <div className="match-header">
                             <span className="match-datetime">
                               🗓 {getMatchTime(match.id) ?? '—'}
