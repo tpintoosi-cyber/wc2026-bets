@@ -225,9 +225,16 @@ export default function AdminTestPanel() {
       sub: 'שמינית גמר — ניחושים + עץ',
       action: () => wrap('fill-r16-preds', async () => {
         const preds: Record<number,any> = {}
-        for (const km of allKo) preds[km.id] = koPreds[km.id]  // full bracket tree
+        for (const km of allKo) {
+          if (km.round === 'R16') {
+            preds[km.id] = koPreds[km.id]  // full prediction for R16
+          } else if (km.round !== 'R32') {
+            // QF/SF/3P/F: only advance pick (bracket tree) — no 1X2/score yet
+            preds[km.id] = { matchId: km.id, advance: koPreds[km.id]?.advance }
+          }
+        }
         await setDoc(doc(db,'predictions',TEST_UID), { knockout: preds }, { merge: true })
-        addLog(`  → עץ מלא: ${Object.keys(preds).length} משחקים`)
+        addLog(`  → R16: ניחושים מלאים | QF/SF/F: עולה בלבד`)
       }),
     },
     {
@@ -241,6 +248,16 @@ export default function AdminTestPanel() {
       }),
     },
     {
+      key: 'fill-qf-preds',
+      label: '✏️ מלא ניחושי רבע גמר',
+      sub: 'רבע גמר — ניחושים',
+      action: () => wrap('fill-qf-preds', async () => {
+        const preds: Record<number,any> = {}
+        for (const km of allKo.filter(k=>k.round==='QF')) preds[km.id] = koPreds[km.id]
+        await setDoc(doc(db,'predictions',TEST_UID), { knockout: preds }, { merge: true })
+      }),
+    },
+    {
       key: 'set-qf-results',
       label: '📊 הכנס תוצאות רבע גמר',
       sub: 'רבע גמר — תוצאות',
@@ -251,6 +268,16 @@ export default function AdminTestPanel() {
       }),
     },
     {
+      key: 'fill-sf-preds',
+      label: '✏️ מלא ניחושי חצי גמר',
+      sub: 'חצי גמר + מקום 3 — ניחושים',
+      action: () => wrap('fill-sf-preds', async () => {
+        const preds: Record<number,any> = {}
+        for (const km of allKo.filter(k=>k.round==='SF'||k.round==='3P')) preds[km.id] = koPreds[km.id]
+        await setDoc(doc(db,'predictions',TEST_UID), { knockout: preds }, { merge: true })
+      }),
+    },
+    {
       key: 'set-sf-results',
       label: '📊 הכנס תוצאות חצי גמר + מקום 3',
       sub: 'חצי גמר + מקום 3 — תוצאות',
@@ -258,6 +285,16 @@ export default function AdminTestPanel() {
         const map: Record<number,any> = {}
         for (const km of allKo.filter(k=>k.round!=='F')) map[km.id] = koMatches[km.id]
         await setDoc(doc(db,'admin','knockout'), { matches: map }, { merge: true })
+      }),
+    },
+    {
+      key: 'fill-f-preds',
+      label: '✏️ מלא ניחושי גמר',
+      sub: 'גמר — ניחושים',
+      action: () => wrap('fill-f-preds', async () => {
+        const preds: Record<number,any> = {}
+        for (const km of allKo.filter(k=>k.round==='F')) preds[km.id] = koPreds[km.id]
+        await setDoc(doc(db,'predictions',TEST_UID), { knockout: preds }, { merge: true })
       }),
     },
     {
