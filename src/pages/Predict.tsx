@@ -297,12 +297,7 @@ export default function Predict({ lang }: { lang: Lang }) {
   }
 
   const updateKnockout = (id: number, field: keyof KnockoutMatchPrediction, value: unknown) => {
-    // Allow advance picks from bracket always (they just update local state for display)
-    // Only block score/1x2 inputs when window is closed
-    const isAdvancePick = field === 'advance'
-    if (!isAdvancePick) {
-      if (!isKoOpen) return
-    }
+    if (!isKoOpen) return
     setKnockoutPreds(prev => {
       const base = prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0 }
       const entry = { ...base, [field]: value } as KnockoutMatchPrediction
