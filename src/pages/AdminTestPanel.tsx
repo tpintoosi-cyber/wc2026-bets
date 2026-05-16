@@ -130,7 +130,7 @@ export default function AdminTestPanel() {
     getDocs(collection(db, 'users')).then(snap => {
       const list = snap.docs.map(d => ({
         uid: d.id,
-        name: d.data().userName ?? d.id,
+        name: d.data().userName ?? d.data().displayName ?? d.data().name ?? d.id,
       }))
       setUsers(list)
       if (list.length > 0) setSelectedUid(list[0].uid)
@@ -596,7 +596,7 @@ export default function AdminTestPanel() {
             ))}
           </select>
           <button onClick={() => getDocs(collection(db, 'users')).then(snap => {
-            const list = snap.docs.map(d => ({ uid: d.id, name: d.data().userName ?? d.id }))
+            const list = snap.docs.map(d => ({ uid: d.id, name: d.data().userName ?? d.data().displayName ?? d.data().name ?? d.id }))
             setUsers(list)
           })} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #ddd', cursor: 'pointer', background: '#fff' }}>↻</button>
         </div>
