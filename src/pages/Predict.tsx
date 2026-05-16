@@ -752,10 +752,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                   if (!winner || !sfA || !sfB) return undefined
                   return winner === sfA ? sfB : sfA
                 }
-                // R32 feeders (73-88): use actual API results for R16 teams
-                // R16+ feeders (89+): use user's bracket advance picks
+                // R32 feeders (73-88): user's OWN prediction — bracket shows user's tree, not actual results
                 if (feederId >= 73 && feederId <= 88) {
-                  return (knockoutMatches[feederId] as any)?.advanceTeam ?? undefined
+                  return knockoutPreds[feederId]?.advance ?? undefined
                 }
                 return knockoutPreds[feederId]?.advance
               } catch { return undefined }
