@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { doc, setDoc, deleteDoc } from 'firebase/firestore'
+import { useState, useEffect } from 'react'
+import { doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
 import {
   MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, KNOCKOUT_MATCHES,
@@ -8,9 +8,6 @@ import {
 import { computeUserScore } from '../scoring'
 import { populateR32Teams } from '../utils/syncLogic'
 import { Match, KnockoutMatchPrediction } from '../types'
-
-const TEST_UID  = 'BEvfh1GfqFULcDeSu84G1qkbEew2'
-const TEST_NAME = 'Test User'
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -125,6 +122,24 @@ export default function AdminTestPanel() {
   const [log, setLog] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [done, setDone] = useState<Set<string>>(new Set())
+  const [users, setUsers] = useState<{ uid: string; name: string }[]>([])
+  const [selectedUid, setSelectedUid] = useState('')
+
+  // Load users from Firestore on mount
+  useEffect(() => {
+    getDocs(collection(db, 'users')).then(snap => {
+      const list = snap.docs.map(d => ({
+        uid: d.id,
+        name: d.data().userName ?? d.id,
+      }))
+      setUsers(list)
+      if (list.length > 0) setSelectedUid(list[0].uid)
+    }).catch(() => {})
+  }, [])
+
+  const selectedUser = users.find(u => u.uid === selectedUid)
+  const TEST_UID  = selectedUid
+  const TEST_NAME = selectedUser?.name ?? selectedUid
 
   const addLog = (msg: string) => setLog(p => [...p, msg])
   const markDone = (key: string) => setDone(p => new Set([...p, key]))
@@ -551,7 +566,7 @@ export default function AdminTestPanel() {
         await Promise.all([
           deleteDoc(doc(db, 'predictions', TEST_UID)).catch(() => {}),
           deleteDoc(doc(db, 'scores', TEST_UID)).catch(() => {}),
-          deleteDoc(doc(db, 'users', TEST_UID)).catch(() => {}),
+          // NOTE: do NOT delete users/{uid} — app hangs on reload without it
           setDoc(doc(db, 'admin', 'results'), {}),
           setDoc(doc(db, 'admin', 'knockout'), {}),
         ])
@@ -568,9 +583,30 @@ export default function AdminTestPanel() {
         background: '#fffbe6', border: '1px solid #f0c040',
         borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13,
       }}>
-        <b>🧪 מצב בדיקות</b> — UID: <code style={{ fontSize: 11 }}>{TEST_UID}</code>
-        <div style={{ fontSize: 12, color: '#888', marginTop: 4 }}>
-          הכפתורים פועלים על המשתמש "{TEST_NAME}" בלבד
+        <b>🧪 מצב בדיקות</b>
+        <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: '#555' }}>משתמש:</label>
+          <select
+            value={selectedUid}
+            onChange={e => { setSelectedUid(e.target.value); setDone(new Set()); setLog([]) }}
+            style={{ flex: 1, fontSize: 12, padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontFamily: 'inherit' }}>
+            {users.length === 0 && <option value="">טוען משתמשים...</option>}
+            {users.map(u => (
+              <option key={u.uid} value={u.uid}>{u.name}</option>
+            ))}
+          </select>
+          <button onClick={() => getDocs(collection(db, 'users')).then(snap => {
+            const list = snap.docs.map(d => ({ uid: d.id, name: d.data().userName ?? d.id }))
+            setUsers(list)
+          })} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, border: '1px solid #ddd', cursor: 'pointer', background: '#fff' }}>↻</button>
+        </div>
+        {selectedUid && (
+          <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+            UID: <code style={{ fontSize: 10 }}>{selectedUid}</code>
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: '#aaa', marginTop: 4 }}>
+          הכפתורים פועלים על המשתמש הנבחר בלבד. שינוי משתמש מאפס את הלוג.
         </div>
         <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
           סדר מומלץ: fill-gs → set-gs → fill-r32 → set-r32 → fill-r16 → set-r16 → fill-qf → set-qf → fill-sf → set-sf → fill-3p → set-3p → fill-f → set-f → calc
