@@ -193,6 +193,28 @@ export default function AdminTestPanel() {
   const GROUPS_IMPORT = Object.keys(groups)
 
   // ── Actions ─────────────────────────────────────────────────────────────
+  // Helper: build match map up to a given round, plus team stubs for the next round
+  const ROUND_ORDER_KO = ['R32','R16','QF','SF','3P','F']
+  function buildMatchMap(throughRound: string): Record<number,any> {
+    const idx = ROUND_ORDER_KO.indexOf(throughRound)
+    const map: Record<number,any> = {}
+    for (const km of allKo) {
+      const kmIdx = ROUND_ORDER_KO.indexOf(km.round)
+      if (kmIdx <= idx) {
+        map[km.id] = koMatches[km.id]  // full data with results
+      } else if (kmIdx === idx + 1) {
+        // Next round: include team stubs (no results yet)
+        const m = koMatches[km.id]
+        if (m?.teamA || m?.teamB) {
+          map[km.id] = { id: km.id, round: km.round, teamA: m.teamA, teamB: m.teamB,
+            fifaPointsA: m.fifaPointsA, fifaPointsB: m.fifaPointsB, category: m.category,
+            isPlayed: false }
+        }
+      }
+    }
+    return map
+  }
+
   const steps = [
     {
       key: 'fill-gs-preds',
@@ -263,9 +285,8 @@ export default function AdminTestPanel() {
       label: '📊 הכנס תוצאות שמינית גמר',
       sub: 'שמינית גמר — תוצאות',
       action: () => wrap('set-r16-results', async () => {
-        const map: Record<number,any> = {}
-        for (const km of allKo.filter(k=>k.round==='R16'||k.round==='R32')) map[km.id] = koMatches[km.id]
-        await setDoc(doc(db,'admin','knockout'), { matches: map }, { merge: true })
+        await setDoc(doc(db,'admin','knockout'), { matches: buildMatchMap('R16') })
+        addLog('  → R16 תוצאות + נבחרות QF')
       }),
     },
     {
@@ -283,9 +304,8 @@ export default function AdminTestPanel() {
       label: '📊 הכנס תוצאות רבע גמר',
       sub: 'רבע גמר — תוצאות',
       action: () => wrap('set-qf-results', async () => {
-        const map: Record<number,any> = {}
-        for (const km of allKo.filter(k=>['R32','R16','QF'].includes(k.round))) map[km.id] = koMatches[km.id]
-        await setDoc(doc(db,'admin','knockout'), { matches: map }, { merge: true })
+        await setDoc(doc(db,'admin','knockout'), { matches: buildMatchMap('QF') })
+        addLog('  → QF תוצאות + נבחרות SF')
       }),
     },
     {
@@ -303,9 +323,12 @@ export default function AdminTestPanel() {
       label: '📊 הכנס תוצאות חצי גמר + מקום 3',
       sub: 'חצי גמר + מקום 3 — תוצאות',
       action: () => wrap('set-sf-results', async () => {
-        const map: Record<number,any> = {}
-        for (const km of allKo.filter(k=>k.round!=='F')) map[km.id] = koMatches[km.id]
-        await setDoc(doc(db,'admin','knockout'), { matches: map }, { merge: true })
+        const map3P = buildMatchMap('SF')
+        // Also include 3P
+        const km3P = allKo.find(k=>k.round==='3P')
+        if (km3P) map3P[km3P.id] = koMatches[km3P.id]
+        await setDoc(doc(db,'admin','knockout'), { matches: map3P })
+        addLog('  → SF + מקום 3 תוצאות + נבחרות גמר')
       }),
     },
     {
@@ -323,9 +346,9 @@ export default function AdminTestPanel() {
       label: '📊 הכנס תוצאות גמר',
       sub: 'גמר — תוצאות',
       action: () => wrap('set-f-results', async () => {
-        const map: Record<number,any> = {}
-        for (const km of allKo) map[km.id] = koMatches[km.id]
-        await setDoc(doc(db,'admin','knockout'), { matches: map }, { merge: true })
+        const allMap: Record<number,any> = {}
+        for (const km of allKo) allMap[km.id] = koMatches[km.id]
+        await setDoc(doc(db,'admin','knockout'), { matches: allMap })
         addLog(`  → טורניר מלא! 🏆 ${koMatches[104]?.advanceTeam ?? '?'}`)
       }),
     },

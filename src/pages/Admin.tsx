@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, query, where, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../firebase'
-import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_BRACKET, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
@@ -405,7 +405,34 @@ export default function Admin() {
   }
 
   const saveKnockout = async () => {
-    await setDoc(doc(db, 'admin', 'knockout'), { matches: knockoutMatches })
+    // Propagate advanceTeam → next round teamA/teamB automatically
+    const propagated: Record<number, any> = { ...knockoutMatches }
+    for (const [id, km] of Object.entries(propagated)) {
+      const m = km as any
+      if (!m?.advanceTeam) continue
+      const b = KNOCKOUT_BRACKET[Number(id)]
+      if (!b) continue
+      for (const [nextId] of Object.entries(propagated)) {
+        const nb = KNOCKOUT_BRACKET[Number(nextId)]
+        if (!nb) continue
+        if (nb.feederA === Number(id)) {
+          propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamA: m.advanceTeam, fifaPointsA: TEAM_FIFA_POINTS[m.advanceTeam] ?? 1500 }
+        }
+        if (nb.feederB === Number(id)) {
+          propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: m.advanceTeam, fifaPointsB: TEAM_FIFA_POINTS[m.advanceTeam] ?? 1500 }
+        }
+        // 3P match uses losers
+        if (nb.feederA === -Number(id)) {
+          const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA
+          if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamA: loser, fifaPointsA: TEAM_FIFA_POINTS[loser] ?? 1500 }
+        }
+        if (nb.feederB === -Number(id)) {
+          const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA
+          if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: loser, fifaPointsB: TEAM_FIFA_POINTS[loser] ?? 1500 }
+        }
+      }
+    }
+    await setDoc(doc(db, 'admin', 'knockout'), { matches: propagated })
     setMsg('✓ נוקאאוט נשמר')
     setTimeout(() => setMsg(''), 3000)
   }

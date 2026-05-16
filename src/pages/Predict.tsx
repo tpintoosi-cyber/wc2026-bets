@@ -704,14 +704,16 @@ export default function Predict({ lang }: { lang: Lang }) {
             </div>
           )}
 
-          {/* View toggle */}
+          {/* View toggle — bracket only shown when R16 window is open/past */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: '#f8f9fa', borderRadius: 10, padding: 4 }}>
-            <button onClick={() => setKnockoutView('bracket')} style={{
-              flex: 1, padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer',
-              fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
-              background: knockoutView === 'bracket' ? '#1a1a2e' : 'transparent',
-              color: knockoutView === 'bracket' ? '#fff' : '#666',
-            }}>{t.koBracketView}</button>
+            {r16Deadline != null && (
+              <button onClick={() => setKnockoutView('bracket')} style={{
+                flex: 1, padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
+                background: knockoutView === 'bracket' ? '#1a1a2e' : 'transparent',
+                color: knockoutView === 'bracket' ? '#fff' : '#666',
+              }}>{t.koBracketView}</button>
+            )}
             <button onClick={() => { setKnockoutView('form'); setFocusMatchId(null) }} style={{
               flex: 1, padding: '7px', borderRadius: 8, border: 'none', cursor: 'pointer',
               fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
