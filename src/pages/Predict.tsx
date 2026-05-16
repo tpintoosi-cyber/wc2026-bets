@@ -819,10 +819,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const actualTeamB = getActualTeam(id, 'B')
                 const actualDiffersA = actualTeamA && tA && actualTeamA !== tA
                 const actualDiffersB = actualTeamB && tB && actualTeamB !== tB
-                // QF+ = rounds where bracket prediction ≠ necessarily actual teams
-                const isQFPlus = !!(km && !['R32', 'R16'].includes(km.round))
                 const pred = knockoutPreds[id]
                 const km = KNOCKOUT_MATCHES.find(m => m.id === id)
+                // QF+ = rounds where bracket prediction ≠ necessarily actual teams
+                const isQFPlus = !!(km && !['R32', 'R16'].includes(km.round))
                 const actual = knockoutMatches[id] as (typeof knockoutMatches)[number] & { resultA?: number; resultB?: number; advanceTeam?: string; hadRedCard?: boolean; isPlayed?: boolean } | undefined
 
                 const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
