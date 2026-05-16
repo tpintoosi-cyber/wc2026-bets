@@ -1,5 +1,5 @@
 import Flag, { flagToIso } from '../components/Flag'
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
@@ -1212,15 +1212,29 @@ export default function Predict({ lang }: { lang: Lang }) {
                         })
                       }
 
-                      // Score row (only when played — before that no useful info to show)
-                      if (hasScore && isPlayed) {
-                        const scoreLabel = ptsScore === 2 ? t.exactScore : ptsScore === 1 ? (lang === 'he' ? 'הפרש נכון' : 'Right diff') : t.exactScore
-                        rows.push({
-                          key: 'score',
-                          labelText: scoreLabel,
-                          ok: ptsScore > 0,
-                          pts: ptsScore + ptsOU,
-                        })
+                      // Score row
+                      if (hasScore) {
+                        if (isPlayed) {
+                          const scoreLabel = ptsScore === 2 ? t.exactScore : ptsScore === 1 ? (lang === 'he' ? 'הפרש נכון' : 'Right diff') : t.exactScore
+                          rows.push({
+                            key: 'score',
+                            labelText: scoreLabel,
+                            ok: ptsScore > 0,
+                            pts: ptsScore + ptsOU,
+                          })
+                        } else {
+                          // Pre-match: show predicted score + potential OU bonus
+                          const sA = pred?.scoreA, sB = pred?.scoreB
+                          const scoreStr = (sA !== undefined && sB !== undefined) ? (lang === 'he' ? `${sB}:${sA}` : `${sA}:${sB}`) : '?'
+                          const ouPts = km ? ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<string,number>)[km.round] : 1
+                          rows.push({
+                            key: 'score',
+                            labelText: `${t.exactScore} ${scoreStr}`,
+                            ok: null,
+                            pts: 0,
+                            potential: 2 + (predOuLabel ? ouPts : 0),
+                          })
+                        }
                       }
 
                       // Advance pick row
