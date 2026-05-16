@@ -863,10 +863,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const advB = advPicked === tB && tB
                 const advCorrect = isPlayed && advPicked && advPicked === actualAdvance
                 const advWrong = isPlayed && advPicked && advPicked !== actualAdvance
+                // For R16+: advance was locked from bracket — check if picked team even reached this match
+                const isLockedAdvance = !!(km && km.round !== 'R32')
+                const advTeamInMatch = !advPicked || advPicked === tA || advPicked === tB
+                const advNotInMatch = !!(advPicked && tA && tB && !advTeamInMatch)
 
                 // Potential advance points (pre-match)
                 const potentialAdvPts = (() => {
-                  if (!km || !advPicked) return 0
+                  if (!km || !advPicked || advNotInMatch) return 0
                   const base = ({ R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 } as Record<string, number>)[km.round]
                   const catBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
                   const pickedUnderdog = (advPicked === tA && !aIsFav) || (advPicked === tB && aIsFav)
@@ -1048,28 +1052,40 @@ export default function Predict({ lang }: { lang: Lang }) {
                     {/* ── ADVANCE PICK ── */}
                     {advPicked ? (() => {
                       const advPickedIsUnderdog = (advPicked === tA && !aIsFav) || (advPicked === tB && aIsFav)
-                      const advCorrectWithBonus = advCorrect && advPickedIsUnderdog && ptsAdv > 0
-                      const advCorrectBase = advCorrect && !advPickedIsUnderdog && ptsAdv > 0
                       return (
                         <div style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           padding: '4px 7px', gap: 4,
-                          background: advCorrect ? '#EAF3DE' : advWrong ? '#FCEBEB' : '#f5f5f5',
+                          background: advNotInMatch ? '#FFF8E1'
+                            : advCorrect ? '#EAF3DE'
+                            : advWrong  ? '#FCEBEB'
+                            : '#f5f5f5',
                           borderTop: '1px solid #ebebeb',
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            {isPlayed && (
+                            {isLockedAdvance && (
+                              <span title={lang === 'he' ? 'נקבע בעץ — לא ניתן לשינוי' : 'Set in bracket — locked'}
+                                style={{ fontSize: 10, opacity: 0.5 }}>🔒</span>
+                            )}
+                            {isPlayed && !advNotInMatch && (
                               <span style={{ fontSize: 12, fontWeight: 700,
                                 color: advCorrect ? '#1a7a44' : '#cc3333' }}>
                                 {advCorrect ? '✓' : '✗'}
                               </span>
                             )}
-                            <span style={{ fontSize: 11, fontWeight: 700,
-                              color: advCorrect ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555' }}>
-                              <><Flag emoji={advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} size={22} /> {tn(advPicked)}</>
-                              {isSpecial && advPicked && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
-                              {isSpecial && advPicked && isPlayed && advCorrect && (isFinal ? ' 🏆' : ' 🥉')}
-                            </span>
+                            {advNotInMatch ? (
+                              <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>
+                                ⚠️ <Flag emoji={FLAGS[advPicked] ?? ''} size={16} /> {tn(advPicked)}{' '}
+                                {lang === 'he' ? 'לא הגיעה לשלב זה' : 'did not reach this stage'}
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: 11, fontWeight: 700,
+                                color: advCorrect ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555' }}>
+                                <><Flag emoji={advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} size={22} /> {tn(advPicked)}</>
+                                {isSpecial && advPicked && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
+                                {isSpecial && advPicked && isPlayed && advCorrect && (isFinal ? ' 🏆' : ' 🥉')}
+                              </span>
+                            )}
                           </div>
                           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                             {isPlayed && ptsAdv > 0 && (
@@ -1077,9 +1093,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                             )}
                             {!isPlayed && (
                               <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4,
-                                background: advPickedIsUnderdog ? '#DBEAFE' : '#e8f5e9',
-                                color: advPickedIsUnderdog ? '#1a4fa8' : '#1a5c30', fontWeight: 700 }}>
-                                +{potentialAdvPts}
+                                background: advNotInMatch ? '#FEF3C7' : advPickedIsUnderdog ? '#DBEAFE' : '#e8f5e9',
+                                color: advNotInMatch ? '#92400E' : advPickedIsUnderdog ? '#1a4fa8' : '#1a5c30',
+                                fontWeight: 700 }}>
+                                {advNotInMatch ? '0 נק\'' : `+${potentialAdvPts}`}
                               </span>
                             )}
                           </div>
@@ -1197,10 +1214,13 @@ export default function Predict({ lang }: { lang: Lang }) {
                         }
                       }
                       if (pred?.advance) {
-                        const advBase = { R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 }[km.round]
-                        const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat] ?? 0
-                        const pickedUnd = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
-                        maxPtsAdv += advBase + (pickedUnd ? advCatBonus : 0)
+                        const advInMatch = !tA || !tB || pred.advance === tA || pred.advance === tB
+                        if (advInMatch) {
+                          const advBase = { R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 }[km.round]
+                          const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat] ?? 0
+                          const pickedUnd = (pred.advance === tA && !aIsFav) || (pred.advance === tB && aIsFav)
+                          maxPtsAdv += advBase + (pickedUnd ? advCatBonus : 0)
+                        }
                       }
                       const roundKey = km.round as string
                       if (['R32','R16','QF'].includes(roundKey)) {
