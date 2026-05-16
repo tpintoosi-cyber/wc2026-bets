@@ -916,6 +916,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                   || advPicked === tA || advPicked === tB
                 if (!advBracketValid) ptsAdv = 0
 
+                // For QF+: is the advance pick actually in the real match?
+                // (bracket-valid but actual teams may differ — Spain predicted but Argentina played)
+                const advInActualMatch = !isQFPlus || !advPicked
+                  || !actualTeamA || !actualTeamB
+                  || advPicked === actualTeamA || advPicked === actualTeamB
+
                 // Potential advance points (pre-match)
                 const potentialAdvPts = (() => {
                   if (!km || !advPicked || advNotInMatch) return 0
@@ -925,9 +931,11 @@ export default function Predict({ lang }: { lang: Lang }) {
                   return base + (pickedUnderdog ? catBonus : 0)
                 })()
 
-                // 1X2 display label
-                const pred1x2Label = predResult === '1' ? (tA ? tn(tA) : '1') : predResult === '2' ? (tB ? tn(tB) : '2') : predResult === 'X' ? t.draw : null
-                const pred1x2Flag = predResult === '1' ? (tA ? FLAGS[tA] ?? '' : '') : predResult === '2' ? (tB ? FLAGS[tB] ?? '' : '') : null
+                // 1X2 display label — for QF+ use ACTUAL teams (user filled 1X2 seeing actual teams)
+                const label1A = isQFPlus ? (actualTeamA ?? tA) : tA
+                const label1B = isQFPlus ? (actualTeamB ?? tB) : tB
+                const pred1x2Label = predResult === '1' ? (label1A ? tn(label1A) : '1') : predResult === '2' ? (label1B ? tn(label1B) : '2') : predResult === 'X' ? t.draw : null
+                const pred1x2Flag = predResult === '1' ? (label1A ? FLAGS[label1A] ?? '' : '') : predResult === '2' ? (label1B ? FLAGS[label1B] ?? '' : '') : null
 
                 const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsOU || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
 
@@ -1171,17 +1179,22 @@ export default function Predict({ lang }: { lang: Lang }) {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                               {isLockedAdvance && <span style={{ fontSize: 9, opacity: 0.4 }}>🔒</span>}
                               {isPlayed && <span style={{ fontSize: 11, fontWeight: 700, color: (advCorrect && advBracketValid) ? '#1a7a44' : '#cc3333' }}>{(advCorrect && advBracketValid) ? '✓' : '✗'}</span>}
-                              <span style={{ fontSize: 11, fontWeight: 600, color: (advCorrect && advBracketValid) ? '#1a5c30' : isPlayed ? '#8b1f1f' : '#555' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: (advCorrect && advBracketValid) ? '#1a5c30' : isPlayed ? '#8b1f1f' : (advInActualMatch ? '#555' : '#B45309') }}>
                                 <Flag emoji={FLAGS[advPicked] ?? ''} size={18} /> {tn(advPicked)}
                                 {isSpecial && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
                               </span>
                               {isPlayed && ptsAdv > 0 && advBracketValid && <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsAdv}</span>}
-                              {!isPlayed && advBracketValid && (
+                              {/* Pre-match: show potential pts only if pick is in actual match (or actual not known yet) */}
+                              {!isPlayed && advBracketValid && advInActualMatch && (
                                 <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4, fontWeight: 700,
                                   background: ((advPicked===tA&&!aIsFav)||(advPicked===tB&&aIsFav)) ? '#DBEAFE' : '#e8f5e9',
                                   color: ((advPicked===tA&&!aIsFav)||(advPicked===tB&&aIsFav)) ? '#1a4fa8' : '#1a5c30' }}>
                                   +{potentialAdvPts}
                                 </span>
+                              )}
+                              {/* Pre-match: warn if bracket pick isn't in the actual match */}
+                              {!isPlayed && isQFPlus && !advInActualMatch && (
+                                <span style={{ fontSize: 10, color: '#B45309', fontWeight: 600 }}>⚠️ 0</span>
                               )}
                             </div>
                           )}
