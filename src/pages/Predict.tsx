@@ -139,6 +139,35 @@ export default function Predict({ lang }: { lang: Lang }) {
   useEffect(() => {
     if (r16Deadline == null) setKnockoutView('form')
   }, [r16Deadline])
+
+  // Accordion state: which rounds are open in form view
+  const [openRounds, setOpenRounds] = useState<Set<string>>(new Set(['R32']))
+  const toggleRound = (round: string) =>
+    setOpenRounds(prev => { const s = new Set(prev); s.has(round) ? s.delete(round) : s.add(round); return s })
+
+  // Compute active round (first with deadline that hasn't passed, or last available)
+  const activeKoRound = useMemo(() => {
+    const rounds = ['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const
+    const deadlines: Record<string, number | null> = {
+      R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline,
+      SF: sfDeadline, '3P': finalDeadline, F: finalDeadline,
+    }
+    const now = Date.now()
+    for (const r of rounds) {
+      const dl = deadlines[r]
+      if (dl !== null && now <= dl) return r
+    }
+    // All locked — return last round with a deadline set
+    for (const r of [...rounds].reverse()) {
+      if (deadlines[r] !== null) return r
+    }
+    return 'R32'
+  }, [knockoutDeadline, r16Deadline, qfDeadline, sfDeadline, finalDeadline])
+
+  // Auto-open active round when it changes
+  useEffect(() => {
+    setOpenRounds(new Set([activeKoRound]))
+  }, [activeKoRound])
   const [focusMatchId, setFocusMatchId] = useState<number | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -1542,46 +1571,116 @@ export default function Predict({ lang }: { lang: Lang }) {
               // Hide rounds with no deadline yet — they're future rounds not yet opened
               if (roundDeadlineTs === null) return null
 
-              return (
-                <div key={round}>
-                  <h2 className="round-title">{KNOCKOUT_ROUND_LABELS[round]}</h2>
-                  <DeadlineBanner deadline={roundDeadlineTs} locked={roundLocked} />
+              // Completion count: how many matches have a full prediction
+              const needsAdvance = round === 'R32' || round === 'R16'
+              const availableMatches = roundMatches.filter(km => {
+                const tA = getFormTeam(km.id, 'A'), tB = getFormTeam(km.id, 'B')
+                return !!(tA && tB)
+              })
+              const filledMatches = availableMatches.filter(km => {
+                const p = knockoutPreds[km.id]
+                if (!p?.prediction1X2) return false
+                if (p?.scoreA === null || p?.scoreA === undefined) return false
+                if (p?.scoreB === null || p?.scoreB === undefined) return false
+                if (needsAdvance && !p?.advance) return false
+                return true
+              })
+              const filled = filledMatches.length
+              const total = availableMatches.length
+              const allFilled = total > 0 && filled === total
+              const isActive = round === activeKoRound
+              const isOpen = openRounds.has(round)
 
-                  {/* Red card picks — per round */}
-                  {maxRedCards && (
-                    <div style={{ margin: '0 0 12px', padding: '10px 14px', background: '#fff5f5', border: '1px solid #fdd', borderRadius: 10 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: '#A32D2D', marginBottom: 8 }}>
-                        🟥 {maxRedCards === 1 ? t.redCard : t.redCards} — {t.redCards}
-                        <span style={{ fontWeight: 400, color: '#999', marginRight: 6 }}>({redCardPicks.length}/{maxRedCards} נבחרו | 2 נק׳ לכל ניחוש נכון)</span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        {roundMatches.map(km => {
-                          const tA = getFormTeam(km.id, 'A')
-                          const tB = getFormTeam(km.id, 'B')
-                          if (!tA || !tB) return null
-                          const isPicked = redCardPicks.includes(km.id)
-                          const canPick = !roundLocked && (!isPicked ? redCardPicks.length < maxRedCards : true)
-                          return (
-                            <button key={km.id}
-                              onClick={() => !roundLocked && toggleKnockoutRedCard(round as 'R32' | 'R16' | 'QF', km.id)}
-                              disabled={roundLocked || (!isPicked && redCardPicks.length >= maxRedCards)}
-                              style={{
-                                padding: '5px 10px', borderRadius: 8, border: '1.5px solid',
-                                borderColor: isPicked ? '#A32D2D' : '#ddd',
-                                background: isPicked ? '#FCEBEB' : '#fff',
-                                color: isPicked ? '#A32D2D' : '#555',
-                                fontWeight: isPicked ? 700 : 400, fontSize: 12,
-                                cursor: canPick ? 'pointer' : 'not-allowed',
-                                fontFamily: 'inherit', opacity: (!isPicked && redCardPicks.length >= maxRedCards) ? 0.4 : 1,
-                              }}>
-                              <><Flag emoji={FLAGS[tA] ?? ''} size={22} /> {tn(tA)} vs <Flag emoji={FLAGS[tB] ?? ''} size={22} /> {tn(tB)}</>
-                              {isPicked && ' 🟥'}
-                            </button>
-                          )
-                        })}
-                      </div>
+              const roundLabel = KNOCKOUT_ROUND_LABELS[round]
+
+              return (
+                <div key={round} style={{ marginBottom: 8, borderRadius: 12, overflow: 'hidden',
+                  border: `1.5px solid ${isActive ? '#1a7a44' : roundLocked ? '#e0e0e0' : '#d0d0e8'}`,
+                  boxShadow: isActive ? '0 2px 8px rgba(26,122,68,0.12)' : 'none',
+                }}>
+                  {/* Accordion Header */}
+                  <div
+                    onClick={() => toggleRound(round)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '10px 14px', cursor: 'pointer', userSelect: 'none',
+                      background: isActive ? '#f0fbf4'
+                        : allFilled ? '#f8fffe'
+                        : roundLocked ? '#fafafa' : '#fff',
+                    }}>
+                    {/* Right: label + status */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700,
+                        color: isActive ? '#1a5c30' : roundLocked ? '#999' : '#1a1a2e' }}>
+                        {roundLabel}
+                      </span>
+                      {isActive && !roundLocked && (
+                        <span style={{ fontSize: 11, background: '#1a7a44', color: '#fff',
+                          borderRadius: 6, padding: '1px 7px', fontWeight: 600 }}>
+                          {lang === 'he' ? 'פתוח' : 'Open'}
+                        </span>
+                      )}
+                      {roundLocked && (
+                        <span style={{ fontSize: 12, color: '#bbb' }}>🔒</span>
+                      )}
                     </div>
-                  )}
+                    {/* Left: progress + chevron */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {total > 0 && (
+                        <span style={{
+                          fontSize: 12, fontWeight: 600,
+                          color: allFilled ? '#1a7a44' : filled > 0 ? '#B45309' : '#bbb',
+                        }}>
+                          {allFilled ? '✓ ' : ''}{filled}/{total}
+                        </span>
+                      )}
+                      <span style={{ fontSize: 12, color: '#999', fontWeight: 700, transition: 'transform 0.2s',
+                        display: 'inline-block', transform: isOpen ? 'rotate(180deg)' : 'none' }}>
+                        ▼
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Accordion Body */}
+                  {isOpen && (
+                    <div style={{ borderTop: `1px solid ${isActive ? '#c0e8d0' : '#eee'}` }}>
+                      <DeadlineBanner deadline={roundDeadlineTs} locked={roundLocked} />
+
+                      {/* Red card picks — per round */}
+                      {maxRedCards && (
+                        <div style={{ margin: '0 0 12px', padding: '10px 14px', background: '#fff5f5', border: '1px solid #fdd', borderRadius: 10 }}>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: '#A32D2D', marginBottom: 8 }}>
+                            🟥 {maxRedCards === 1 ? t.redCard : t.redCards} — {t.redCards}
+                            <span style={{ fontWeight: 400, color: '#999', marginRight: 6 }}>({redCardPicks.length}/{maxRedCards} נבחרו | 2 נק׳ לכל ניחוש נכון)</span>
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {roundMatches.map(km => {
+                              const tA = getFormTeam(km.id, 'A')
+                              const tB = getFormTeam(km.id, 'B')
+                              if (!tA || !tB) return null
+                              const isPicked = redCardPicks.includes(km.id)
+                              const canPick = !roundLocked && (!isPicked ? redCardPicks.length < maxRedCards : true)
+                              return (
+                                <button key={km.id}
+                                  onClick={() => !roundLocked && toggleKnockoutRedCard(round as 'R32' | 'R16' | 'QF', km.id)}
+                                  disabled={roundLocked || (!isPicked && redCardPicks.length >= maxRedCards)}
+                                  style={{
+                                    padding: '5px 10px', borderRadius: 8, border: '1.5px solid',
+                                    borderColor: isPicked ? '#A32D2D' : '#ddd',
+                                    background: isPicked ? '#FCEBEB' : '#fff',
+                                    color: isPicked ? '#A32D2D' : '#555',
+                                    fontWeight: isPicked ? 700 : 400, fontSize: 12,
+                                    cursor: canPick ? 'pointer' : 'not-allowed',
+                                    fontFamily: 'inherit', opacity: (!isPicked && redCardPicks.length >= maxRedCards) ? 0.4 : 1,
+                                  }}>
+                                  <><Flag emoji={FLAGS[tA] ?? ''} size={22} /> {tn(tA)} vs <Flag emoji={FLAGS[tB] ?? ''} size={22} /> {tn(tB)}</>
+                                  {isPicked && ' 🟥'}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                   {roundMatches.map(km => {
                     const teamA = getFormTeam(km.id, 'A')
                     const teamB = getFormTeam(km.id, 'B')
@@ -1805,7 +1904,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                       </div>
                     )
                   })}
-                </div>
+                    </div>  {/* end accordion body */}
+                  )}
+                </div>  {/* end accordion container */}
               )
             })
           })()}
