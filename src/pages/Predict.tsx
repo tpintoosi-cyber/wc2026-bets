@@ -1207,7 +1207,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                             if (!km) return 0
                             const base = ({ R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 } as Record<string,number>)[km.round]
                             const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat] ?? 0
-                            return base + catBonus
+                            // Use actual pick — favorite gets base, underdog gets base+catBonus, draw gets base+max(0,cat-1)
+                            if (predResult === 'X') return base + Math.max(0, catBonus - 1)
+                            const pickIsFav = (predResult === '1' && aIsFav) || (predResult === '2' && !aIsFav)
+                            return pickIsFav ? base : base + catBonus
                           })() : undefined,
                         })
                       }
@@ -1260,6 +1263,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                           flag: '🟥',
                           ok: isPlayed ? ptsRedCard > 0 : null,
                           pts: ptsRedCard,
+                          potential: !isPlayed ? 2 : undefined,
                         })
                       }
 
