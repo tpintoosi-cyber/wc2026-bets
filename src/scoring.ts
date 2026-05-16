@@ -291,16 +291,10 @@ export function computeUserScore(
           km.resultA, km.resultB, km.category, km.round
         )
       }
-      if (km.advanceTeam) {
-        if (km.round === 'R32' && pred.advance) {
-          matchPts += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
-        }
-        if (km.round !== 'R32' && km.teamA && km.teamB) {
-          const advancePred = findAdvancePrediction(km.teamA, km.teamB, knockoutPredictions)
-          if (advancePred) {
-            matchPts += calcAdvancePoints(advancePred, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
-          }
-        }
+      if (km.advanceTeam && pred.advance) {
+        // Always use the direct prediction for this specific match
+        // Never search other predictions — that caused cross-match scoring bugs
+        matchPts += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
       }
       koByRound[km.round] = (koByRound[km.round] ?? 0) + matchPts
       knockoutPoints += matchPts

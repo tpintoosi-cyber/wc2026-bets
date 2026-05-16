@@ -1504,37 +1504,81 @@ export default function Predict({ lang }: { lang: Lang }) {
                               </div>
                             </div>
 
-                            {/* Advance picker */}
-                            <div style={{ padding: '8px 14px', borderTop: '1px solid #f0f0f0' }}>
-                              <div style={{ fontSize: 11, color: '#888', marginBottom: 5 }}>
-                                {t.koWhoAdvanceQ}
-                                {bracketTeamA && <span style={{ opacity: 0.6, fontSize: 10, marginRight: 6 }}>🔒</span>}
+                            {/* Advance picker — only for R32/R16 (not bracket rounds) */}
+                            {!bracketTeamA && (
+                              <div style={{ padding: '8px 14px', borderTop: '1px solid #f0f0f0' }}>
+                                <div style={{ fontSize: 11, color: '#888', marginBottom: 5 }}>{t.koWhoAdvanceQ}</div>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  {([teamA!, teamB!] as string[]).map(team => {
+                                    const isSelected = pred?.advance === team
+                                    return (
+                                      <button key={team}
+                                        disabled={roundLocked}
+                                        onClick={() => !roundLocked && updateKnockout(km.id, 'advance', team)}
+                                        style={{
+                                          flex: 1, padding: '7px 6px',
+                                          border: isSelected ? '2px solid #1a7a44' : '1px solid #ddd',
+                                          borderRadius: 8,
+                                          background: isSelected ? '#EAF3DE' : '#fff',
+                                          color: isSelected ? '#1a7a44' : '#555',
+                                          fontWeight: isSelected ? 700 : 400,
+                                          fontSize: 12, cursor: roundLocked ? 'default' : 'pointer',
+                                          fontFamily: 'inherit', opacity: roundLocked ? 0.6 : 1,
+                                        }}>
+                                        <><Flag emoji={FLAGS[team] ?? ''} size={20} /> {tn(team)}</>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
                               </div>
-                              <div style={{ display: 'flex', gap: 6 }}>
-                                {/* For QF+: show bracket predictions (locked). For R32/R16: show actual teams (editable) */}
-                                {(bracketTeamA ? [bracketTeamA, bracketTeamB!] : [teamA!, teamB!] as string[]).map(team => {
-                                  const isSelected = pred?.advance === team
-                                  const isLocked = roundLocked || !!bracketTeamA
+                            )}
+
+                            {/* QF+ bracket prediction — locked section */}
+                            {bracketTeamA && (
+                              <div style={{
+                                borderTop: '2px solid #e8e8f0', margin: '0 -14px',
+                                padding: '10px 14px', background: '#f5f5fa',
+                              }}>
+                                <div style={{ fontSize: 11, color: '#666', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  <span>🔒</span>
+                                  <span style={{ fontWeight: 600 }}>{lang === 'he' ? 'ניחוש העץ שלך' : 'Your bracket prediction'}</span>
+                                  <span style={{ color: '#aaa', fontWeight: 400 }}>{lang === 'he' ? '(לא ניתן לשינוי)' : '(locked)'}</span>
+                                </div>
+                                {/* Predicted matchup */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                                  <span style={{ fontSize: 13, color: bracketTeamA !== teamA ? '#B45309' : '#333', fontWeight: 600 }}>
+                                    <Flag emoji={FLAGS[bracketTeamA] ?? ''} size={20} /> {tn(bracketTeamA)}
+                                  </span>
+                                  <span style={{ color: '#bbb', fontSize: 12 }}>{t.versus}</span>
+                                  <span style={{ fontSize: 13, color: bracketTeamB !== teamB ? '#B45309' : '#333', fontWeight: 600 }}>
+                                    <Flag emoji={FLAGS[bracketTeamB ?? ''] ?? ''} size={20} /> {tn(bracketTeamB ?? '')}
+                                  </span>
+                                  {bracketDiffersFromActual && (
+                                    <span style={{ fontSize: 11, color: '#B45309', marginRight: 'auto' }}>
+                                      ≠ {lang === 'he' ? 'מהמשחק בפועל' : 'differs from actual'}
+                                    </span>
+                                  )}
+                                </div>
+                                {/* Predicted advance pick */}
+                                {pred?.advance && (() => {
+                                  const advInMatch = pred.advance === teamA || pred.advance === teamB
                                   return (
-                                    <button key={team}
-                                      disabled={isLocked}
-                                      onClick={() => !isLocked && updateKnockout(km.id, 'advance', team)}
-                                      style={{
-                                        flex: 1, padding: '7px 6px',
-                                        border: isSelected ? '2px solid #1a7a44' : '1px solid #ddd',
-                                        borderRadius: 8,
-                                        background: isSelected ? '#EAF3DE' : '#f8f8f8',
-                                        color: isSelected ? '#1a7a44' : '#888',
-                                        fontWeight: isSelected ? 700 : 400,
-                                        fontSize: 12, cursor: 'default',
-                                        fontFamily: 'inherit', opacity: 0.75,
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span style={{ fontSize: 11, color: '#888' }}>{t.koWhoAdvanceQ}</span>
+                                      <span style={{
+                                        padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 700,
+                                        background: advInMatch ? '#EAF3DE' : '#FEF3C7',
+                                        color: advInMatch ? '#1a7a44' : '#92400E',
+                                        opacity: 0.85,
                                       }}>
-                                      <><Flag emoji={FLAGS[team] ?? ''} size={20} /> {tn(team)}</>
-                                    </button>
+                                        <Flag emoji={FLAGS[pred.advance] ?? ''} size={16} /> {tn(pred.advance)}
+                                        {!advInMatch && <span style={{ fontSize: 10, marginRight: 4 }}>⚠️ {lang === 'he' ? 'לא הגיעה' : 'did not reach'} — 0 נק׳</span>}
+                                      </span>
+                                    </div>
                                   )
-                                })}
+                                })()}
                               </div>
-                            </div>
+                            )}
 
                             <div style={{ padding: '10px 14px', background: '#f8f9ff', borderTop: '1px solid #f0f0f0' }}>
                               {!pred?.prediction1X2 ? (
@@ -1581,13 +1625,18 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 }
 
                                 if (pred.advance) {
-                                  const advBase = ({ R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 } as Record<string, number>)[km.round]
-                                  const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
-                                  const pickedUnderdog = (pred.advance === teamA && !aIsFavForm) || (pred.advance === teamB && aIsFavForm)
-                                  const advPts = advBase + (pickedUnderdog ? advCatBonus : 0)
-                                  const advEmoji = pred.advance === teamA ? (FLAGS[teamA!] ?? '') : (FLAGS[teamB!] ?? '')
-                                  breakdown.push(<span key="adv">{t.koAdvance} (<Flag emoji={advEmoji} size={14} /> {pred.advance}): {advPts}</span>)
-                                  total += advPts
+                                  const advInMatch = !bracketTeamA || pred.advance === teamA || pred.advance === teamB
+                                  if (advInMatch) {
+                                    const advBase = ({ R32: 1, R16: 2, QF: 3, SF: 4, '3P': 2, F: 5 } as Record<string, number>)[km.round]
+                                    const advCatBonus = { A: 0, B: 1, C: 2, D: 2 }[dynCat]
+                                    const pickedUnderdog = (pred.advance === teamA && !aIsFavForm) || (pred.advance === teamB && aIsFavForm)
+                                    const advPts = advBase + (pickedUnderdog ? advCatBonus : 0)
+                                    const advEmoji = pred.advance === teamA ? (FLAGS[teamA!] ?? '') : (FLAGS[teamB!] ?? '')
+                                    breakdown.push(<span key="adv">{t.koAdvance} (<Flag emoji={advEmoji} size={14} /> {pred.advance}): {advPts}</span>)
+                                    total += advPts
+                                  } else {
+                                    breakdown.push(<span key="adv" style={{ color: '#B45309' }}>{t.koAdvance} (<Flag emoji={FLAGS[pred.advance] ?? ''} size={14} /> {pred.advance}): 0 ⚠️</span>)
+                                  }
                                 }
 
                                 return (
