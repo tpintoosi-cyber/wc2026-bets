@@ -308,7 +308,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     const effectiveDeadline = field === 'advance'
       ? (round === 'R32' ? knockoutDeadline : r16Deadline)
       : ({ R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline,
-           SF: sfDeadline, '3P': sfDeadline, F: finalDeadline } as Record<string, number|null>)[round] ?? null
+           SF: sfDeadline, '3P': finalDeadline, F: finalDeadline } as Record<string, number|null>)[round] ?? null
     if (effectiveDeadline && Date.now() > effectiveDeadline) return
 
     setKnockoutPreds(prev => {
@@ -735,8 +735,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                 case 'R32': return knockoutDeadline == null || now > knockoutDeadline
                 case 'R16': return r16Deadline == null  || now > r16Deadline
                 case 'QF':  return qfDeadline  == null  || now > qfDeadline
-                case 'SF':
-                case '3P':  return sfDeadline  == null  || now > sfDeadline
+                case 'SF':  return sfDeadline   == null || now > sfDeadline
+                case '3P':  return finalDeadline == null || now > finalDeadline
                 case 'F':   return finalDeadline == null || now > finalDeadline
                 default:    return true
               }
@@ -1478,7 +1478,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                 round === 'R32' ? knockoutDeadline :
                 round === 'R16' ? r16Deadline :
                 round === 'QF'  ? qfDeadline :
-                (round === 'SF' || round === '3P') ? sfDeadline :
+                round === 'SF' ? sfDeadline :
+                round === '3P' ? finalDeadline :
                 round === 'F'   ? finalDeadline : null
 
               // Hide rounds with no deadline yet — they're future rounds not yet opened

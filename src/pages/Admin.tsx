@@ -678,8 +678,8 @@ export default function Admin() {
                 ['שלב 32 (R32)', 'knockoutDeadline'],
                 ['שמינית גמר + עץ (R16)', 'r16Deadline'],
                 ['רבע גמר (QF)', 'qfDeadline'],
-                ['חצי גמר + מקום 3 (SF/3P)', 'sfDeadline'],
-                ['גמר (F)', 'finalDeadline'],
+                ['חצי גמר (SF)', 'sfDeadline'],
+                ['מקום 3 + גמר (3P/F)', 'finalDeadline'],
               ] as [string, keyof typeof settings][]).map(([label, key]) => (
                 <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
                   <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: key === 'knockoutDeadline' ? 700 : 400 }}>{label}</td>
