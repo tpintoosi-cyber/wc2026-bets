@@ -7,6 +7,7 @@ import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, Knock
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
 import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
 import { populateR32Teams } from '../utils/syncLogic'
+import AdminTestPanel from './AdminTestPanel'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
 
@@ -38,7 +39,7 @@ export default function Admin() {
   const [msg, setMsg] = useState('')
   const [syncLog, setSyncLog] = useState<string[]>([])
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, KnockoutMatch>>({})
-  const [adminTab, setAdminTab] = useState<'group' | 'knockout' | 'users'>('group')
+  const [adminTab, setAdminTab] = useState<'group' | 'knockout' | 'users' | 'test'>('group')
   const [pendingUsers, setPendingUsers] = useState<{ uid: string; displayName: string; email: string; requestedAt: number; status: string }[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
 
@@ -482,6 +483,12 @@ export default function Admin() {
           background: adminTab === 'users' ? '#1a1a2e' : 'transparent',
           color: adminTab === 'users' ? '#fff' : '#666',
         }}>👥 משתמשים</button>
+        <button onClick={() => setAdminTab('test')} style={{
+          flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
+          fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
+          background: adminTab === 'test' ? '#1a1a2e' : 'transparent',
+          color: adminTab === 'test' ? '#fff' : '#666',
+        }}>🧪 בדיקות</button>
       </div>
 
       {/* API Sync */}
@@ -824,6 +831,13 @@ export default function Admin() {
               </div>
             )
           })}
+        </section>
+      )}
+
+      {adminTab === 'test' && (
+        <section className="admin-section">
+          <h3>🧪 פאנל בדיקות</h3>
+          <AdminTestPanel />
         </section>
       )}
     </div>
