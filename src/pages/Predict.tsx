@@ -1460,22 +1460,6 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                         {teamsReady && (
                           <div style={{ padding: '12px 14px' }}>
-                            {/* Locked bracket prediction for QF+ — show user's predicted teams */}
-                            {(bracketTeamA || bracketTeamB) && (
-                              <div style={{
-                                display: 'flex', alignItems: 'center', gap: 6,
-                                padding: '5px 10px', marginBottom: 10, borderRadius: 8,
-                                background: bracketDiffersFromActual ? '#FFF8E1' : '#f0f0f8',
-                                border: `1px solid ${bracketDiffersFromActual ? '#FDE68A' : '#e0e0f0'}`,
-                                fontSize: 12,
-                              }}>
-                                <span style={{ color: '#888' }}>🔒 {lang === 'he' ? 'ניחוש שלך מהעץ:' : 'Your bracket pick:'}</span>
-                                {bracketTeamA && <><Flag emoji={FLAGS[bracketTeamA] ?? ''} size={16} /> <span style={{ fontWeight: 600 }}>{tn(bracketTeamA)}</span></>}
-                                <span style={{ color: '#aaa' }}>{t.versus}</span>
-                                {bracketTeamB && <><Flag emoji={FLAGS[bracketTeamB] ?? ''} size={16} /> <span style={{ fontWeight: 600 }}>{tn(bracketTeamB)}</span></>}
-                                {bracketDiffersFromActual && <span style={{ color: '#B45309', fontSize: 11, marginRight: 'auto' }}>⚠️ {lang === 'he' ? 'שונה מהמשחק בפועל' : 'Differs from actual match'}</span>}
-                              </div>
-                            )}
                             <div className="match-body">
                               <div className="team-name">
                                 <span className="team-flag"><Flag emoji={FLAGS[teamA!] ?? ''} size={24} /></span>
@@ -1513,22 +1497,28 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                             {/* Advance picker */}
                             <div style={{ padding: '8px 14px', borderTop: '1px solid #f0f0f0' }}>
-                              <div style={{ fontSize: 11, color: '#888', marginBottom: 5 }}>מי עולה?</div>
+                              <div style={{ fontSize: 11, color: '#888', marginBottom: 5 }}>
+                                {t.koWhoAdvanceQ}
+                                {bracketTeamA && <span style={{ opacity: 0.6, fontSize: 10, marginRight: 6 }}>🔒</span>}
+                              </div>
                               <div style={{ display: 'flex', gap: 6 }}>
-                                {([teamA!, teamB!] as string[]).map(team => {
+                                {/* For QF+: show bracket predictions (locked). For R32/R16: show actual teams (editable) */}
+                                {(bracketTeamA ? [bracketTeamA, bracketTeamB!] : [teamA!, teamB!] as string[]).map(team => {
                                   const isSelected = pred?.advance === team
+                                  const isLocked = roundLocked || !!bracketTeamA
                                   return (
                                     <button key={team}
-                                      disabled={roundLocked}
-                                      onClick={() => updateKnockout(km.id, 'advance', team)}
+                                      disabled={isLocked}
+                                      onClick={() => !isLocked && updateKnockout(km.id, 'advance', team)}
                                       style={{
                                         flex: 1, padding: '7px 6px',
                                         border: isSelected ? '2px solid #1a7a44' : '1px solid #ddd',
-                                        borderRadius: 8, background: isSelected ? '#EAF3DE' : '#fff',
-                                        color: isSelected ? '#1a7a44' : '#555',
+                                        borderRadius: 8,
+                                        background: isSelected ? '#EAF3DE' : '#f8f8f8',
+                                        color: isSelected ? '#1a7a44' : '#888',
                                         fontWeight: isSelected ? 700 : 400,
-                                        fontSize: 12, cursor: roundLocked ? 'not-allowed' : 'pointer',
-                                        fontFamily: 'inherit', opacity: roundLocked ? 0.5 : 1,
+                                        fontSize: 12, cursor: 'default',
+                                        fontFamily: 'inherit', opacity: 0.75,
                                       }}>
                                       <><Flag emoji={FLAGS[team] ?? ''} size={20} /> {tn(team)}</>
                                     </button>
