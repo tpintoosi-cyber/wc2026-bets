@@ -725,13 +725,13 @@ export default function Predict({ lang }: { lang: Lang }) {
             const isRoundLocked = (round: string): boolean => {
               if (!knockoutOpen) return true
               switch (round) {
-                case 'R32': return knockoutDeadline != null && now > knockoutDeadline
-                case 'R16': return r16Deadline != null && now > r16Deadline
-                case 'QF':  return qfDeadline  != null && now > qfDeadline
+                case 'R32': return knockoutDeadline == null || now > knockoutDeadline
+                case 'R16': return r16Deadline == null  || now > r16Deadline
+                case 'QF':  return qfDeadline  == null  || now > qfDeadline
                 case 'SF':
-                case '3P':  return sfDeadline   != null && now > sfDeadline
-                case 'F':   return finalDeadline != null && now > finalDeadline
-                default:    return false
+                case '3P':  return sfDeadline  == null  || now > sfDeadline
+                case 'F':   return finalDeadline == null || now > finalDeadline
+                default:    return true
               }
             }
             const isFormLocked = isLocked  // kept for bracket advance picks (R32 level)
@@ -963,15 +963,16 @@ export default function Predict({ lang }: { lang: Lang }) {
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string|undefined, string|false|undefined][]).map(([side, team, isAdv]) => {
                       const predScore = side === 'A' ? pred?.scoreA : pred?.scoreB
                       const hasThisScore = predScore !== null && predScore !== undefined
+                      const roundLocked = km ? isRoundLocked(km.round) : true
                       return (
                         <div key={side}
-                          onClick={() => team && updateKnockout(id, 'advance', team)}
+                          onClick={() => !roundLocked && team && updateKnockout(id, 'advance', team)}
                           style={{
                             display: 'flex', alignItems: 'center',
                             padding: '6px 7px', gap: 5,
                             borderBottom: side === 'A' ? '1px solid #ebebeb' : 'none',
                             background: isAdv ? '#DBEAFE' : 'transparent',
-                            cursor: team ? 'pointer' : 'default',
+                            cursor: (!roundLocked && team) ? 'pointer' : 'default',
                           }}>
                           <span style={{ lineHeight: 1, flexShrink: 0 }}>{team ? <Flag emoji={FLAGS[team] ?? ''} size={22} /> : ''}</span>
                           <span style={{
