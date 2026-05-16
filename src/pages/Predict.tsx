@@ -819,6 +819,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const actualTeamB = getActualTeam(id, 'B')
                 const actualDiffersA = actualTeamA && tA && actualTeamA !== tA
                 const actualDiffersB = actualTeamB && tB && actualTeamB !== tB
+                // QF+ = rounds where bracket prediction ≠ necessarily actual teams
+                const isQFPlus = !!(km && !['R32', 'R16'].includes(km.round))
                 const pred = knockoutPreds[id]
                 const km = KNOCKOUT_MATCHES.find(m => m.id === id)
                 const actual = knockoutMatches[id] as (typeof knockoutMatches)[number] & { resultA?: number; resultB?: number; advanceTeam?: string; hadRedCard?: boolean; isPlayed?: boolean } | undefined
@@ -1023,8 +1025,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                             fontStyle: team ? 'normal' : 'italic',
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{team ? tn(team) : '...'}</span>
-                          {/* Score only shown for R32/R16 where bracket = actual */}
-                          {hasThisScore && !actualDiffersA && (
+                          {/* Score shown inline only for R32/R16 where bracket = actual match */}
+                          {hasThisScore && !isQFPlus && (
                             <span style={{ fontSize: 14, fontWeight: 700, color: isAdv ? '#1a4fa8' : '#555', minWidth: 16, textAlign: 'right' }}>
                               {predScore}
                             </span>
@@ -1034,21 +1036,39 @@ export default function Predict({ lang }: { lang: Lang }) {
                       )
                     })}
 
-                    {/* ━━ SECTION 2: ACTUAL MATCH RESULT ━━━━━━━━━━━━━━━━━━━━━━━ */}
-                    {actualDiffersA && (
+                    {/* ━━ SECTION 2: ACTUAL MATCH RESULT ━━━━━━━━━━━━━━━━━━━━━━━
+                        For QF+: always show when teams are known (played or unplayed).
+                        For R32/R16: show only when played (no diff between bracket & actual). */}
+                    {isQFPlus && (actualTeamA || actualTeamB) && (
                       <div style={{
-                        padding: '5px 8px', borderTop: '2px solid #bbb', background: '#efefef',
+                        padding: '5px 8px',
+                        borderTop: actualDiffersA ? '2px solid #bbb' : '2px solid #d0d0d0',
+                        background: actualDiffersA ? '#efefef' : '#f0f0f0',
                         display: 'flex', alignItems: 'center', gap: 4, fontSize: 11,
                       }}>
-                        <span style={{ color: '#555', fontWeight: 700, flexShrink: 0, fontSize: 10 }}>{lang === 'he' ? 'בפועל:' : 'Actual:'}</span>
-                        <span style={{ fontWeight: 600, color: actualAdvance === actualTeamA ? '#1a5c30' : '#333', display: 'flex', alignItems: 'center', gap: 3 }}>
-                          {actualTeamA && <><Flag emoji={FLAGS[actualTeamA] ?? ''} size={15} /> {tn(actualTeamA)}</>}
+                        <span style={{ color: '#555', fontWeight: 700, flexShrink: 0, fontSize: 10 }}>
+                          {lang === 'he' ? 'בפועל:' : 'Actual:'}
+                        </span>
+                        <span style={{
+                          fontWeight: 600,
+                          color: (isPlayed && actualAdvance === actualTeamA) ? '#1a5c30' : '#333',
+                          display: 'flex', alignItems: 'center', gap: 3,
+                        }}>
+                          {actualTeamA
+                            ? <><Flag emoji={FLAGS[actualTeamA] ?? ''} size={15} /> {tn(actualTeamA)}</>
+                            : <span style={{ color: '#bbb', fontStyle: 'italic' }}>?</span>}
                         </span>
                         {isPlayed
                           ? <span style={{ fontWeight: 800, color: '#333', margin: '0 3px' }}>{actualA}:{actualB}</span>
                           : <span style={{ color: '#aaa', margin: '0 4px' }}>vs</span>}
-                        <span style={{ fontWeight: 600, color: actualAdvance === actualTeamB ? '#1a5c30' : '#333', display: 'flex', alignItems: 'center', gap: 3 }}>
-                          {actualTeamB && <>{tn(actualTeamB)} <Flag emoji={FLAGS[actualTeamB] ?? ''} size={15} /></>}
+                        <span style={{
+                          fontWeight: 600,
+                          color: (isPlayed && actualAdvance === actualTeamB) ? '#1a5c30' : '#333',
+                          display: 'flex', alignItems: 'center', gap: 3,
+                        }}>
+                          {actualTeamB
+                            ? <>{tn(actualTeamB)} <Flag emoji={FLAGS[actualTeamB] ?? ''} size={15} /></>
+                            : <span style={{ color: '#bbb', fontStyle: 'italic' }}>?</span>}
                         </span>
                         {actualAdvance && isPlayed && (
                           <span style={{ color: '#1a5c30', fontWeight: 700, marginRight: 'auto', fontSize: 10 }}>
@@ -1057,7 +1077,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                         )}
                       </div>
                     )}
-                    {isPlayed && !actualDiffersA && (
+                    {/* R32/R16: simplified result bar (bracket = actual, no separate section 2 needed) */}
+                    {!isQFPlus && isPlayed && (
                       <div style={{
                         padding: '4px 7px', borderTop: '2px solid #d0d0d0', background: '#f0f0f0',
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
@@ -1072,11 +1093,16 @@ export default function Predict({ lang }: { lang: Lang }) {
                       </div>
                     )}
 
-                    {/* ━━ SECTION 3: USER'S PREDICTION (QF+ only) ━━━━━━━━━━━━━━━━ */}
-                    {actualDiffersA && hasSomePred && (() => {
+                    {/* ━━ SECTION 3: USER'S MATCH BET (QF+ only) ━━━━━━━━━━━━━━━━━━
+                        Always shown for QF+ when user has a prediction (hasSomePred).
+                        Uses ACTUAL teams (what was really played), not bracket teams. */}
+                    {isQFPlus && hasSomePred && (pred?.prediction1X2 || (pred?.scoreA !== null && pred?.scoreA !== undefined)) && (() => {
                       const x = pred?.prediction1X2
                       const winA = x === '1', winB = x === '2'
                       const sA = pred?.scoreA, sB = pred?.scoreB
+                      // Show with actual teams if known, otherwise bracket teams
+                      const showTeamA = actualTeamA ?? tA
+                      const showTeamB = actualTeamB ?? tB
                       return (
                         <div style={{ padding: '5px 8px', borderTop: '1px solid #dde', background: '#f5f5fa' }}>
                           <div style={{ fontSize: 10, color: '#666', marginBottom: 3, fontWeight: 600 }}>
@@ -1084,15 +1110,15 @@ export default function Predict({ lang }: { lang: Lang }) {
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: winA ? 800 : 400, color: winA ? '#1a4fa8' : '#777' }}>
-                              {actualTeamA && <Flag emoji={FLAGS[actualTeamA] ?? ''} size={18} />}
-                              {actualTeamA ? tn(actualTeamA) : '?'}
+                              {showTeamA && <Flag emoji={FLAGS[showTeamA] ?? ''} size={18} />}
+                              {showTeamA ? tn(showTeamA) : '?'}
                             </span>
                             {sA !== undefined && sB !== undefined
                               ? <span style={{ fontWeight: 800, color: '#333', padding: '0 3px' }}>{sA}:{sB}</span>
                               : <span style={{ color: '#bbb' }}>–</span>}
                             <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: winB ? 800 : 400, color: winB ? '#1a4fa8' : '#777' }}>
-                              {actualTeamB ? tn(actualTeamB) : '?'}
-                              {actualTeamB && <Flag emoji={FLAGS[actualTeamB] ?? ''} size={18} />}
+                              {showTeamB ? tn(showTeamB) : '?'}
+                              {showTeamB && <Flag emoji={FLAGS[showTeamB] ?? ''} size={18} />}
                             </span>
                             {x === 'X' && (
                               <span style={{ fontSize: 10, background: '#E6F1FB', color: '#0C447C', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>

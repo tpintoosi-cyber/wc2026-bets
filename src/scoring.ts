@@ -1,4 +1,8 @@
-import { Category, Match, MatchPrediction, GroupPrediction, BonusPredictions, UserScore, MatchScore, KnockoutMatch, KnockoutMatchPrediction, KnockoutRound, KnockoutRedCardPicks } from './types'
+import {
+  Category, Match, MatchPrediction, GroupPrediction, BonusPredictions,
+  UserScore, MatchScore, KnockoutMatch, KnockoutMatchPrediction,
+  KnockoutRound, KnockoutRedCardPicks,
+} from './types'
 import { KNOCKOUT_BRACKET } from './data/matches'
 
 // ── GROUP STAGE 1X2 ───────────────────────────────────────────────────────────
@@ -223,6 +227,45 @@ export function calcAdvancePoints(
   return base + (pickedUnderdog ? catBonus : 0)
 }
 
+// ── BRACKET PATH VALIDATION ───────────────────────────────────────────────────
+// For QF+: advance pick must be one of the teams the user predicted to be in this match
+// (i.e., must arrive via user's own bracket picks).
+//
+// For 3P: feeder IDs are negative (losers). We compute the predicted loser of each SF.
+// For QF/SF/F: feeder IDs are positive advance picks from previous round.
+function getBracketValidTeams(
+  matchId: number,
+  preds: Record<number, KnockoutMatchPrediction>
+): [string | undefined, string | undefined] {
+  const b = KNOCKOUT_BRACKET[matchId]
+  if (!b) return [undefined, undefined]
+
+  const getTeam = (feederId: number | null): string | undefined => {
+    if (feederId === null) return undefined
+    if (feederId > 0) {
+      // Winner of feeder match = that match's advance pick
+      return preds[feederId]?.advance
+    }
+    // feederId < 0: loser of Math.abs(feederId)
+    const sfId = Math.abs(feederId)
+    const sfBracket = KNOCKOUT_BRACKET[sfId]
+    if (!sfBracket) return undefined
+    // Find the two teams in the SF match (winners of QF feeders)
+    const sfTeamA = sfBracket.feederA !== null && sfBracket.feederA > 0
+      ? preds[sfBracket.feederA]?.advance : undefined
+    const sfTeamB = sfBracket.feederB !== null && sfBracket.feederB > 0
+      ? preds[sfBracket.feederB]?.advance : undefined
+    const sfWinner = preds[sfId]?.advance
+    if (!sfWinner) return sfTeamA ?? sfTeamB  // fallback: return whatever we have
+    // Loser = the SF team that is NOT the winner
+    if (sfWinner === sfTeamA) return sfTeamB
+    if (sfWinner === sfTeamB) return sfTeamA
+    return undefined
+  }
+
+  return [getTeam(b.feederA), getTeam(b.feederB)]
+}
+
 // ── FULL USER SCORE ───────────────────────────────────────────────────────────
 export function computeUserScore(
   userId: string,
@@ -272,6 +315,7 @@ export function computeUserScore(
   // ── Knockout scoring ──────────────────────────────────────────────────────
   let knockoutPoints = 0
   const koByRound: Record<string, number> = { R32: 0, R16: 0, QF: 0, SF: 0, '3P': 0, F: 0 }
+
   if (knockoutPredictions && playedKnockout) {
     for (const km of playedKnockout) {
       if (!km.isPlayed || km.resultA === undefined || km.resultB === undefined) continue
@@ -279,12 +323,15 @@ export function computeUserScore(
       if (!pred) continue
       let matchPts = 0
 
+      // 1X2 points
       if (pred.prediction1X2) {
         matchPts += calc1X2KnockoutPoints(
           pred.prediction1X2, km.resultA, km.resultB,
           km.fifaPointsA, km.fifaPointsB, km.category, km.round
         )
       }
+
+      // Score points
       if (pred.scoreA !== null && pred.scoreA !== undefined &&
           pred.scoreB !== null && pred.scoreB !== undefined) {
         matchPts += calcScoreKnockoutPoints(
@@ -292,26 +339,32 @@ export function computeUserScore(
           km.resultA, km.resultB, km.category, km.round
         )
       }
+
+      // Advance points — with bracket path validation for QF+
       if (km.advanceTeam && pred.advance) {
-        // For QF/SF/F: advance pick must be bracket-valid (user must have predicted this team to reach this stage)
-        // For R32/R16: advance pick is always valid (user picks directly)
         let advanceValid = true
+
         if (km.round !== 'R32' && km.round !== 'R16') {
-          const b = KNOCKOUT_BRACKET[km.id]
-          if (b) {
-            const bracketA = b.feederA !== null && b.feederA > 0 ? knockoutPredictions[b.feederA]?.advance : undefined
-            const bracketB = b.feederB !== null && b.feederB > 0 ? knockoutPredictions[b.feederB]?.advance : undefined
-            advanceValid = pred.advance === bracketA || pred.advance === bracketB
-          }
+          // QF/SF/3P/F: advance pick must arrive via user's own bracket
+          const [bracketA, bracketB] = getBracketValidTeams(km.id, knockoutPredictions)
+          advanceValid = pred.advance === bracketA || pred.advance === bracketB
         }
+
         if (advanceValid) {
-          matchPts += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
+          matchPts += calcAdvancePoints(
+            pred.advance, km.advanceTeam,
+            km.round, km.category,
+            km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500,
+            km.teamA ?? '', km.teamB ?? ''
+          )
         }
       }
+
       koByRound[km.round] = (koByRound[km.round] ?? 0) + matchPts
       knockoutPoints += matchPts
     }
 
+    // Red card bonus
     if (knockoutRedCards) {
       knockoutPoints += calcKnockoutRedCardPoints(knockoutRedCards, playedKnockout)
     }
@@ -336,15 +389,3 @@ export function computeUserScore(
     lastUpdated: Date.now(),
   }
 }
-
-function findAdvancePrediction(
-  teamA: string,
-  teamB: string,
-  knockoutPreds: Record<number, KnockoutMatchPrediction>
-): string | null {
-  for (const pred of Object.values(knockoutPreds)) {
-    if (pred.advance === teamA || pred.advance === teamB) return pred.advance
-  }
-  return null
-}
-
