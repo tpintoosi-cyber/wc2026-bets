@@ -87,30 +87,45 @@ export default function AdminTestPanel() {
   const best8      = computeBest8(groups, gsResults)
   const { updatedKnockout: r32base } = populateR32Teams(groups as any, best8, {}, TEAM_FIFA_POINTS, calcCategoryByRound)
 
-  // Build full KO match tree from r32base
-  let koMatches: Record<number, any> = { ...r32base }
+  // Build full KO match tree — propagate results round by round in topological order
   const allKo = KNOCKOUT_MATCHES.slice().sort((a,b)=>a.id-b.id)
-  // Simulate each KO match: favorite always wins (alternates for variety)
-  for (const km of allKo) {
-    const existing = koMatches[km.id]
-    if (!existing?.teamA || !existing?.teamB) continue
-    const aIsFav = (TEAM_FIFA_POINTS[existing.teamA]??1500) >= (TEAM_FIFA_POINTS[existing.teamB]??1500)
-    const mod = km.id % 4
-    let rA: number, rB: number
-    if (mod === 0) { rA = aIsFav?2:0; rB = aIsFav?0:2 }
-    else if (mod === 1) { rA = aIsFav?1:0; rB = aIsFav?0:1 }
-    else if (mod === 2) { rA = 1; rB = 1 }  // draw → fav advances
-    else { rA = aIsFav?0:1; rB = aIsFav?1:0 }  // upset
-    const advanceTeam = (rA > rB) ? existing.teamA : (rB > rA) ? existing.teamB : (aIsFav ? existing.teamA : existing.teamB)
-    koMatches[km.id] = { ...existing, resultA: rA, resultB: rB, isPlayed: true, advanceTeam, hadRedCard: km.id%5===0 }
-    // Propagate advance to next round
-    // Propagate via bracket structure
-    for (const next of allKo) {
-      if (!koMatches[next.id]) continue
-      const b = KNOCKOUT_BRACKET?.[next.id]
-      if (!b) continue
-      if (b.feederA === km.id) koMatches[next.id] = { ...koMatches[next.id], teamA: advanceTeam, fifaPointsA: TEAM_FIFA_POINTS[advanceTeam]??1500 }
-      if (b.feederB === km.id) koMatches[next.id] = { ...koMatches[next.id], teamB: advanceTeam, fifaPointsB: TEAM_FIFA_POINTS[advanceTeam]??1500 }
+  const koMatches: Record<number, any> = {}
+  // Init all matches from base data
+  for (const km of allKo) koMatches[km.id] = { ...km }
+  // Apply R32 teams from group qualifiers (via populateR32Teams)
+  for (const [id, km] of Object.entries(r32base)) {
+    const n = Number(id)
+    if (koMatches[n]) koMatches[n] = { ...koMatches[n], ...(km as any) }
+  }
+  // Simulate each round in order, propagate winners/losers forward
+  const ROUND_ORDER = ['R32','R16','QF','SF','3P','F']
+  for (const round of ROUND_ORDER) {
+    for (const km of allKo.filter(k=>k.round===round)) {
+      const m = koMatches[km.id]
+      if (!m?.teamA || !m?.teamB) continue
+      const aIsFav = (TEAM_FIFA_POINTS[m.teamA]??1500) >= (TEAM_FIFA_POINTS[m.teamB]??1500)
+      const mod = km.id % 4
+      let rA: number, rB: number
+      if      (mod === 0) { rA = aIsFav?2:0; rB = aIsFav?0:2 }  // fav wins
+      else if (mod === 1) { rA = aIsFav?1:0; rB = aIsFav?0:1 }  // fav narrow win
+      else if (mod === 2) { rA = 1;           rB = 1           }  // draw → fav advances
+      else                { rA = aIsFav?0:1;  rB = aIsFav?1:0 }  // upset
+      const advanceTeam = rA > rB ? m.teamA : rB > rA ? m.teamB : (aIsFav ? m.teamA : m.teamB)
+      const loserTeam   = advanceTeam === m.teamA ? m.teamB : m.teamA
+      koMatches[km.id]  = { ...m, resultA: rA, resultB: rB, isPlayed: true, advanceTeam, hadRedCard: km.id%5===0 }
+      // Propagate to next-round matches via bracket
+      for (const next of allKo) {
+        const b = KNOCKOUT_BRACKET[next.id]; if (!b) continue
+        if (b.feederA === km.id)
+          koMatches[next.id] = { ...koMatches[next.id], teamA: advanceTeam, fifaPointsA: TEAM_FIFA_POINTS[advanceTeam]??1500 }
+        if (b.feederB === km.id)
+          koMatches[next.id] = { ...koMatches[next.id], teamB: advanceTeam, fifaPointsB: TEAM_FIFA_POINTS[advanceTeam]??1500 }
+        // 3P match uses losers (negative feeder IDs)
+        if (b.feederA === -km.id)
+          koMatches[next.id] = { ...koMatches[next.id], teamA: loserTeam, fifaPointsA: TEAM_FIFA_POINTS[loserTeam]??1500 }
+        if (b.feederB === -km.id)
+          koMatches[next.id] = { ...koMatches[next.id], teamB: loserTeam, fifaPointsB: TEAM_FIFA_POINTS[loserTeam]??1500 }
+      }
     }
   }
 
