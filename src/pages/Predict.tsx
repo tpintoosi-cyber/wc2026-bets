@@ -1926,9 +1926,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                       </div>
                     )
                   })}
-                    </div>  {/* end accordion body */}
+                    </div>
                   )}
-                </div>  {/* end accordion container */}
+                </div>
               )
             })
           })()}
