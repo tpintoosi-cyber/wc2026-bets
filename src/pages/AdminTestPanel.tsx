@@ -130,6 +130,17 @@ export default function AdminTestPanel() {
   }
 
   // Build user knockout predictions (partially correct)
+  // Helper: get team that user's bracket predicts for a given match slot
+  function getBracketTeam(matchId: number, side: 'A'|'B', preds: Record<number, any>): string | undefined {
+    const b = KNOCKOUT_BRACKET[matchId]
+    if (!b) return undefined
+    const feederId = side === 'A' ? b.feederA : b.feederB
+    if (feederId === null) return koMatches[matchId]?.[side === 'A' ? 'teamA' : 'teamB']
+    if (feederId < 0) return undefined // 3P losers handled separately
+    if (feederId >= 73 && feederId <= 88) return (r32base as any)[feederId]?.[side === 'A' ? 'teamA' : 'teamB']
+    return preds[feederId]?.advance
+  }
+
   const koPreds: Record<number, KnockoutMatchPrediction> = {}
   for (const km of allKo) {
     const actual = koMatches[km.id]
@@ -137,7 +148,17 @@ export default function AdminTestPanel() {
     const aIsFav = (TEAM_FIFA_POINTS[actual.teamA]??1500) >= (TEAM_FIFA_POINTS[actual.teamB]??1500)
     const actual1x2 = actual.resultA > actual.resultB ? '1' : actual.resultA < actual.resultB ? '2' : 'X'
     const { x, sA, sB } = randomPred(actual1x2 as any, actual.resultA??0, actual.resultB??0, km.id)
-    const advTeam = (actual.id % 3 === 0) ? actual.advanceTeam : (aIsFav ? actual.teamA : actual.teamB)
+
+    // For QF/SF/F: advance pick must use bracket-consistent teams, not actual results
+    let advTeam: string | undefined
+    if (km.round === 'R32' || km.round === 'R16') {
+      advTeam = (actual.id % 3 === 0) ? actual.advanceTeam : (aIsFav ? actual.teamA : actual.teamB)
+    } else {
+      // QF/SF/F: pick from bracket-predicted teams
+      const btA = getBracketTeam(km.id, 'A', koPreds)
+      const btB = getBracketTeam(km.id, 'B', koPreds)
+      advTeam = btA ? (km.id % 2 === 0 ? btA : (btB ?? btA)) : actual.advanceTeam
+    }
     koPreds[km.id] = { matchId: km.id, prediction1X2: x as any, scoreA: sA, scoreB: sB, advance: advTeam }
   }
 

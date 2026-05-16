@@ -1076,40 +1076,32 @@ export default function Predict({ lang }: { lang: Lang }) {
                     {/* ── ADVANCE PICK ── */}
                     {advPicked ? (() => {
                       const advPickedIsUnderdog = (advPicked === tA && !aIsFav) || (advPicked === tB && aIsFav)
+                      // advNotInMatch: user predicted a team that isn't in their bracket for this slot
+                      // Show simply as ✗ without confusing "לא הגיעה" message
+                      const advFlag = advPicked === tA ? (FLAGS[tA!] ?? '') : advPicked === tB ? (FLAGS[tB!] ?? '') : (FLAGS[advPicked] ?? '')
                       return (
                         <div style={{
                           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                           padding: '4px 7px', gap: 4,
-                          background: advNotInMatch ? '#FFF8E1'
-                            : advCorrect ? '#EAF3DE'
-                            : advWrong  ? '#FCEBEB'
-                            : '#f5f5f5',
+                          background: advCorrect ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f5f5f5',
                           borderTop: '1px solid #ebebeb',
                         }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                             {isLockedAdvance && (
-                              <span title={lang === 'he' ? 'נקבע בעץ — לא ניתן לשינוי' : 'Set in bracket — locked'}
-                                style={{ fontSize: 10, opacity: 0.5 }}>🔒</span>
+                              <span style={{ fontSize: 10, opacity: 0.5 }}>🔒</span>
                             )}
-                            {isPlayed && !advNotInMatch && (
+                            {isPlayed && (
                               <span style={{ fontSize: 12, fontWeight: 700,
                                 color: advCorrect ? '#1a7a44' : '#cc3333' }}>
                                 {advCorrect ? '✓' : '✗'}
                               </span>
                             )}
-                            {advNotInMatch ? (
-                              <span style={{ fontSize: 11, color: '#b45309', fontWeight: 600 }}>
-                                ⚠️ <Flag emoji={FLAGS[advPicked] ?? ''} size={16} /> {tn(advPicked)}{' '}
-                                {lang === 'he' ? 'לא הגיעה לשלב זה' : 'did not reach this stage'}
-                              </span>
-                            ) : (
-                              <span style={{ fontSize: 11, fontWeight: 700,
-                                color: advCorrect ? '#1a5c30' : advWrong ? '#8b1f1f' : '#555' }}>
-                                <><Flag emoji={advPicked === tA ? (FLAGS[tA!] ?? '') : (FLAGS[tB!] ?? '')} size={22} /> {tn(advPicked)}</>
-                                {isSpecial && advPicked && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
-                                {isSpecial && advPicked && isPlayed && advCorrect && (isFinal ? ' 🏆' : ' 🥉')}
-                              </span>
-                            )}
+                            <span style={{ fontSize: 11, fontWeight: 700,
+                              color: advCorrect ? '#1a5c30' : isPlayed ? '#8b1f1f' : '#555' }}>
+                              <><Flag emoji={advFlag} size={22} /> {tn(advPicked)}</>
+                              {isSpecial && advPicked && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
+                              {isSpecial && advPicked && isPlayed && advCorrect && (isFinal ? ' 🏆' : ' 🥉')}
+                            </span>
                           </div>
                           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                             {isPlayed && ptsAdv > 0 && (
