@@ -765,6 +765,26 @@ export default function Predict({ lang }: { lang: Lang }) {
               } catch { return undefined }
             }
 
+            // Traces actual results through bracket (for comparison with user's predictions)
+            const getActualTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
+              try {
+                const bracket = KNOCKOUT_BRACKET[matchId]
+                if (!bracket) return undefined
+                const feederId = side === 'A' ? bracket.feederA : bracket.feederB
+                if (feederId === null) {
+                  return side === 'A' ? (knockoutMatches[matchId] as any)?.teamA : (knockoutMatches[matchId] as any)?.teamB
+                }
+                if (feederId < 0) {
+                  const sfId = Math.abs(feederId)
+                  const sfMatch = knockoutMatches[sfId] as any
+                  if (!sfMatch?.advanceTeam) return undefined
+                  return sfMatch.teamA === sfMatch.advanceTeam ? sfMatch.teamB : sfMatch.teamA
+                }
+                // Always use actual advance team, regardless of round
+                return (knockoutMatches[feederId] as any)?.advanceTeam ?? undefined
+              } catch { return undefined }
+            }
+
             // Form view: show actual teams from API when available, fallback to user predictions
             const getFormTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
               const actual = knockoutMatches[matchId] as any
@@ -793,6 +813,10 @@ export default function Predict({ lang }: { lang: Lang }) {
               const MatchCard = ({ id, compact = false, variant = 'normal' }: { id: number; compact?: boolean; variant?: 'normal' | 'final' | 'third' }) => {
                 const tA = getTeamSafe(id, 'A')
                 const tB = getTeamSafe(id, 'B')
+                const actualTeamA = getActualTeam(id, 'A')
+                const actualTeamB = getActualTeam(id, 'B')
+                const actualDiffersA = actualTeamA && tA && actualTeamA !== tA
+                const actualDiffersB = actualTeamB && tB && actualTeamB !== tB
                 const pred = knockoutPreds[id]
                 const km = KNOCKOUT_MATCHES.find(m => m.id === id)
                 const actual = knockoutMatches[id] as (typeof knockoutMatches)[number] & { resultA?: number; resultB?: number; advanceTeam?: string; hadRedCard?: boolean; isPlayed?: boolean } | undefined
@@ -964,32 +988,41 @@ export default function Predict({ lang }: { lang: Lang }) {
                     </div>
 
                     {/* ── TEAMS — show my predicted score, click to pick advance ── */}
-                    {([['A', tA, advA], ['B', tB, advB]] as [string, string|undefined, string|false|undefined][]).map(([side, team, isAdv]) => {
+                    {([['A', tA, advA, actualTeamA, actualDiffersA], ['B', tB, advB, actualTeamB, actualDiffersB]] as [string, string|undefined, string|false|undefined, string|undefined, boolean|undefined][]).map(([side, team, isAdv, actualTeam, differs]) => {
                       const predScore = side === 'A' ? pred?.scoreA : pred?.scoreB
                       const hasThisScore = predScore !== null && predScore !== undefined
                       const roundLocked = km
                         ? (km.round === 'R32'
                             ? (knockoutDeadline != null && now > knockoutDeadline)
-                            : isLocked)  // R16+ advance → bracket tree → r16Deadline via isLocked
+                            : isLocked)
                         : true
                       return (
                         <div key={side}
                           onClick={() => !roundLocked && team && updateKnockout(id, 'advance', team)}
                           style={{
                             display: 'flex', alignItems: 'center',
-                            padding: '6px 7px', gap: 5,
+                            padding: '5px 7px', gap: 5,
                             borderBottom: side === 'A' ? '1px solid #ebebeb' : 'none',
                             background: isAdv ? '#DBEAFE' : 'transparent',
                             cursor: (!roundLocked && team) ? 'pointer' : 'default',
                           }}>
                           <span style={{ lineHeight: 1, flexShrink: 0 }}>{team ? <Flag emoji={FLAGS[team] ?? ''} size={22} /> : ''}</span>
-                          <span style={{
-                            flex: 1, fontSize: 12, fontWeight: isAdv ? 700 : 500,
-                            color: isAdv ? '#1a4fa8' : team ? '#222' : '#ccc',
-                            fontStyle: team ? 'normal' : 'italic',
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                          }}>{team ? tn(team) : '...'}</span>
-                          {hasThisScore && (
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{
+                              fontSize: compact ? 11 : 12, fontWeight: isAdv ? 700 : 500,
+                              color: isAdv ? '#1a4fa8' : team ? '#222' : '#ccc',
+                              fontStyle: team ? 'normal' : 'italic',
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                              display: 'block',
+                            }}>{team ? tn(team) : '...'}</span>
+                            {differs && actualTeam && (
+                              <span style={{ fontSize: 10, color: '#B45309', display: 'block', lineHeight: 1.2 }}>
+                                בפועל: <Flag emoji={FLAGS[actualTeam] ?? ''} size={14} /> {tn(actualTeam)}
+                              </span>
+                            )}
+                          </div>
+                          {/* Only show score next to team if bracket matches actual (R32/R16) */}
+                          {hasThisScore && !actualDiffersA && (
                             <span style={{ fontSize: 14, fontWeight: 700, color: isAdv ? '#1a4fa8' : '#555', minWidth: 16, textAlign: 'right' }}>
                               {predScore}
                             </span>
@@ -998,6 +1031,36 @@ export default function Predict({ lang }: { lang: Lang }) {
                         </div>
                       )
                     })}
+
+                    {/* ── MATCH PREDICTION (QF+ when actual teams differ from bracket) ── */}
+                    {actualDiffersA && (pred?.prediction1X2 || pred?.scoreA !== undefined) && (() => {
+                      const actA = actualTeamA
+                      const actB = actualTeamB
+                      const x1x2 = pred?.prediction1X2
+                      const x1x2Label = x1x2 === '1' ? (actA ?? '1') : x1x2 === '2' ? (actB ?? '2') : (lang === 'he' ? 'תיקו' : 'Draw')
+                      const x1x2Flag = x1x2 === '1' ? (actA ? FLAGS[actA] ?? '' : '') : x1x2 === '2' ? (actB ? FLAGS[actB] ?? '' : '') : null
+                      return (
+                        <div style={{ borderTop: '1px solid #e8e8f0', padding: '5px 7px', background: '#f5f5fa' }}>
+                          <div style={{ fontSize: 10, color: '#888', marginBottom: 3 }}>
+                            {lang === 'he' ? 'ניחוש המשחק בפועל:' : 'Match prediction:'}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                            {actA && <span style={{ fontSize: 11 }}><Flag emoji={FLAGS[actA] ?? ''} size={16} /></span>}
+                            {x1x2Label && (
+                              <span style={{ fontSize: 11, padding: '1px 5px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 600 }}>
+                                {x1x2Flag ? <><Flag emoji={x1x2Flag} size={16} /> </> : ''}{x1x2 === 'X' ? x1x2Label : tn(x1x2Label)}
+                              </span>
+                            )}
+                            {actB && <span style={{ fontSize: 11 }}><Flag emoji={FLAGS[actB] ?? ''} size={16} /></span>}
+                            {pred?.scoreA !== undefined && pred?.scoreB !== undefined && (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: '#555', marginRight: 4 }}>
+                                {pred.scoreA}:{pred.scoreB}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* ── ACTUAL RESULT ROW (when played) ── */}
                     {isPlayed && (
