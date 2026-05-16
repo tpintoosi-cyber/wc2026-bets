@@ -1002,6 +1002,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                     </div>
 
                     {/* ━━ SECTION 1: BRACKET PREDICTION ━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                    {isQFPlus && (
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#444', background: '#EBF4FF',
+                        padding: '2px 8px', letterSpacing: 0.3, borderBottom: '1px solid #d0e4f8' }}>
+                        {lang === 'he' ? 'א. ניחוש ברקט 🔒' : 'A. Bracket pick 🔒'}
+                      </div>
+                    )}
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string|undefined, string|false|undefined][]).map(([side, team, isAdv]) => {
                       const predScore = side === 'A' ? pred?.scoreA : pred?.scoreB
                       const hasThisScore = predScore !== null && predScore !== undefined
@@ -1043,15 +1049,15 @@ export default function Predict({ lang }: { lang: Lang }) {
                         For QF+: always show when teams are known (played or unplayed).
                         For R32/R16: show only when played (no diff between bracket & actual). */}
                     {isQFPlus && (actualTeamA || actualTeamB) && (
-                      <div style={{
-                        padding: '5px 8px',
-                        borderTop: actualDiffersA ? '2px solid #bbb' : '2px solid #d0d0d0',
-                        background: actualDiffersA ? '#efefef' : '#f0f0f0',
-                        display: 'flex', alignItems: 'center', gap: 4, fontSize: 11,
-                      }}>
-                        <span style={{ color: '#555', fontWeight: 700, flexShrink: 0, fontSize: 10 }}>
-                          {lang === 'he' ? 'בפועל:' : 'Actual:'}
-                        </span>
+                      <div style={{ borderTop: '1.5px solid #ddd' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#555', background: '#f0f0f0',
+                          padding: '2px 8px', letterSpacing: 0.3 }}>
+                          {lang === 'he' ? 'ב. תוצאה בפועל' : 'B. Actual result'}
+                        </div>
+                        <div style={{
+                          padding: '5px 8px', background: '#f0f0f0',
+                          display: 'flex', alignItems: 'center', gap: 4, fontSize: 11,
+                        }}>
                         <span style={{
                           fontWeight: 600,
                           color: (isPlayed && actualAdvance === actualTeamA) ? '#1a5c30' : '#333',
@@ -1063,7 +1069,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                         </span>
                         {isPlayed
                           ? <span style={{ fontWeight: 800, color: '#333', margin: '0 3px' }}>
-                              {/* RTL: left number = left team (teamB), right number = right team (teamA) */}
                               {lang === 'he' ? `${actualB ?? 0}:${actualA ?? 0}` : `${actualA ?? 0}:${actualB ?? 0}`}
                             </span>
                           : <span style={{ color: '#aaa', margin: '0 4px' }}>vs</span>}
@@ -1081,6 +1086,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             → <Flag emoji={FLAGS[actualAdvance] ?? ''} size={14} />
                           </span>
                         )}
+                        </div>
                       </div>
                     )}
                     {/* R32/R16: simplified result bar (bracket = actual, no separate section 2 needed) */}
@@ -1108,22 +1114,21 @@ export default function Predict({ lang }: { lang: Lang }) {
                       const x = pred?.prediction1X2
                       const winA = x === '1', winB = x === '2'
                       const sA = pred?.scoreA, sB = pred?.scoreB
-                      // Show with actual teams if known, otherwise bracket teams
                       const showTeamA = actualTeamA ?? tA
                       const showTeamB = actualTeamB ?? tB
                       return (
-                        <div style={{ padding: '5px 8px', borderTop: '1px solid #dde', background: '#f5f5fa' }}>
-                          <div style={{ fontSize: 10, color: '#666', marginBottom: 3, fontWeight: 600 }}>
-                            {lang === 'he' ? '🎯 הימור שלך על המשחק:' : '🎯 Your match bet:'}
+                        <div style={{ borderTop: '1.5px solid #ddd' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: '#555', background: '#f5f5fa',
+                            padding: '2px 8px', letterSpacing: 0.3 }}>
+                            {lang === 'he' ? 'ג. הימור שלך על המשחק' : 'C. Your match bet'}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                          <div style={{ padding: '5px 8px', background: '#f5f5fa', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: winA ? 800 : 400, color: winA ? '#1a4fa8' : '#777' }}>
                               {showTeamA && <Flag emoji={FLAGS[showTeamA] ?? ''} size={18} />}
                               {showTeamA ? tn(showTeamA) : '?'}
                             </span>
                             {sA !== undefined && sB !== undefined
                               ? <span style={{ fontWeight: 800, color: '#333', padding: '0 3px' }}>
-                                  {/* RTL: left number = left team (showTeamB), right number = right team (showTeamA) */}
                                   {lang === 'he' ? `${sB}:${sA}` : `${sA}:${sB}`}
                                 </span>
                               : <span style={{ color: '#bbb' }}>–</span>}
@@ -1141,70 +1146,127 @@ export default function Predict({ lang }: { lang: Lang }) {
                       )
                     })()}
 
-                    {/* ━━ SECTION 4: SCORING BREAKDOWN ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                    {/* ━━ SECTION 4: SCORING GRID ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                        Clean rows per scoring category, one item per row.
+                        Replaces the cramped flexWrap layout. */}
                     {hasSomePred && (() => {
-                      const advBracketValid = !km || km.round === 'R32' || km.round === 'R16'
+                      const advBV = !km || km.round === 'R32' || km.round === 'R16'
                         || advPicked === tA || advPicked === tB
+
+                      // Each scoring row: { label, flag, ok (true/false/null=pending), pts, warn, potential }
+                      const rows: Array<{
+                        key: string
+                        labelText: string
+                        flag?: string
+                        lock?: boolean
+                        ok: boolean | null  // null = not played yet
+                        pts: number
+                        warn?: boolean
+                        potential?: number
+                        special?: string   // emoji suffix
+                      }> = []
+
+                      // 1X2 row
+                      if (pred1x2Label) {
+                        rows.push({
+                          key: '1x2',
+                          labelText: pred1x2Label,
+                          flag: pred1x2Flag ?? undefined,
+                          ok: isPlayed ? pts1x2 > 0 : null,
+                          pts: pts1x2,
+                          potential: !isPlayed ? (() => {
+                            if (!km) return 0
+                            const base = ({ R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 } as Record<string,number>)[km.round]
+                            const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat] ?? 0
+                            return base + catBonus
+                          })() : undefined,
+                        })
+                      }
+
+                      // Score row (only when played — before that no useful info to show)
+                      if (hasScore && isPlayed) {
+                        const scoreLabel = ptsScore === 2 ? t.exactScore : ptsScore === 1 ? (lang === 'he' ? 'הפרש נכון' : 'Right diff') : t.exactScore
+                        rows.push({
+                          key: 'score',
+                          labelText: scoreLabel,
+                          ok: ptsScore > 0,
+                          pts: ptsScore + ptsOU,
+                        })
+                      }
+
+                      // Advance pick row
+                      if (advPicked) {
+                        rows.push({
+                          key: 'adv',
+                          labelText: tn(advPicked),
+                          flag: FLAGS[advPicked] ?? undefined,
+                          lock: isLockedAdvance,
+                          ok: isPlayed ? (advCorrect && advBV) : null,
+                          pts: ptsAdv,
+                          warn: !isPlayed && isQFPlus && !advInActualMatch,
+                          potential: (!isPlayed && advBV && advInActualMatch) ? potentialAdvPts : undefined,
+                          special: isSpecial && !isPlayed ? (isFinal ? '🏆' : '🥉') : undefined,
+                        })
+                      }
+
+                      // Red card row
+                      if (pickedRedCard) {
+                        rows.push({
+                          key: 'red',
+                          labelText: lang === 'he' ? 'כרטיס אדום' : 'Red card',
+                          flag: '🟥',
+                          ok: isPlayed ? ptsRedCard > 0 : null,
+                          pts: ptsRedCard,
+                        })
+                      }
+
+                      if (rows.length === 0) return null
+
                       return (
-                        <div style={{ padding: '4px 7px', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', background: '#fafbff', borderTop: '1px solid #eeeef8' }}>
-                          {pred1x2Label && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                              {isPlayed && <span style={{ fontSize: 11, color: pts1x2 > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>{pts1x2 > 0 ? '✓' : '✗'}</span>}
-                              <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                                {pred1x2Flag ? <><Flag emoji={pred1x2Flag} size={18} />{"  "}</> : ''}{pred1x2Label}
+                        <div style={{ borderTop: '1.5px solid #e8e8f0' }}>
+                          {rows.map(row => (
+                            <div key={row.key} style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '4px 8px',
+                              borderBottom: '1px solid #f0f0f8',
+                              background: row.ok === true ? '#f0fbf4' : row.ok === false ? '#fff5f5' : '#fff',
+                            }}>
+                              {/* Right side: label */}
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: 600, fontSize: 11,
+                                color: row.warn ? '#B45309' : row.ok === true ? '#1a5c30' : row.ok === false ? '#8b1f1f' : '#444' }}>
+                                {row.flag && row.key !== 'red' && <Flag emoji={row.flag} size={16} />}
+                                {row.key === 'red' && <span style={{ fontSize: 13 }}>🟥</span>}
+                                {row.labelText}
+                                {row.lock && <span style={{ fontSize: 9, opacity: 0.45, marginRight: 2 }}>🔒</span>}
+                                {row.special && <span>{row.special}</span>}
                               </span>
-                              {isPlayed && pts1x2 > 0 && <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{pts1x2}</span>}
-                            </div>
-                          )}
-                          {isPlayed && hasScore && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                              <span style={{ fontSize: 11, color: ptsScore > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>{ptsScore > 0 ? '✓' : '✗'} {t.exactScore}</span>
-                              {ptsScore > 0 && <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsScore}</span>}
-                            </div>
-                          )}
-                          {isPlayed && ptsOU > 0 && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                              <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>✓ {predOuLabel}</span>
-                              <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsOU}</span>
-                            </div>
-                          )}
-                          {!isPlayed && predOuLabel && (
-                            <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#F1EFE8', color: '#444', fontWeight: 600 }}>{predOuLabel}</span>
-                          )}
-                          {pickedRedCard && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                              {isPlayed && <span style={{ fontSize: 11, color: ptsRedCard > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>{ptsRedCard > 0 ? '✓' : '✗'}</span>}
-                              <span style={{ fontSize: 11, padding: '2px 4px', borderRadius: 4, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥</span>
-                              {isPlayed && ptsRedCard > 0 && <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsRedCard}</span>}
-                            </div>
-                          )}
-                          {advPicked && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                              {isLockedAdvance && <span style={{ fontSize: 9, opacity: 0.4 }}>🔒</span>}
-                              {isPlayed && <span style={{ fontSize: 11, fontWeight: 700, color: (advCorrect && advBracketValid) ? '#1a7a44' : '#cc3333' }}>{(advCorrect && advBracketValid) ? '✓' : '✗'}</span>}
-                              <span style={{ fontSize: 11, fontWeight: 600, color: (advCorrect && advBracketValid) ? '#1a5c30' : isPlayed ? '#8b1f1f' : (advInActualMatch ? '#555' : '#B45309') }}>
-                                <Flag emoji={FLAGS[advPicked] ?? ''} size={18} /> {tn(advPicked)}
-                                {isSpecial && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
+                              {/* Left side: result indicator + points */}
+                              <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, fontSize: 11 }}>
+                                {row.warn && (
+                                  <span style={{ color: '#B45309', fontSize: 10 }}>⚠️ לא הגיעה</span>
+                                )}
+                                {!row.warn && row.ok === true && (
+                                  <>
+                                    <span style={{ color: '#1a7a44' }}>✓</span>
+                                    <span style={{ color: '#1a7a44' }}>+{row.pts}</span>
+                                  </>
+                                )}
+                                {!row.warn && row.ok === false && (
+                                  <span style={{ color: '#cc3333' }}>✗</span>
+                                )}
+                                {!row.warn && row.ok === null && row.potential !== undefined && (
+                                  <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, fontWeight: 700,
+                                    background: '#e8f5e9', color: '#1a5c30' }}>
+                                    עד +{row.potential}
+                                  </span>
+                                )}
                               </span>
-                              {isPlayed && ptsAdv > 0 && advBracketValid && <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsAdv}</span>}
-                              {/* Pre-match: show potential pts only if pick is in actual match (or actual not known yet) */}
-                              {!isPlayed && advBracketValid && advInActualMatch && (
-                                <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4, fontWeight: 700,
-                                  background: ((advPicked===tA&&!aIsFav)||(advPicked===tB&&aIsFav)) ? '#DBEAFE' : '#e8f5e9',
-                                  color: ((advPicked===tA&&!aIsFav)||(advPicked===tB&&aIsFav)) ? '#1a4fa8' : '#1a5c30' }}>
-                                  +{potentialAdvPts}
-                                </span>
-                              )}
-                              {/* Pre-match: warn if bracket pick isn't in the actual match */}
-                              {!isPlayed && isQFPlus && !advInActualMatch && (
-                                <span style={{ fontSize: 10, color: '#B45309', fontWeight: 600 }}>⚠️ 0</span>
-                              )}
                             </div>
-                          )}
+                          ))}
                         </div>
                       )
                     })()}
-                    {!advPicked && tA && tB && (
+                    {!advPicked && tA && tB && !isQFPlus && (
                       <div style={{ padding: '4px 7px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
                         <span style={{ fontSize: 10, color: '#aaa' }}>{t.clickToAdvance}</span>
                       </div>
