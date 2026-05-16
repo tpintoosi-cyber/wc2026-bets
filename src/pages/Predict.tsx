@@ -134,6 +134,11 @@ export default function Predict({ lang }: { lang: Lang }) {
   const [finalDeadline, setFinalDeadline] = useState<number | null>(null)
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, any>>({})
   const [knockoutView, setKnockoutView] = useState<'bracket' | 'form'>('bracket')
+
+  // Auto-switch to form view when bracket tab isn't available yet (R32 window)
+  useEffect(() => {
+    if (r16Deadline == null) setKnockoutView('form')
+  }, [r16Deadline])
   const [focusMatchId, setFocusMatchId] = useState<number | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -687,24 +692,14 @@ export default function Predict({ lang }: { lang: Lang }) {
       {/* ── KNOCKOUT TAB ─────────────────────────────────────────────── */}
       {tab === 'knockout' && (
         <div>
-          {/* Status banner — shows per current time vs deadlines */}
-          {!knockoutOpen && (
+          {/* Status banner — only when bracket is fully locked (no more predictions possible) */}
+          {knockoutOpen && knockoutDeadline && Date.now() > knockoutDeadline && finalDeadline && Date.now() > finalDeadline && (
             <div className="lb-pre-tournament" style={{ marginBottom: 12 }}>
-              {t.koLocked}
-            </div>
-          )}
-          {knockoutOpen && knockoutDeadline && Date.now() > knockoutDeadline && (
-            <div className="lb-pre-tournament" style={{ marginBottom: 12 }}>
-              🔒 {t.koLocked} — {lang === 'he' ? 'עץ/שלב 32' : 'Bracket/R32'}: {new Date(knockoutDeadline).toLocaleString('he-IL')}
-            </div>
-          )}
-          {knockoutOpen && knockoutDeadline && Date.now() <= knockoutDeadline && (
-            <div className="lb-pre-tournament" style={{ marginBottom: 12, background: '#EAF3DE', color: '#3B6D11', borderColor: '#b7ddb0' }}>
-              {t.koOpen} {new Date(knockoutDeadline).toLocaleString('he-IL')}
+              🔒 {t.koLocked}
             </div>
           )}
 
-          {/* View toggle — bracket only shown when R16 window is open/past */}
+          {/* View toggle — bracket tab shown only from R16 window onward */}
           <div style={{ display: 'flex', gap: 4, marginBottom: 12, background: '#f8f9fa', borderRadius: 10, padding: 4 }}>
             {r16Deadline != null && (
               <button onClick={() => setKnockoutView('bracket')} style={{
