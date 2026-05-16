@@ -641,8 +641,8 @@ export default function Admin() {
             </thead>
             <tbody>
               {([
-                ['עץ + R32', 'knockoutDeadline'],
-                ['שמינית גמר (R16)', 'r16Deadline'],
+                ['שלב 32 (R32)', 'knockoutDeadline'],
+                ['שמינית גמר + עץ (R16)', 'r16Deadline'],
                 ['רבע גמר (QF)', 'qfDeadline'],
                 ['חצי גמר + מקום 3 (SF/3P)', 'sfDeadline'],
                 ['גמר (F)', 'finalDeadline'],

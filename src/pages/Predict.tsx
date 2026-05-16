@@ -301,9 +301,12 @@ export default function Predict({ lang }: { lang: Lang }) {
     // Per-round deadline check
     const km = KNOCKOUT_MATCHES.find(m => m.id === id)
     const round = km?.round ?? 'R32'
-    // Advance picks use bracket deadline (knockoutDeadline) for all rounds
+    // Advance picks deadline:
+    // - R32 matches → knockoutDeadline (R32 bracket window)
+    // - R16/QF/SF/F bracket tree → r16Deadline (bracket filled during R16 window)
+    // - 1X2/score → per-round deadline
     const effectiveDeadline = field === 'advance'
-      ? knockoutDeadline
+      ? (round === 'R32' ? knockoutDeadline : r16Deadline)
       : ({ R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline,
            SF: sfDeadline, '3P': sfDeadline, F: finalDeadline } as Record<string, number|null>)[round] ?? null
     if (effectiveDeadline && Date.now() > effectiveDeadline) return
@@ -719,7 +722,9 @@ export default function Predict({ lang }: { lang: Lang }) {
 
           {(() => {
             const now = Date.now()
-            const isLocked = !knockoutOpen || (knockoutDeadline != null && now > knockoutDeadline)
+            // Bracket is locked when r16Deadline passes (tree filled during R16 window)
+            // R32 advance picks locked when knockoutDeadline passes
+            const isLocked = !knockoutOpen || (r16Deadline != null && now > r16Deadline)
 
             // Per-round locking: bracket+R32 use isLocked; later rounds have own deadlines
             const isRoundLocked = (round: string): boolean => {
@@ -962,7 +967,11 @@ export default function Predict({ lang }: { lang: Lang }) {
                     {([['A', tA, advA], ['B', tB, advB]] as [string, string|undefined, string|false|undefined][]).map(([side, team, isAdv]) => {
                       const predScore = side === 'A' ? pred?.scoreA : pred?.scoreB
                       const hasThisScore = predScore !== null && predScore !== undefined
-                      const roundLocked = km ? isRoundLocked(km.round) : true
+                      const roundLocked = km
+                        ? (km.round === 'R32'
+                            ? (knockoutDeadline != null && now > knockoutDeadline)
+                            : isLocked)  // R16+ advance → bracket tree → r16Deadline via isLocked
+                        : true
                       return (
                         <div key={side}
                           onClick={() => !roundLocked && team && updateKnockout(id, 'advance', team)}
