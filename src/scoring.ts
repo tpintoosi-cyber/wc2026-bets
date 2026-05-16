@@ -1,4 +1,5 @@
 import { Category, Match, MatchPrediction, GroupPrediction, BonusPredictions, UserScore, MatchScore, KnockoutMatch, KnockoutMatchPrediction, KnockoutRound, KnockoutRedCardPicks } from './types'
+import { KNOCKOUT_BRACKET } from './data/matches'
 
 // ── GROUP STAGE 1X2 ───────────────────────────────────────────────────────────
 // Favorite wins → 1pt always
@@ -292,9 +293,20 @@ export function computeUserScore(
         )
       }
       if (km.advanceTeam && pred.advance) {
-        // Always use the direct prediction for this specific match
-        // Never search other predictions — that caused cross-match scoring bugs
-        matchPts += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
+        // For QF/SF/F: advance pick must be bracket-valid (user must have predicted this team to reach this stage)
+        // For R32/R16: advance pick is always valid (user picks directly)
+        let advanceValid = true
+        if (km.round !== 'R32' && km.round !== 'R16') {
+          const b = KNOCKOUT_BRACKET[km.id]
+          if (b) {
+            const bracketA = b.feederA !== null && b.feederA > 0 ? knockoutPredictions[b.feederA]?.advance : undefined
+            const bracketB = b.feederB !== null && b.feederB > 0 ? knockoutPredictions[b.feederB]?.advance : undefined
+            advanceValid = pred.advance === bracketA || pred.advance === bracketB
+          }
+        }
+        if (advanceValid) {
+          matchPts += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
+        }
       }
       koByRound[km.round] = (koByRound[km.round] ?? 0) + matchPts
       knockoutPoints += matchPts

@@ -1037,24 +1037,31 @@ export default function Predict({ lang }: { lang: Lang }) {
                       const actA = actualTeamA
                       const actB = actualTeamB
                       const x1x2 = pred?.prediction1X2
-                      const x1x2Label = x1x2 === '1' ? (actA ?? '1') : x1x2 === '2' ? (actB ?? '2') : (lang === 'he' ? 'תיקו' : 'Draw')
-                      const x1x2Flag = x1x2 === '1' ? (actA ? FLAGS[actA] ?? '' : '') : x1x2 === '2' ? (actB ? FLAGS[actB] ?? '' : '') : null
+                      const pickedTeam = x1x2 === '1' ? actA : x1x2 === '2' ? actB : null
                       return (
-                        <div style={{ borderTop: '1px solid #e8e8f0', padding: '5px 7px', background: '#f5f5fa' }}>
-                          <div style={{ fontSize: 10, color: '#888', marginBottom: 3 }}>
-                            {lang === 'he' ? 'ניחוש המשחק בפועל:' : 'Match prediction:'}
+                        <div style={{ borderTop: '1px solid #e0e0ec', padding: '6px 7px', background: '#f0f0f8' }}>
+                          <div style={{ fontSize: 10, color: '#888', marginBottom: 4, fontWeight: 600 }}>
+                            {lang === 'he' ? '🎯 ניחוש המשחק בפועל' : '🎯 Match prediction'}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                            {actA && <span style={{ fontSize: 11 }}><Flag emoji={FLAGS[actA] ?? ''} size={16} /></span>}
-                            {x1x2Label && (
-                              <span style={{ fontSize: 11, padding: '1px 5px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 600 }}>
-                                {x1x2Flag ? <><Flag emoji={x1x2Flag} size={16} /> </> : ''}{x1x2 === 'X' ? x1x2Label : tn(x1x2Label)}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            {/* Team A */}
+                            <span style={{ fontSize: 11, color: x1x2 === '1' ? '#1a4fa8' : '#888', fontWeight: x1x2 === '1' ? 700 : 400 }}>
+                              {actA && <Flag emoji={FLAGS[actA] ?? ''} size={16} />} {actA ? tn(actA) : '?'}
+                            </span>
+                            {/* Score */}
+                            {pred?.scoreA !== undefined && (
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#444', padding: '0 4px' }}>
+                                {pred.scoreA}:{pred.scoreB}
                               </span>
                             )}
-                            {actB && <span style={{ fontSize: 11 }}><Flag emoji={FLAGS[actB] ?? ''} size={16} /></span>}
-                            {pred?.scoreA !== undefined && pred?.scoreB !== undefined && (
-                              <span style={{ fontSize: 11, fontWeight: 700, color: '#555', marginRight: 4 }}>
-                                {pred.scoreA}:{pred.scoreB}
+                            {/* Team B */}
+                            <span style={{ fontSize: 11, color: x1x2 === '2' ? '#1a4fa8' : '#888', fontWeight: x1x2 === '2' ? 700 : 400 }}>
+                              {actB ? tn(actB) : '?'} {actB && <Flag emoji={FLAGS[actB] ?? ''} size={16} />}
+                            </span>
+                            {/* Draw indicator */}
+                            {x1x2 === 'X' && (
+                              <span style={{ fontSize: 10, background: '#E6F1FB', color: '#0C447C', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>
+                                {lang === 'he' ? 'תיקו' : 'Draw'}
                               </span>
                             )}
                           </div>
