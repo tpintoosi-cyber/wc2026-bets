@@ -189,7 +189,12 @@ export default function AdminTestPanel() {
       sub: 'שלב הבתים — תוצאות',
       action: () => wrap('set-gs-results', async () => {
         await setDoc(doc(db,'admin','results'), { matches: gsResults, groups, bonus: {} })
+        // Populate R32 teams immediately from group qualifiers
+        const r32teams: Record<number,any> = {}
+        for (const [id, km] of Object.entries(r32base)) r32teams[Number(id)] = km
+        await setDoc(doc(db,'admin','knockout'), { matches: r32teams })
         addLog(`  → ${GROUPS_IMPORT.length} בתים, ${Object.keys(gsResults).length} תוצאות`)
+        addLog(`  → נבחרות R32 הוכנסו אוטומטית לברקט`)
       }),
     },
     {
