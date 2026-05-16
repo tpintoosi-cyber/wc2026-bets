@@ -880,6 +880,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                       ptsAdv = base + (pickedUnderdog ? catBonus : 0)
                     }
                   }
+
+                // Bracket validity for QF+: advance pick must be one of bracket-predicted teams
+                // (computed after advPicked is declared below)
                   // Red card points
                   if (pickedRedCard) {
                     ptsRedCard = actual?.hadRedCard ? 2 : 0
@@ -900,10 +903,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const advB = advPicked === tB && tB
                 const advCorrect = isPlayed && advPicked && advPicked === actualAdvance
                 const advWrong = isPlayed && advPicked && advPicked !== actualAdvance
-                // For R16+: advance was locked from bracket — check if picked team even reached this match
                 const isLockedAdvance = !!(km && km.round !== 'R32')
                 const advTeamInMatch = !advPicked || advPicked === tA || advPicked === tB
                 const advNotInMatch = !!(advPicked && tA && tB && !advTeamInMatch)
+
+                // Bracket validity: for QF+, advance pick must be one of bracket-predicted teams
+                const advBracketValid = !km || km.round === 'R32' || km.round === 'R16'
+                  || advPicked === tA || advPicked === tB
+                if (!advBracketValid) ptsAdv = 0
 
                 // Potential advance points (pre-match)
                 const potentialAdvPts = (() => {
@@ -987,8 +994,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                       </div>
                     </div>
 
-                    {/* ── TEAMS — show my predicted score, click to pick advance ── */}
-                    {([['A', tA, advA, actualTeamA, actualDiffersA], ['B', tB, advB, actualTeamB, actualDiffersB]] as [string, string|undefined, string|false|undefined, string|undefined, boolean|undefined][]).map(([side, team, isAdv, actualTeam, differs]) => {
+                    {/* ━━ SECTION 1: BRACKET PREDICTION ━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                    {([['A', tA, advA], ['B', tB, advB]] as [string, string|undefined, string|false|undefined][]).map(([side, team, isAdv]) => {
                       const predScore = side === 'A' ? pred?.scoreA : pred?.scoreB
                       const hasThisScore = predScore !== null && predScore !== undefined
                       const roundLocked = km
@@ -1007,21 +1014,14 @@ export default function Predict({ lang }: { lang: Lang }) {
                             cursor: (!roundLocked && team) ? 'pointer' : 'default',
                           }}>
                           <span style={{ lineHeight: 1, flexShrink: 0 }}>{team ? <Flag emoji={FLAGS[team] ?? ''} size={22} /> : ''}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <span style={{
-                              fontSize: compact ? 11 : 12, fontWeight: isAdv ? 700 : 500,
-                              color: isAdv ? '#1a4fa8' : team ? '#222' : '#ccc',
-                              fontStyle: team ? 'normal' : 'italic',
-                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                              display: 'block',
-                            }}>{team ? tn(team) : '...'}</span>
-                            {differs && actualTeam && (
-                              <span style={{ fontSize: 10, color: '#B45309', display: 'block', lineHeight: 1.2 }}>
-                                בפועל: <Flag emoji={FLAGS[actualTeam] ?? ''} size={14} /> {tn(actualTeam)}
-                              </span>
-                            )}
-                          </div>
-                          {/* Only show score next to team if bracket matches actual (R32/R16) */}
+                          <span style={{
+                            flex: 1,
+                            fontSize: compact ? 11 : 12, fontWeight: isAdv ? 700 : 500,
+                            color: isAdv ? '#1a4fa8' : team ? '#222' : '#ccc',
+                            fontStyle: team ? 'normal' : 'italic',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                          }}>{team ? tn(team) : '...'}</span>
+                          {/* Score only shown for R32/R16 where bracket = actual */}
                           {hasThisScore && !actualDiffersA && (
                             <span style={{ fontSize: 14, fontWeight: 700, color: isAdv ? '#1a4fa8' : '#555', minWidth: 16, textAlign: 'right' }}>
                               {predScore}
@@ -1032,34 +1032,67 @@ export default function Predict({ lang }: { lang: Lang }) {
                       )
                     })}
 
-                    {/* ── MATCH PREDICTION (QF+ when actual teams differ from bracket) ── */}
-                    {actualDiffersA && (pred?.prediction1X2 || pred?.scoreA !== undefined) && (() => {
-                      const actA = actualTeamA
-                      const actB = actualTeamB
-                      const x1x2 = pred?.prediction1X2
-                      const pickedTeam = x1x2 === '1' ? actA : x1x2 === '2' ? actB : null
+                    {/* ━━ SECTION 2: ACTUAL MATCH RESULT ━━━━━━━━━━━━━━━━━━━━━━━ */}
+                    {actualDiffersA && (
+                      <div style={{
+                        padding: '5px 8px', borderTop: '2px solid #bbb', background: '#efefef',
+                        display: 'flex', alignItems: 'center', gap: 4, fontSize: 11,
+                      }}>
+                        <span style={{ color: '#555', fontWeight: 700, flexShrink: 0, fontSize: 10 }}>{lang === 'he' ? 'בפועל:' : 'Actual:'}</span>
+                        <span style={{ fontWeight: 600, color: actualAdvance === actualTeamA ? '#1a5c30' : '#333', display: 'flex', alignItems: 'center', gap: 3 }}>
+                          {actualTeamA && <><Flag emoji={FLAGS[actualTeamA] ?? ''} size={15} /> {tn(actualTeamA)}</>}
+                        </span>
+                        {isPlayed
+                          ? <span style={{ fontWeight: 800, color: '#333', margin: '0 3px' }}>{actualA}:{actualB}</span>
+                          : <span style={{ color: '#aaa', margin: '0 4px' }}>vs</span>}
+                        <span style={{ fontWeight: 600, color: actualAdvance === actualTeamB ? '#1a5c30' : '#333', display: 'flex', alignItems: 'center', gap: 3 }}>
+                          {actualTeamB && <>{tn(actualTeamB)} <Flag emoji={FLAGS[actualTeamB] ?? ''} size={15} /></>}
+                        </span>
+                        {actualAdvance && isPlayed && (
+                          <span style={{ color: '#1a5c30', fontWeight: 700, marginRight: 'auto', fontSize: 10 }}>
+                            → <Flag emoji={FLAGS[actualAdvance] ?? ''} size={14} />
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {isPlayed && !actualDiffersA && (
+                      <div style={{
+                        padding: '4px 7px', borderTop: '2px solid #d0d0d0', background: '#f0f0f0',
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
+                      }}>
+                        <span style={{ fontSize: 10, color: '#666', fontWeight: 600 }}>{t.actualResult}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#333' }}>{actualA}:{actualB}</span>
+                        {actualAdvance && (
+                          <span style={{ fontSize: 10, color: '#333', fontWeight: 600, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 4 }}>
+                            <Flag emoji={FLAGS[actualAdvance] ?? ''} size={18} /> {tn(actualAdvance)} →
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ━━ SECTION 3: USER'S PREDICTION (QF+ only) ━━━━━━━━━━━━━━━━ */}
+                    {actualDiffersA && hasSomePred && (() => {
+                      const x = pred?.prediction1X2
+                      const winA = x === '1', winB = x === '2'
+                      const sA = pred?.scoreA, sB = pred?.scoreB
                       return (
-                        <div style={{ borderTop: '1px solid #e0e0ec', padding: '6px 7px', background: '#f0f0f8' }}>
-                          <div style={{ fontSize: 10, color: '#888', marginBottom: 4, fontWeight: 600 }}>
-                            {lang === 'he' ? '🎯 ניחוש המשחק בפועל' : '🎯 Match prediction'}
+                        <div style={{ padding: '5px 8px', borderTop: '1px solid #dde', background: '#f5f5fa' }}>
+                          <div style={{ fontSize: 10, color: '#666', marginBottom: 3, fontWeight: 600 }}>
+                            {lang === 'he' ? '🎯 הימור שלך על המשחק:' : '🎯 Your match bet:'}
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            {/* Team A */}
-                            <span style={{ fontSize: 11, color: x1x2 === '1' ? '#1a4fa8' : '#888', fontWeight: x1x2 === '1' ? 700 : 400 }}>
-                              {actA && <Flag emoji={FLAGS[actA] ?? ''} size={16} />} {actA ? tn(actA) : '?'}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12 }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: winA ? 800 : 400, color: winA ? '#1a4fa8' : '#777' }}>
+                              {actualTeamA && <Flag emoji={FLAGS[actualTeamA] ?? ''} size={18} />}
+                              {actualTeamA ? tn(actualTeamA) : '?'}
                             </span>
-                            {/* Score */}
-                            {pred?.scoreA !== undefined && (
-                              <span style={{ fontSize: 12, fontWeight: 700, color: '#444', padding: '0 4px' }}>
-                                {pred.scoreA}:{pred.scoreB}
-                              </span>
-                            )}
-                            {/* Team B */}
-                            <span style={{ fontSize: 11, color: x1x2 === '2' ? '#1a4fa8' : '#888', fontWeight: x1x2 === '2' ? 700 : 400 }}>
-                              {actB ? tn(actB) : '?'} {actB && <Flag emoji={FLAGS[actB] ?? ''} size={16} />}
+                            {sA !== undefined && sB !== undefined
+                              ? <span style={{ fontWeight: 800, color: '#333', padding: '0 3px' }}>{sA}:{sB}</span>
+                              : <span style={{ color: '#bbb' }}>–</span>}
+                            <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: winB ? 800 : 400, color: winB ? '#1a4fa8' : '#777' }}>
+                              {actualTeamB ? tn(actualTeamB) : '?'}
+                              {actualTeamB && <Flag emoji={FLAGS[actualTeamB] ?? ''} size={18} />}
                             </span>
-                            {/* Draw indicator */}
-                            {x1x2 === 'X' && (
+                            {x === 'X' && (
                               <span style={{ fontSize: 10, background: '#E6F1FB', color: '#0C447C', padding: '1px 5px', borderRadius: 4, fontWeight: 600 }}>
                                 {lang === 'he' ? 'תיקו' : 'Draw'}
                               </span>
@@ -1069,130 +1102,69 @@ export default function Predict({ lang }: { lang: Lang }) {
                       )
                     })()}
 
-                    {/* ── ACTUAL RESULT ROW (when played) ── */}
-                    {isPlayed && (
-                      <div style={{
-                        padding: '4px 7px', borderTop: '2px solid #d0d0d0',
-                        background: '#f0f0f0',
-                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
-                      }}>
-                        <span style={{ fontSize: 10, color: '#666', fontWeight: 600 }}>{t.actualResult}</span>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: '#333' }}>
-                          {actualA}:{actualB}
-                        </span>
-                        {actualAdvance && (
-                          <span style={{ fontSize: 10, color: '#333', fontWeight: 600, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 4 }}>
-                            <><Flag emoji={FLAGS[actualAdvance] ?? ''} size={22} /> {tn(actualAdvance)} →</>
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {/* ── PREDICTION DETAILS (1X2 + score + O/U + advance + red card) ── */}
-                    {hasSomePred && (
-                      <div style={{ padding: '4px 7px', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', background: '#fafbff', borderTop: '1px solid #eeeef8' }}>
-                        {pred1x2Label && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                            {isPlayed && (
-                              <span style={{ fontSize: 11, color: pts1x2 > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>
-                                {pts1x2 > 0 ? '✓' : '✗'}
-                              </span>
-                            )}
-                            <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                              {pred1x2Flag ? <><Flag emoji={pred1x2Flag} size={18} />{'  '}</> : ''}{pred1x2Label}
-                            </span>
-                            {isPlayed && pts1x2 > 0 && (
-                              <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{pts1x2}</span>
-                            )}
-                          </div>
-                        )}
-                        {isPlayed && hasScore && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <span style={{ fontSize: 11, color: ptsScore > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>
-                              {ptsScore > 0 ? '✓' : '✗'} {t.exactScore}
-                            </span>
-                            {ptsScore > 0 && (
-                              <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsScore}</span>
-                            )}
-                          </div>
-                        )}
-                        {isPlayed && ptsOU > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>✓ {predOuLabel}</span>
-                            <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsOU}</span>
-                          </div>
-                        )}
-                        {!isPlayed && predOuLabel && (
-                          <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#F1EFE8', color: '#444', fontWeight: 600 }}>
-                            {predOuLabel}
-                          </span>
-                        )}
-                        {pickedRedCard && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                            {isPlayed && (
-                              <span style={{ fontSize: 11, color: ptsRedCard > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>
-                                {ptsRedCard > 0 ? '✓' : '✗'}
-                              </span>
-                            )}
-                            <span style={{ fontSize: 11, padding: '2px 4px', borderRadius: 4, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥</span>
-                            {isPlayed && ptsRedCard > 0 && (
-                              <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsRedCard}</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* ── ADVANCE PICK ── */}
-                    {advPicked ? (() => {
-                      const advPickedIsUnderdog = (advPicked === tA && !aIsFav) || (advPicked === tB && aIsFav)
-                      // advNotInMatch: user predicted a team that isn't in their bracket for this slot
-                      // Show simply as ✗ without confusing "לא הגיעה" message
-                      const advFlag = advPicked === tA ? (FLAGS[tA!] ?? '') : advPicked === tB ? (FLAGS[tB!] ?? '') : (FLAGS[advPicked] ?? '')
+                    {/* ━━ SECTION 4: SCORING BREAKDOWN ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+                    {hasSomePred && (() => {
+                      const advBracketValid = !km || km.round === 'R32' || km.round === 'R16'
+                        || advPicked === tA || advPicked === tB
                       return (
-                        <div style={{
-                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                          padding: '4px 7px', gap: 4,
-                          background: advCorrect ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f5f5f5',
-                          borderTop: '1px solid #ebebeb',
-                        }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            {isLockedAdvance && (
-                              <span style={{ fontSize: 10, opacity: 0.5 }}>🔒</span>
-                            )}
-                            {isPlayed && (
-                              <span style={{ fontSize: 12, fontWeight: 700,
-                                color: advCorrect ? '#1a7a44' : '#cc3333' }}>
-                                {advCorrect ? '✓' : '✗'}
+                        <div style={{ padding: '4px 7px', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', background: '#fafbff', borderTop: '1px solid #eeeef8' }}>
+                          {pred1x2Label && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                              {isPlayed && <span style={{ fontSize: 11, color: pts1x2 > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>{pts1x2 > 0 ? '✓' : '✗'}</span>}
+                              <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#E6F1FB', color: '#0C447C', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                {pred1x2Flag ? <><Flag emoji={pred1x2Flag} size={18} />{"  "}</> : ''}{pred1x2Label}
                               </span>
-                            )}
-                            <span style={{ fontSize: 11, fontWeight: 700,
-                              color: advCorrect ? '#1a5c30' : isPlayed ? '#8b1f1f' : '#555' }}>
-                              <><Flag emoji={advFlag} size={22} /> {tn(advPicked)}</>
-                              {isSpecial && advPicked && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
-                              {isSpecial && advPicked && isPlayed && advCorrect && (isFinal ? ' 🏆' : ' 🥉')}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                            {isPlayed && ptsAdv > 0 && (
-                              <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>+{ptsAdv}</span>
-                            )}
-                            {!isPlayed && (
-                              <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4,
-                                background: advNotInMatch ? '#FEF3C7' : advPickedIsUnderdog ? '#DBEAFE' : '#e8f5e9',
-                                color: advNotInMatch ? '#92400E' : advPickedIsUnderdog ? '#1a4fa8' : '#1a5c30',
-                                fontWeight: 700 }}>
-                                {advNotInMatch ? '0 נק\'' : `+${potentialAdvPts}`}
+                              {isPlayed && pts1x2 > 0 && <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{pts1x2}</span>}
+                            </div>
+                          )}
+                          {isPlayed && hasScore && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <span style={{ fontSize: 11, color: ptsScore > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>{ptsScore > 0 ? '✓' : '✗'} {t.exactScore}</span>
+                              {ptsScore > 0 && <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsScore}</span>}
+                            </div>
+                          )}
+                          {isPlayed && ptsOU > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>✓ {predOuLabel}</span>
+                              <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsOU}</span>
+                            </div>
+                          )}
+                          {!isPlayed && predOuLabel && (
+                            <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#F1EFE8', color: '#444', fontWeight: 600 }}>{predOuLabel}</span>
+                          )}
+                          {pickedRedCard && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                              {isPlayed && <span style={{ fontSize: 11, color: ptsRedCard > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>{ptsRedCard > 0 ? '✓' : '✗'}</span>}
+                              <span style={{ fontSize: 11, padding: '2px 4px', borderRadius: 4, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥</span>
+                              {isPlayed && ptsRedCard > 0 && <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsRedCard}</span>}
+                            </div>
+                          )}
+                          {advPicked && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                              {isLockedAdvance && <span style={{ fontSize: 9, opacity: 0.4 }}>🔒</span>}
+                              {isPlayed && <span style={{ fontSize: 11, fontWeight: 700, color: (advCorrect && advBracketValid) ? '#1a7a44' : '#cc3333' }}>{(advCorrect && advBracketValid) ? '✓' : '✗'}</span>}
+                              <span style={{ fontSize: 11, fontWeight: 600, color: (advCorrect && advBracketValid) ? '#1a5c30' : isPlayed ? '#8b1f1f' : '#555' }}>
+                                <Flag emoji={FLAGS[advPicked] ?? ''} size={18} /> {tn(advPicked)}
+                                {isSpecial && !isPlayed && (isFinal ? ' 🏆' : ' 🥉')}
                               </span>
-                            )}
-                          </div>
+                              {isPlayed && ptsAdv > 0 && advBracketValid && <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsAdv}</span>}
+                              {!isPlayed && advBracketValid && (
+                                <span style={{ fontSize: 10, padding: '1px 4px', borderRadius: 4, fontWeight: 700,
+                                  background: ((advPicked===tA&&!aIsFav)||(advPicked===tB&&aIsFav)) ? '#DBEAFE' : '#e8f5e9',
+                                  color: ((advPicked===tA&&!aIsFav)||(advPicked===tB&&aIsFav)) ? '#1a4fa8' : '#1a5c30' }}>
+                                  +{potentialAdvPts}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )
-                    })() : (tA && tB && (
+                    })()}
+                    {!advPicked && tA && tB && (
                       <div style={{ padding: '4px 7px', borderTop: '1px solid #f0f0f0', background: '#fafafa' }}>
                         <span style={{ fontSize: 10, color: '#aaa' }}>{t.clickToAdvance}</span>
                       </div>
-                    ))}
+                    )}
 
 
                     {/* ── TOTAL POINTS (when played) ── */}
