@@ -693,7 +693,40 @@ export default function Admin() {
             </tbody>
           </table>
 
-          <button className="btn-primary" style={{ marginTop: 12 }} onClick={saveSettings}>שמור הגדרות</button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
+            <button className="btn-primary" onClick={saveSettings}>שמור הגדרות</button>
+            <button
+              onClick={async () => {
+                if (!confirm('לאפס את כל הדדליינים ולסגור את חלון הנוקאאוט?')) return
+                const reset = {
+                  knockoutOpen: false,
+                  knockoutDeadline: null,
+                  r16Deadline: null,
+                  qfDeadline: null,
+                  sfDeadline: null,
+                  finalDeadline: null,
+                }
+                const { doc: fbDoc, setDoc: fbSet } = await import('firebase/firestore')
+                const { db: fbDb } = await import('../firebase')
+                await fbSet(fbDoc(fbDb, 'admin', 'settings'), reset, { merge: true })
+                setSettings(s => ({
+                  ...s,
+                  knockoutOpen: false,
+                  knockoutDeadline: '',
+                  r16Deadline: '',
+                  qfDeadline: '',
+                  sfDeadline: '',
+                  finalDeadline: '',
+                }))
+              }}
+              style={{
+                padding: '8px 16px', borderRadius: 8, border: '1.5px solid #c0392b',
+                background: '#fff5f5', color: '#c0392b', fontWeight: 600, fontSize: 13,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}>
+              🔄 אפס לוחות זמנים
+            </button>
+          </div>
         </section>
 
         {/* Knockout match management */}
