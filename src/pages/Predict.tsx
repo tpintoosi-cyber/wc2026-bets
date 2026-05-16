@@ -1067,7 +1067,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                             : <span style={{ color: '#bbb', fontStyle: 'italic' }}>?</span>}
                         </span>
                         {isPlayed
-                          ? <span style={{ fontWeight: 800, color: '#333', margin: '0 3px' }}>{actualA}:{actualB}</span>
+                          ? <span style={{ fontWeight: 800, color: '#333', margin: '0 3px' }}>
+                              {/* RTL: left number = left team (teamB), right number = right team (teamA) */}
+                              {lang === 'he' ? `${actualB ?? 0}:${actualA ?? 0}` : `${actualA ?? 0}:${actualB ?? 0}`}
+                            </span>
                           : <span style={{ color: '#aaa', margin: '0 4px' }}>vs</span>}
                         <span style={{
                           fontWeight: 600,
@@ -1092,7 +1095,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4,
                       }}>
                         <span style={{ fontSize: 10, color: '#666', fontWeight: 600 }}>{t.actualResult}</span>
-                        <span style={{ fontSize: 12, fontWeight: 800, color: '#333' }}>{actualA}:{actualB}</span>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#333' }}>
+                          {lang === 'he' ? `${actualB ?? 0}:${actualA ?? 0}` : `${actualA ?? 0}:${actualB ?? 0}`}
+                        </span>
                         {actualAdvance && (
                           <span style={{ fontSize: 10, color: '#333', fontWeight: 600, flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: 4 }}>
                             <Flag emoji={FLAGS[actualAdvance] ?? ''} size={18} /> {tn(actualAdvance)} →
@@ -1122,7 +1127,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                               {showTeamA ? tn(showTeamA) : '?'}
                             </span>
                             {sA !== undefined && sB !== undefined
-                              ? <span style={{ fontWeight: 800, color: '#333', padding: '0 3px' }}>{sA}:{sB}</span>
+                              ? <span style={{ fontWeight: 800, color: '#333', padding: '0 3px' }}>
+                                  {/* RTL: left number = left team (showTeamB), right number = right team (showTeamA) */}
+                                  {lang === 'he' ? `${sB}:${sA}` : `${sA}:${sB}`}
+                                </span>
                               : <span style={{ color: '#bbb' }}>–</span>}
                             <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: winB ? 800 : 400, color: winB ? '#1a4fa8' : '#777' }}>
                               {showTeamB ? tn(showTeamB) : '?'}
@@ -1433,9 +1441,17 @@ export default function Predict({ lang }: { lang: Lang }) {
                   <RoundSection label={t.roundSF} ids={[[101]]} />
                   <Arrow dir="down" />
 
-                  {/* CENTER */}
-                  <FinalCard />
-                  <ThirdCard />
+                  {/* CENTER — Final + Third side by side.
+                      Both come from the SF results, so they sit together between the two SF cards. */}
+                  <div style={{ margin: '4px 0' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#1a1a2e', textAlign: 'center', padding: '4px 8px', letterSpacing: '0.02em', background: 'linear-gradient(to right, transparent, #f0f0fa, transparent)', borderTop: '1.5px solid #d0d0e8', borderBottom: '1.5px solid #d0d0e8', marginBottom: 6 }}>
+                      {t.roundF} &nbsp;·&nbsp; {t.round3P}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <MatchCard id={104} variant="final" />
+                      <MatchCard id={103} variant="third" />
+                    </div>
+                  </div>
 
                   {/* BOTTOM HALF — converges upward */}
                   <Arrow dir="up" />

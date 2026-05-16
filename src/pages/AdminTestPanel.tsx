@@ -417,34 +417,77 @@ export default function AdminTestPanel() {
     },
     {
       key: 'fill-sf-preds',
-      label: '✏️ מלא ניחושי חצי גמר + מקום 3',
-      sub: 'SF + 3P — 1X2 + תוצאה',
+      label: '✏️ מלא ניחושי חצי גמר',
+      sub: 'SF בלבד — 1X2 + תוצאה',
       action: () => wrap('fill-sf-preds', async () => {
         const preds: Record<number, any> = {}
-        for (const km of allKo.filter(k => k.round === 'SF' || k.round === '3P')) {
+        for (const km of allKo.filter(k => k.round === 'SF')) {
           const existing = koPreds[km.id]
-          preds[km.id] = {
-            matchId: km.id,
-            prediction1X2: existing.prediction1X2,
-            scoreA: existing.scoreA,
-            scoreB: existing.scoreB,
-          }
+          preds[km.id] = { matchId: km.id, prediction1X2: existing.prediction1X2, scoreA: existing.scoreA, scoreB: existing.scoreB }
         }
         await setDoc(doc(db, 'predictions', TEST_UID), { knockout: preds }, { merge: true })
-        addLog(`  → ${Object.keys(preds).length} ניחושי SF+3P`)
+        addLog(`  → ${Object.keys(preds).length} ניחושי SF`)
       }),
     },
     {
       key: 'set-sf-results',
-      label: '📊 הכנס תוצאות חצי גמר + מקום 3',
-      sub: 'SF + 3P — תוצאות + נבחרות גמר',
+      label: '📊 הכנס תוצאות חצי גמר',
+      sub: 'SF — תוצאות + נבחרות 3P ו-F',
       action: () => wrap('set-sf-results', async () => {
-        const map = buildMatchMap('SF')
-        // Also include 3P result
-        const km3P = allKo.find(k => k.round === '3P')
-        if (km3P) map[km3P.id] = koMatches[km3P.id]
+        // SF results + stubs for BOTH 3P and Final (both teams are now known from SF)
+        const sfIdx = ROUND_ORDER_KO.indexOf('SF')
+        const map: Record<number, any> = {}
+        for (const km of allKo) {
+          const kmIdx = ROUND_ORDER_KO.indexOf(km.round)
+          if (kmIdx <= sfIdx) {
+            map[km.id] = koMatches[km.id]
+          } else {
+            const m = koMatches[km.id]
+            if (m?.teamA || m?.teamB) {
+              map[km.id] = { id: km.id, round: km.round, teamA: m.teamA, teamB: m.teamB,
+                fifaPointsA: m.fifaPointsA, fifaPointsB: m.fifaPointsB, category: m.category, isPlayed: false }
+            }
+          }
+        }
         await setDoc(doc(db, 'admin', 'knockout'), { matches: map })
-        addLog('  → SF + 3P תוצאות + נבחרות גמר מוכנות')
+        addLog('  → SF תוצאות + נבחרות 3P ו-F מוכנות')
+      }),
+    },
+    {
+      key: 'fill-3p-preds',
+      label: '✏️ מלא ניחושי מקום שלישי',
+      sub: '3P — 1X2 + תוצאה (נבחרות ידועות אחרי SF)',
+      action: () => wrap('fill-3p-preds', async () => {
+        const preds: Record<number, any> = {}
+        for (const km of allKo.filter(k => k.round === '3P')) {
+          const existing = koPreds[km.id]
+          preds[km.id] = { matchId: km.id, prediction1X2: existing.prediction1X2, scoreA: existing.scoreA, scoreB: existing.scoreB }
+        }
+        await setDoc(doc(db, 'predictions', TEST_UID), { knockout: preds }, { merge: true })
+        addLog(`  → ניחוש מקום 3`)
+      }),
+    },
+    {
+      key: 'set-3p-results',
+      label: '📊 הכנס תוצאות מקום שלישי',
+      sub: '3P — תוצאות',
+      action: () => wrap('set-3p-results', async () => {
+        const sfIdx = ROUND_ORDER_KO.indexOf('SF')
+        const map: Record<number, any> = {}
+        for (const km of allKo) {
+          const kmIdx = ROUND_ORDER_KO.indexOf(km.round)
+          if (kmIdx <= sfIdx || km.round === '3P') {
+            map[km.id] = koMatches[km.id]
+          } else {
+            const m = koMatches[km.id]
+            if (m?.teamA || m?.teamB) {
+              map[km.id] = { id: km.id, round: km.round, teamA: m.teamA, teamB: m.teamB,
+                fifaPointsA: m.fifaPointsA, fifaPointsB: m.fifaPointsB, category: m.category, isPlayed: false }
+            }
+          }
+        }
+        await setDoc(doc(db, 'admin', 'knockout'), { matches: map })
+        addLog('  → מקום 3 תוצאות + נבחרות גמר מוכנות')
       }),
     },
     {
@@ -530,7 +573,7 @@ export default function AdminTestPanel() {
           הכפתורים פועלים על המשתמש "{TEST_NAME}" בלבד
         </div>
         <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
-          סדר מומלץ: fill-gs → set-gs → fill-r32 → set-r32 → fill-r16 → set-r16 → fill-qf → set-qf → fill-sf → set-sf → fill-f → set-f → calc
+          סדר מומלץ: fill-gs → set-gs → fill-r32 → set-r32 → fill-r16 → set-r16 → fill-qf → set-qf → fill-sf → set-sf → fill-3p → set-3p → fill-f → set-f → calc
         </div>
       </div>
 
