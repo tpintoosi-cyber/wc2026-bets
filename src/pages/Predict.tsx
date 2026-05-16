@@ -811,7 +811,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const hasSomePred = hasPred || hasScore || !!(pred?.advance) || pickedRedCard
 
                 // Points earned (only when played)
-                let pts1x2 = 0, ptsScore = 0, ptsAdv = 0, ptsRedCard = 0
+                let pts1x2 = 0, ptsScore = 0, ptsAdv = 0, ptsRedCard = 0, ptsOU = 0
                 if (isPlayed && hasSomePred && km) {
                   if (hasPred) {
                     pts1x2 = (() => {
@@ -830,7 +830,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                       const total = actualA! + actualB!
                       const ouPts = ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<string, number>)[km.round]
                       const ouQ = km.round === 'F' ? (total === 0 || total >= 4) : km.round === '3P' ? (total <= 2 || total >= 5) : catIdx <= 1 ? (total <= 1 || total >= 4) : (total <= 2 || total >= 5)
-                      ptsScore = 2 + (ouQ ? ouPts : 0)
+                      ptsScore = 2
+                      ptsOU = ouQ ? ouPts : 0
                     } else if ((pA - pB) === (actualA! - actualB!)) {
                       ptsScore = 1
                     }
@@ -881,7 +882,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 const pred1x2Label = predResult === '1' ? (tA ? tn(tA) : '1') : predResult === '2' ? (tB ? tn(tB) : '2') : predResult === 'X' ? t.draw : null
                 const pred1x2Flag = predResult === '1' ? (tA ? FLAGS[tA] ?? '' : '') : predResult === '2' ? (tB ? FLAGS[tB] ?? '' : '') : null
 
-                const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
+                const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsOU || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
 
                 const isFinal = variant === 'final'
                 const isThird = variant === 'third'
@@ -1000,7 +1001,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                       </div>
                     )}
 
-                    {/* ── PREDICTION DETAILS (1X2 + O/U + red card) ── */}
+                    {/* ── PREDICTION DETAILS (1X2 + score + O/U + advance + red card) ── */}
                     {hasSomePred && (
                       <div style={{ padding: '4px 7px', display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', background: '#fafbff', borderTop: '1px solid #eeeef8' }}>
                         {pred1x2Label && (
@@ -1018,11 +1019,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                             )}
                           </div>
                         )}
-                        {predOuLabel && (
-                          <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#F1EFE8', color: '#444', fontWeight: 600 }}>
-                            {predOuLabel}
-                          </span>
-                        )}
                         {isPlayed && hasScore && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                             <span style={{ fontSize: 11, color: ptsScore > 0 ? '#1a7a44' : '#cc3333', fontWeight: 700 }}>
@@ -1032,6 +1028,17 @@ export default function Predict({ lang }: { lang: Lang }) {
                               <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsScore}</span>
                             )}
                           </div>
+                        )}
+                        {isPlayed && ptsOU > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 700 }}>✓ {predOuLabel}</span>
+                            <span style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>+{ptsOU}</span>
+                          </div>
+                        )}
+                        {!isPlayed && predOuLabel && (
+                          <span style={{ fontSize: 11, padding: '2px 5px', borderRadius: 4, background: '#F1EFE8', color: '#444', fontWeight: 600 }}>
+                            {predOuLabel}
+                          </span>
                         )}
                         {pickedRedCard && (
                           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -1111,7 +1118,7 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                     {/* ── TOTAL POINTS (when played) ── */}
                     {isPlayed && hasSomePred && (() => {
-                      const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
+                      const safeTotal = (pts1x2 || 0) + (ptsScore || 0) + (ptsOU || 0) + (ptsAdv || 0) + (ptsRedCard || 0)
                       return safeTotal > 0 ? (
                         <div style={{
                           padding: '3px 7px', background: '#1a7a44',
