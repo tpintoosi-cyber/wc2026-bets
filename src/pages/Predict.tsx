@@ -1373,13 +1373,16 @@ export default function Predict({ lang }: { lang: Lang }) {
               const hasRedCard = round === 'R32' || round === 'R16'
               const roundLocked = isRoundLocked(round)
 
-              // Deadline display for this round
+              // Deadline for this round
               const roundDeadlineTs: number | null =
                 round === 'R32' ? knockoutDeadline :
                 round === 'R16' ? r16Deadline :
                 round === 'QF'  ? qfDeadline :
                 (round === 'SF' || round === '3P') ? sfDeadline :
                 round === 'F'   ? finalDeadline : null
+
+              // Hide rounds with no deadline yet — they're future rounds not yet opened
+              if (roundDeadlineTs === null) return null
 
               return (
                 <div key={round}>
