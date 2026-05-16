@@ -752,9 +752,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                   if (!winner || !sfA || !sfB) return undefined
                   return winner === sfA ? sfB : sfA
                 }
-                // R32 feeders (73-88): user's OWN prediction — bracket shows user's tree, not actual results
+                // R32 feeders (73-88): ACTUAL advance team — user fills bracket based on real R32 results
                 if (feederId >= 73 && feederId <= 88) {
-                  return knockoutPreds[feederId]?.advance ?? undefined
+                  return (knockoutMatches[feederId] as any)?.advanceTeam ?? undefined
                 }
                 return knockoutPreds[feederId]?.advance
               } catch { return undefined }
@@ -1431,6 +1431,11 @@ export default function Predict({ lang }: { lang: Lang }) {
                     const teamsReady = !!(teamA && teamB)
                     const isFocused = focusMatchId === km.id
 
+                    // For QF+: what the user predicted from bracket (may differ from actual)
+                    const bracketTeamA = km.round !== 'R32' && km.round !== 'R16' ? getTeamSafe(km.id, 'A') : undefined
+                    const bracketTeamB = km.round !== 'R32' && km.round !== 'R16' ? getTeamSafe(km.id, 'B') : undefined
+                    const bracketDiffersFromActual = bracketTeamA && teamA && bracketTeamA !== teamA
+
                     const ptA = teamA ? (TEAM_FIFA_POINTS[teamA] ?? 1500) : km.fifaPointsA
                     const ptB = teamB ? (TEAM_FIFA_POINTS[teamB] ?? 1500) : km.fifaPointsB
                     const dynCat = (teamA && teamB) ? calcCategoryByRound(ptA, ptB, km.round) : km.category
@@ -1455,6 +1460,22 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                         {teamsReady && (
                           <div style={{ padding: '12px 14px' }}>
+                            {/* Locked bracket prediction for QF+ — show user's predicted teams */}
+                            {(bracketTeamA || bracketTeamB) && (
+                              <div style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '5px 10px', marginBottom: 10, borderRadius: 8,
+                                background: bracketDiffersFromActual ? '#FFF8E1' : '#f0f0f8',
+                                border: `1px solid ${bracketDiffersFromActual ? '#FDE68A' : '#e0e0f0'}`,
+                                fontSize: 12,
+                              }}>
+                                <span style={{ color: '#888' }}>🔒 {lang === 'he' ? 'ניחוש שלך מהעץ:' : 'Your bracket pick:'}</span>
+                                {bracketTeamA && <><Flag emoji={FLAGS[bracketTeamA] ?? ''} size={16} /> <span style={{ fontWeight: 600 }}>{tn(bracketTeamA)}</span></>}
+                                <span style={{ color: '#aaa' }}>{t.versus}</span>
+                                {bracketTeamB && <><Flag emoji={FLAGS[bracketTeamB] ?? ''} size={16} /> <span style={{ fontWeight: 600 }}>{tn(bracketTeamB)}</span></>}
+                                {bracketDiffersFromActual && <span style={{ color: '#B45309', fontSize: 11, marginRight: 'auto' }}>⚠️ {lang === 'he' ? 'שונה מהמשחק בפועל' : 'Differs from actual match'}</span>}
+                              </div>
+                            )}
                             <div className="match-body">
                               <div className="team-name">
                                 <span className="team-flag"><Flag emoji={FLAGS[teamA!] ?? ''} size={24} /></span>
