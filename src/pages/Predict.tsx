@@ -126,8 +126,8 @@ export default function Predict({ lang }: { lang: Lang }) {
   const [knockoutRedCards, setKnockoutRedCards] = useState<{ R32: number[]; R16: number[]; QF: number[] }>({ R32: [], R16: [], QF: [] })
   const [knockoutOpen, setKnockoutOpen] = useState(false)
   const [knockoutDeadline, setKnockoutDeadline] = useState<number | null>(null)
-  // True only if both the flag is set AND the deadline hasn't passed
-  const isKoOpen = knockoutOpen && !(knockoutDeadline && Date.now() > knockoutDeadline)
+  // Master switch only — per-round locking handled in updateKnockout and isRoundLocked
+  const isKoOpen = knockoutOpen
   const [r16Deadline, setR16Deadline] = useState<number | null>(null)
   const [qfDeadline, setQfDeadline] = useState<number | null>(null)
   const [sfDeadline, setSfDeadline] = useState<number | null>(null)
@@ -297,21 +297,30 @@ export default function Predict({ lang }: { lang: Lang }) {
   }
 
   const updateKnockout = (id: number, field: keyof KnockoutMatchPrediction, value: unknown) => {
-    if (!isKoOpen) return
+    if (!knockoutOpen) return
+    // Per-round deadline check
+    const km = KNOCKOUT_MATCHES.find(m => m.id === id)
+    const round = km?.round ?? 'R32'
+    // Advance picks use bracket deadline (knockoutDeadline) for all rounds
+    const effectiveDeadline = field === 'advance'
+      ? knockoutDeadline
+      : ({ R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline,
+           SF: sfDeadline, '3P': sfDeadline, F: finalDeadline } as Record<string, number|null>)[round] ?? null
+    if (effectiveDeadline && Date.now() > effectiveDeadline) return
+
     setKnockoutPreds(prev => {
       const base = prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0 }
       const entry = { ...base, [field]: value } as KnockoutMatchPrediction
-      // When changing a score, ensure the other score defaults to 0
       if (field === 'scoreA' && (entry.scoreB === null || entry.scoreB === undefined)) entry.scoreB = 0
       if (field === 'scoreB' && (entry.scoreA === null || entry.scoreA === undefined)) entry.scoreA = 0
       const updated = { ...prev, [id]: entry }
-      if (isKoOpen) scheduleSave(matchPreds, groupPreds, bonus, updated, knockoutRedCards)
+      scheduleSave(matchPreds, groupPreds, bonus, updated, knockoutRedCards)
       return updated
     })
   }
 
   const toggleKnockoutRedCard = (round: 'R32' | 'R16' | 'QF', matchId: number) => {
-    if (!isKoOpen) return
+    if (!knockoutOpen) return
     const maxPicks = { R32: 3, R16: 2, QF: 1 }[round]
     setKnockoutRedCards(prev => {
       const current = prev[round] ?? []
@@ -416,7 +425,7 @@ export default function Predict({ lang }: { lang: Lang }) {
         {(isKoOpen || Object.keys(knockoutPreds).length > 0) && (
           <button className={tab === 'knockout' ? 'tab active' : 'tab'} onClick={() => setTab('knockout')}>
             {t.tabKnockout}
-            {isKoOpen && <span className="badge" style={{ background: '#EAF3DE', color: '#3B6D11' }}>{t.deadlineOpen}</span>}
+            {knockoutOpen && !(knockoutDeadline && Date.now() > knockoutDeadline) && <span className="badge" style={{ background: '#EAF3DE', color: '#3B6D11' }}>{t.deadlineOpen}</span>}
           </button>
         )}
       </div>
@@ -675,15 +684,18 @@ export default function Predict({ lang }: { lang: Lang }) {
       {/* ── KNOCKOUT TAB ─────────────────────────────────────────────── */}
       {tab === 'knockout' && (
         <div>
-          {/* Status banner */}
-          {!isKoOpen && (
+          {/* Status banner — shows per current time vs deadlines */}
+          {!knockoutOpen && (
             <div className="lb-pre-tournament" style={{ marginBottom: 12 }}>
-              {knockoutOpen && knockoutDeadline && Date.now() > knockoutDeadline
-                ? `🔒 ${t.koLocked} (${new Date(knockoutDeadline).toLocaleString('he-IL')})`
-                : t.koLocked}
+              {t.koLocked}
             </div>
           )}
-          {isKoOpen && knockoutDeadline && (
+          {knockoutOpen && knockoutDeadline && Date.now() > knockoutDeadline && (
+            <div className="lb-pre-tournament" style={{ marginBottom: 12 }}>
+              🔒 {t.koLocked} — {lang === 'he' ? 'עץ/שלב 32' : 'Bracket/R32'}: {new Date(knockoutDeadline).toLocaleString('he-IL')}
+            </div>
+          )}
+          {knockoutOpen && knockoutDeadline && Date.now() <= knockoutDeadline && (
             <div className="lb-pre-tournament" style={{ marginBottom: 12, background: '#EAF3DE', color: '#3B6D11', borderColor: '#b7ddb0' }}>
               {t.koOpen} {new Date(knockoutDeadline).toLocaleString('he-IL')}
             </div>
@@ -707,11 +719,11 @@ export default function Predict({ lang }: { lang: Lang }) {
 
           {(() => {
             const now = Date.now()
-            const isLocked = !isKoOpen
+            const isLocked = !knockoutOpen || (knockoutDeadline != null && now > knockoutDeadline)
 
             // Per-round locking: bracket+R32 use isLocked; later rounds have own deadlines
             const isRoundLocked = (round: string): boolean => {
-              if (!isKoOpen) return true
+              if (!knockoutOpen) return true
               switch (round) {
                 case 'R32': return knockoutDeadline != null && now > knockoutDeadline
                 case 'R16': return r16Deadline != null && now > r16Deadline
