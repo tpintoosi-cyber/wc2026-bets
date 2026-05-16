@@ -1646,6 +1646,28 @@ export default function Predict({ lang }: { lang: Lang }) {
                     <div style={{ borderTop: `1px solid ${isActive ? '#c0e8d0' : '#eee'}` }}>
                       <DeadlineBanner deadline={roundDeadlineTs} locked={roundLocked} />
 
+                      {/* Jump to first unfilled match */}
+                      {!roundLocked && !allFilled && total > 0 && (
+                        <div style={{ padding: '6px 14px 0' }}>
+                          <button
+                            onClick={() => {
+                              const firstUnfilled = availableMatches.find(km => !filledMatches.includes(km))
+                              if (firstUnfilled) {
+                                const el = document.getElementById(`ko-match-${firstUnfilled.id}`)
+                                el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                              }
+                            }}
+                            style={{
+                              width: '100%', padding: '6px', borderRadius: 8,
+                              border: '1px dashed #1a7a44', background: '#f0fbf4',
+                              color: '#1a5c30', fontSize: 12, fontWeight: 600,
+                              cursor: 'pointer', fontFamily: 'inherit',
+                            }}>
+                            {lang === 'he' ? `↓ קפוץ למשחק הבא שלא מולא (${filled}/${total})` : `↓ Jump to next unfilled (${filled}/${total})`}
+                          </button>
+                        </div>
+                      )}
+
                       {/* Red card picks — per round */}
                       {maxRedCards && (
                         <div style={{ margin: '0 0 12px', padding: '10px 14px', background: '#fff5f5', border: '1px solid #fdd', borderRadius: 10 }}>
