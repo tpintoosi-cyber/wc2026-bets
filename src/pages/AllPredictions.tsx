@@ -1176,12 +1176,19 @@ ${userRows}
                     </div>
                     <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
                       <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} />
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600, borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
-                        <span style={{ flex: 1 }}>{lang === 'he' ? 'משתמש' : 'User'}</span>
-                        <span style={{ minWidth: 56, textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Prediction'}</span>
-                        <span style={{ minWidth: 80, textAlign: 'center' }}>1X2</span>
-                        <span style={{ minWidth: 80, textAlign: 'center' }}>{t.koAdvance}</span>
-                        {played && <span style={{ minWidth: 44 }}>נק׳</span>}
+                      {/* Per-user grid: name | score | 1X2 | advance | pts */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: `1fr 60px 84px 84px${played ? ' 54px' : ''}`,
+                        alignItems: 'center', gap: '0 6px',
+                        marginTop: 12, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600,
+                        borderTop: '1px solid #f0f0f0', paddingTop: 8, paddingRight: 4, paddingLeft: 4,
+                      }}>
+                        <span>{lang === 'he' ? 'משתמש' : 'User'}</span>
+                        <span style={{ textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Pred'}</span>
+                        <span style={{ textAlign: 'center' }}>1X2</span>
+                        <span style={{ textAlign: 'center' }}>{t.koAdvance}</span>
+                        {played && <span style={{ textAlign: 'center' }}>נק׳</span>}
                       </div>
                       {users.map(u => {
                         const p = u.knockout?.[selectedMatchId]
@@ -1191,28 +1198,33 @@ ${userRows}
                           : null
                         const correctAdv = played && p?.advance && p.advance === actual?.advanceTeam
                         return (
-                          <div key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 0',
-                            borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap',
-                            background: u.userId === user?.uid ? '#f8f9ff' : 'transparent' }}>
-                            <span style={{ flex: 1, fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, minWidth: 70 }}>
+                          <div key={u.userId} style={{
+                            display: 'grid',
+                            gridTemplateColumns: `1fr 60px 84px 84px${played ? ' 54px' : ''}`,
+                            alignItems: 'center', gap: '0 6px',
+                            padding: '7px 4px', borderBottom: '1px solid #f5f5f5',
+                            background: u.userId === user?.uid ? '#f8f9ff' : 'transparent',
+                          }}>
+                            <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
                             </span>
-                            <span style={{ minWidth: 56, textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr', display: 'inline-block' }}>
+                            <span style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr' }}>
                               {p?.scoreA ?? '?'}–{p?.scoreB ?? '?'}
                             </span>
-                            <span style={{ minWidth: 80, textAlign: 'center' }}>
+                            <span style={{ textAlign: 'center' }}>
                               <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10,
                                 background: correct1x2 === true ? '#EAF3DE' : correct1x2 === false ? '#FCEBEB' : '#f0f0f0',
                                 color: correct1x2 === true ? '#1a7a44' : correct1x2 === false ? '#A32D2D' : '#333' }}>
                                 {label1x2}
                               </span>
                             </span>
-                            <span style={{ minWidth: 80, textAlign: 'center' }}>
+                            <span style={{ textAlign: 'center' }}>
                               {p?.advance ? (
-                                <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10,
+                                <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 4px', borderRadius: 10,
                                   background: correctAdv ? '#EAF3DE' : played ? '#FCEBEB' : '#f0f0fb',
-                                  color: correctAdv ? '#1a7a44' : played ? '#A32D2D' : '#333' }}>
-                                  <><Flag emoji={FLAGS[p.advance]??''} size={22} /> {p.advance}</>
+                                  color: correctAdv ? '#1a7a44' : played ? '#A32D2D' : '#333',
+                                  display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center' }}>
+                                  <Flag emoji={FLAGS[p.advance]??''} size={16} /> {p.advance}
                                 </span>
                               ) : <span style={{ fontSize: 12, color: '#ccc' }}>—</span>}
                             </span>
@@ -1250,33 +1262,50 @@ ${userRows}
                     </span>}
                   </div>
                   <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600 }}>
-                      <span style={{ flex: 1 }}>{lang === 'he' ? 'משתמש' : 'User'}</span>
-                      <span style={{ minWidth: 56, textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Prediction'}</span>
-                      <span style={{ minWidth: 68, textAlign: 'center' }}>1X2</span>
-                      <span style={{ minWidth: 22, textAlign: 'center' }}>🟥</span>
-                      {played && <span style={{ minWidth: 44 }}>נק׳</span>}
+                    {/* Grid: name | score | 1X2 | 🟥 | pts | tag */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: `1fr 60px 80px 30px${played ? ' 54px 100px' : ''}`,
+                      alignItems: 'center', gap: '0 6px',
+                      marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600,
+                      padding: '0 4px',
+                    }}>
+                      <span>{lang === 'he' ? 'משתמש' : 'User'}</span>
+                      <span style={{ textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Pred'}</span>
+                      <span style={{ textAlign: 'center' }}>1X2</span>
+                      <span style={{ textAlign: 'center' }}>🟥</span>
+                      {played && <span style={{ textAlign: 'center' }}>נק׳</span>}
+                      {played && <span></span>}
                     </div>
                     {users.map(u => {
                       const p = u.matches[selectedMatchId]
                       const pts = played ? getMatchPts(selectedMatchId, p) : 0
                       const tag = played ? getTag(selectedMatchId, p, pts) : null
                       return (
-                        <div key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 0',
-                          borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap',
-                          background: u.userId === user?.uid ? '#f8f9ff' : 'transparent' }}>
-                          <span style={{ flex: 1, fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, minWidth: 70 }}>
-                            { adminDisplayName(u) }{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
+                        <div key={u.userId} style={{
+                          display: 'grid',
+                          gridTemplateColumns: `1fr 60px 80px 30px${played ? ' 54px 100px' : ''}`,
+                          alignItems: 'center', gap: '0 6px',
+                          padding: '7px 4px',
+                          borderBottom: '1px solid #f5f5f5',
+                          background: u.userId === user?.uid ? '#f8f9ff' : 'transparent',
+                        }}>
+                          <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
                           </span>
                           {p ? <>
-                            <span style={{ minWidth: 56, textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr', display: 'inline-block' }}>{p.scoreA??'?'}–{p.scoreB??'?'}</span>
-                            <span style={{ minWidth: 68, textAlign: 'center' }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10, background: '#f0f0f0', color: '#333' }}>
+                            <span style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr' }}>{p.scoreA??'?'}–{p.scoreB??'?'}</span>
+                            <span style={{ textAlign: 'center' }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10,
+                                background: played ? (p.prediction1X2 === (result.resultA > result.resultB ? '1' : result.resultA < result.resultB ? '2' : 'X') ? '#EAF3DE' : '#FCEBEB') : '#f0f0f0',
+                                color: played ? (p.prediction1X2 === (result.resultA > result.resultB ? '1' : result.resultA < result.resultB ? '2' : 'X') ? '#1a7a44' : '#A32D2D') : '#333' }}>
                                 {p.prediction1X2==='1' ? match.teamA : p.prediction1X2==='2' ? match.teamB : 'תיקו'}
                               </span>
                             </span>
-                            <span style={{ minWidth: 22, textAlign: 'center', fontSize: 12 }}>{p.redCard?'🟥':'—'}</span>
-                          </> : <span style={{ fontSize: 12, color: '#ccc', flex: 1 }}>לא מולא</span>}
+                            <span style={{ textAlign: 'center', fontSize: 12 }}>{p.redCard ? '🟥' : '—'}</span>
+                          </> : <>
+                            <span style={{ fontSize: 12, color: '#ccc', gridColumn: 'span 3', textAlign: 'center' }}>לא מולא</span>
+                          </>}
                           {played && <PtsBadge pts={pts} played={true} />}
                           {played && tag && <ResultTag label={tag.label} type={tag.type} />}
                         </div>
