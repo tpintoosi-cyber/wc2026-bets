@@ -980,42 +980,130 @@ ${userRows}
                         const tA = getTeam(km.id, 'A')
                         const tB = getTeam(km.id, 'B')
                         const adminKm = knockoutAdminMatches[km.id]
-                        const isPlayed = adminKm?.isPlayed
-                        const actual1x2 = isPlayed && adminKm?.resultA != null
-                          ? (adminKm.resultA > adminKm.resultB ? '1' : adminKm.resultA < adminKm.resultB ? '2' : 'X') : null
-                        const correct1x2 = actual1x2 && pred.prediction1X2 === actual1x2
-                        const correctAdvance = isPlayed && adminKm?.advanceTeam && pred.advance === adminKm.advanceTeam
+                        const isPlayed = !!(adminKm?.isPlayed && adminKm?.resultA != null)
+
+                        // Use actual teams for category (not bracket-predicted)
+                        const actualTeamA = adminKm?.teamA ?? tA
+                        const actualTeamB = adminKm?.teamB ?? tB
+                        const ptA = actualTeamA ? (TEAM_FIFA_POINTS[actualTeamA] ?? 1500) : 1500
+                        const ptB = actualTeamB ? (TEAM_FIFA_POINTS[actualTeamB] ?? 1500) : 1500
+                        const cat = calcCategoryByRound(ptA, ptB, km.round) as any
+
+                        const rA = isPlayed ? Number(adminKm!.resultA) : null
+                        const rB = isPlayed ? Number(adminKm!.resultB) : null
+                        const actual1x2 = rA != null ? (rA > rB! ? '1' : rA < rB! ? '2' : 'X') : null
+                        const correct1x2 = !!(actual1x2 && pred.prediction1X2 === actual1x2)
+                        const correctAdvance = !!(isPlayed && adminKm?.advanceTeam && pred.advance === adminKm.advanceTeam)
+
+                        // Score breakdown
+                        const p1x2 = isPlayed ? calc1X2KnockoutPoints(pred.prediction1X2, rA!, rB!, ptA, ptB, cat, km.round) : 0
+                        const pScore = (isPlayed && pred.scoreA != null) ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round) : 0
+                        const pAdv = (isPlayed && pred.advance && adminKm?.advanceTeam) ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, actualTeamA ?? '', actualTeamB ?? '') : 0
+                        const total = p1x2 + pScore + pAdv
+
+                        // Display labels
+                        const pred1x2Label = pred.prediction1X2 === '1' ? (actualTeamA ?? '1')
+                          : pred.prediction1X2 === '2' ? (actualTeamB ?? '2') : 'תיקו'
+                        const pred1x2Flag = pred.prediction1X2 === '1' ? (FLAGS[actualTeamA ?? ''] ?? '')
+                          : pred.prediction1X2 === '2' ? (FLAGS[actualTeamB ?? ''] ?? '') : null
+
                         return (
-                          <div key={km.id} style={{ border: '1px solid #e8e8e8', borderRadius: 10, marginBottom: 6, overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', gap: 8, flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: 12, color: '#aaa' }}>#{km.id}</span>
-                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tA ? <><Flag emoji={FLAGS[tA]??''} size={22} /> {tA}</> : '?'}</span>
-                              <span style={{ fontSize: 13, fontWeight: 700, color: '#333' }}>{pred.scoreA ?? '?'}–{pred.scoreB ?? '?'}</span>
-                              <span style={{ fontWeight: 600, fontSize: 13 }}>{tB ? <><Flag emoji={FLAGS[tB]??''} size={22} /> {tB}</> : '?'}</span>
-                              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: correct1x2 ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f0f0f0', color: correct1x2 ? '#1a7a44' : isPlayed ? '#A32D2D' : '#666', fontWeight: 600 }}>
-                                {pred.prediction1X2 === '1' ? (tA ?? '1') : pred.prediction1X2 === '2' ? (tB ?? '2') : 'תיקו'}
+                          <div key={km.id} style={{
+                            border: `1.5px solid ${isPlayed ? (total > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`,
+                            borderRadius: 10, marginBottom: 8, overflow: 'hidden',
+                            boxShadow: total > 0 ? '0 1px 4px rgba(26,122,68,0.08)' : 'none',
+                          }}>
+
+                            {/* Row 1: Match header — user's bet */}
+                            <div style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', gap: 8, flexWrap: 'wrap', background: '#fafbff' }}>
+                              <span style={{ fontSize: 11, color: '#bbb', minWidth: 28 }}>#{km.id}</span>
+                              <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 5,
+                                background: { A:'#E6F1FB', B:'#EAF3DE', C:'#FFF8E7', D:'#FCF0F0'}[cat as 'A'|'B'|'C'|'D'] ?? '#eee',
+                                color: { A:'#0C447C', B:'#27500A', C:'#633806', D:'#7A0C0C'}[cat as 'A'|'B'|'C'|'D'] ?? '#333',
+                                fontWeight: 700, fontSize: 10 }}>{cat}</span>
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>
+                                {actualTeamA ? <><Flag emoji={FLAGS[actualTeamA]??''} size={20} /> {actualTeamA}</> : '?'}
                               </span>
-                              {(() => {
-                                if (!isPlayed || adminKm?.resultA == null) return null
-                                const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
-                                const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
-                                const cat = calcCategoryByRound(ptA, ptB, km.round) as any
-                                const p1x2 = calc1X2KnockoutPoints(pred.prediction1X2, Number(adminKm.resultA), Number(adminKm.resultB), ptA, ptB, cat, km.round)
-                                const pScore = pred.scoreA != null ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), Number(adminKm.resultA), Number(adminKm.resultB), cat, km.round) : 0
-                                const pAdv = pred.advance && adminKm.advanceTeam ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, tA ?? '', tB ?? '') : 0
-                                const total = p1x2 + pScore + pAdv
-                                if (total === 0) return null
-                                return <span style={{ marginRight: 'auto', fontSize: 12, fontWeight: 700, color: '#1a7a44', background: '#EAF3DE', padding: '2px 8px', borderRadius: 10 }}>+{total} נק׳</span>
-                              })()}
+                              {/* User's predicted score */}
+                              <span style={{ fontSize: 13, fontWeight: 700, color: '#555' }}>
+                                {pred.scoreA ?? '?'}–{pred.scoreB ?? '?'}
+                              </span>
+                              <span style={{ fontWeight: 600, fontSize: 13 }}>
+                                {actualTeamB ? <>{actualTeamB} <Flag emoji={FLAGS[actualTeamB]??''} size={20} /></> : '?'}
+                              </span>
+                              {/* 1X2 badge */}
+                              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, marginRight: 'auto',
+                                background: correct1x2 ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f0f0f0',
+                                color: correct1x2 ? '#1a7a44' : isPlayed ? '#A32D2D' : '#666', fontWeight: 600 }}>
+                                {pred1x2Flag && <Flag emoji={pred1x2Flag} size={16} />}
+                                {' '}{pred1x2Label}
+                              </span>
+                              {/* Total points badge */}
+                              {isPlayed && (
+                                <span style={{ fontSize: 13, fontWeight: 800,
+                                  color: total > 0 ? '#1a7a44' : '#999',
+                                  background: total > 0 ? '#EAF3DE' : '#f5f5f5',
+                                  padding: '2px 8px', borderRadius: 8 }}>
+                                  {total > 0 ? `+${total}` : '0'} נק׳
+                                </span>
+                              )}
                             </div>
-                            {pred.advance && (
-                              <div style={{ padding: '5px 10px', borderTop: '1px solid #f0f0f0', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, background: correctAdvance ? '#EAF3DE' : isPlayed && adminKm?.advanceTeam ? '#FCEBEB' : '#f8f9ff' }}>
-                                <span style={{ color: '#888' }}>{t.koAdvanceLabel}</span>
-                                <span style={{ fontWeight: 700, color: correctAdvance ? '#1a7a44' : isPlayed && adminKm?.advanceTeam ? '#A32D2D' : '#333' }}><><Flag emoji={FLAGS[pred.advance]??''} size={22} /> {pred.advance}</></span>
-                                {correctAdvance && <span style={{ color: '#1a7a44' }}>✓</span>}
-                                {isPlayed && adminKm?.advanceTeam && !correctAdvance && <span style={{ color: '#A32D2D', fontSize: 11 }}>(עלה: <><Flag emoji={FLAGS[adminKm.advanceTeam]??''} size={18} /> {adminKm.advanceTeam}</>)</span>}
+
+                            {/* Row 2: Actual result (when played) */}
+                            {isPlayed && rA != null && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', background: '#f2f2f2', borderTop: '1px solid #e8e8e8', fontSize: 12 }}>
+                                <span style={{ color: '#888', fontWeight: 600, flexShrink: 0 }}>בפועל:</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600,
+                                  color: adminKm?.advanceTeam === actualTeamA ? '#1a5c30' : '#333' }}>
+                                  <Flag emoji={FLAGS[actualTeamA ?? ''] ?? ''} size={18} /> {actualTeamA}
+                                </span>
+                                <span style={{ fontWeight: 800, color: '#333' }}>{lang === 'he' ? `${rB}:${rA}` : `${rA}:${rB}`}</span>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600,
+                                  color: adminKm?.advanceTeam === actualTeamB ? '#1a5c30' : '#333' }}>
+                                  {actualTeamB} <Flag emoji={FLAGS[actualTeamB ?? ''] ?? ''} size={18} />
+                                </span>
+                                {adminKm?.advanceTeam && (
+                                  <span style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: 3, color: '#1a5c30', fontWeight: 700, fontSize: 11 }}>
+                                    → <Flag emoji={FLAGS[adminKm.advanceTeam] ?? ''} size={18} /> {adminKm.advanceTeam}
+                                  </span>
+                                )}
                               </div>
                             )}
+
+                            {/* Row 3: Score breakdown (when played) */}
+                            {isPlayed && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderTop: '1px solid #eee', flexWrap: 'wrap', background: '#fff' }}>
+                                {/* 1X2 */}
+                                <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 2,
+                                  color: p1x2 > 0 ? '#1a7a44' : '#cc3333', fontWeight: 600 }}>
+                                  {p1x2 > 0 ? '✓' : '✗'}
+                                  {pred1x2Flag && <Flag emoji={pred1x2Flag} size={15} />}
+                                  {p1x2 > 0 ? ` +${p1x2}` : ''}
+                                </span>
+                                <span style={{ color: '#ddd' }}>|</span>
+                                {/* Score */}
+                                <span style={{ fontSize: 11, color: pScore > 0 ? '#1a7a44' : '#cc3333', fontWeight: 600 }}>
+                                  {pScore > 0 ? `✓ תוצאה +${pScore}` : '✗ תוצאה'}
+                                </span>
+                                {pred.advance && (<>
+                                  <span style={{ color: '#ddd' }}>|</span>
+                                  {/* Advance */}
+                                  <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 2,
+                                    color: pAdv > 0 ? '#1a7a44' : '#cc3333', fontWeight: 600 }}>
+                                    {pAdv > 0 ? '✓' : '✗'}
+                                    <span>עולה:</span>
+                                    <Flag emoji={FLAGS[pred.advance] ?? ''} size={15} />
+                                    {pAdv > 0 ? ` +${pAdv}` : ''}
+                                    {!correctAdvance && adminKm?.advanceTeam && (
+                                      <span style={{ color: '#aaa', fontWeight: 400, fontSize: 10 }}>
+                                        {' '}(עלה: {adminKm.advanceTeam})
+                                      </span>
+                                    )}
+                                  </span>
+                                </>)}
+                              </div>
+                            )}
+
                           </div>
                         )
                       })}

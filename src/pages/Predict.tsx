@@ -129,6 +129,7 @@ export default function Predict({ lang }: { lang: Lang }) {
   // Master switch only — per-round locking handled in updateKnockout and isRoundLocked
   const isKoOpen = knockoutOpen
   const [r16Deadline, setR16Deadline] = useState<number | null>(null)
+  const [p3Deadline, setP3Deadline] = useState<number | null>(null)
   const [qfDeadline, setQfDeadline] = useState<number | null>(null)
   const [sfDeadline, setSfDeadline] = useState<number | null>(null)
   const [finalDeadline, setFinalDeadline] = useState<number | null>(null)
@@ -150,7 +151,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     const rounds = ['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const
     const deadlines: Record<string, number | null> = {
       R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline,
-      SF: sfDeadline, '3P': finalDeadline, F: finalDeadline,
+      SF: sfDeadline, '3P': p3Deadline ?? finalDeadline, F: finalDeadline,
     }
     const now = Date.now()
     for (const r of rounds) {
@@ -162,7 +163,7 @@ export default function Predict({ lang }: { lang: Lang }) {
       if (deadlines[r] !== null) return r
     }
     return 'R32'
-  }, [knockoutDeadline, r16Deadline, qfDeadline, sfDeadline, finalDeadline])
+  }, [knockoutDeadline, r16Deadline, qfDeadline, sfDeadline, p3Deadline, finalDeadline])
 
   // Auto-open active round when it changes
   useEffect(() => {
@@ -243,6 +244,7 @@ export default function Predict({ lang }: { lang: Lang }) {
           setKnockoutDeadline(d.knockoutDeadline ?? null)
           setGroupDeadline(d.deadline ?? null)
           setR16Deadline(d.r16Deadline ?? null)
+          setP3Deadline(d.p3Deadline ?? null)
           setQfDeadline(d.qfDeadline ?? null)
           setSfDeadline(d.sfDeadline ?? null)
           setFinalDeadline(d.finalDeadline ?? null)
@@ -342,7 +344,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     const effectiveDeadline = field === 'advance'
       ? (round === 'R32' ? knockoutDeadline : r16Deadline)
       : ({ R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline,
-           SF: sfDeadline, '3P': finalDeadline, F: finalDeadline } as Record<string, number|null>)[round] ?? null
+           SF: sfDeadline, '3P': p3Deadline ?? finalDeadline, F: finalDeadline } as Record<string, number|null>)[round] ?? null
     if (effectiveDeadline && Date.now() > effectiveDeadline) return
 
     setKnockoutPreds(prev => {
@@ -760,7 +762,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 case 'R16': return r16Deadline == null  || now > r16Deadline
                 case 'QF':  return qfDeadline  == null  || now > qfDeadline
                 case 'SF':  return sfDeadline   == null || now > sfDeadline
-                case '3P':  return finalDeadline == null || now > finalDeadline
+                case '3P':  return (p3Deadline ?? finalDeadline) == null || now > (p3Deadline ?? finalDeadline)!
                 case 'F':   return finalDeadline == null || now > finalDeadline
                 default:    return true
               }
@@ -851,9 +853,16 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                 const ptA = tA ? (TEAM_FIFA_POINTS[tA] ?? 1500) : 1500
                 const ptB = tB ? (TEAM_FIFA_POINTS[tB] ?? 1500) : 1500
-                const dynCat = km ? calcCategoryByRound(ptA, ptB, km.round) : 'A'
+
+                // For QF+: category and favorite must use ACTUAL match teams, not bracket-predicted ones
+                // This is critical for correct scoring (catBonus, underdog detection)
+                const catTeamA = isQFPlus ? (actualTeamA ?? tA) : tA
+                const catTeamB = isQFPlus ? (actualTeamB ?? tB) : tB
+                const catPtA = catTeamA ? (TEAM_FIFA_POINTS[catTeamA] ?? 1500) : ptA
+                const catPtB = catTeamB ? (TEAM_FIFA_POINTS[catTeamB] ?? 1500) : ptB
+                const dynCat = km ? calcCategoryByRound(catPtA, catPtB, km.round) : 'A'
                 const catIdx = { A: 0, B: 1, C: 2, D: 3 }[dynCat]
-                const aIsFav = ptA >= ptB
+                const aIsFav = catPtA >= catPtB
 
                 const isPlayed = !!(actual?.isPlayed && actual.resultA !== undefined && actual.resultB !== undefined)
                 const actualA = isPlayed ? actual!.resultA! : undefined
@@ -1045,6 +1054,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                             ? (knockoutDeadline != null && now > knockoutDeadline)
                             : isLocked)
                         : true
+                      // Team eliminated: actual match has different teams than bracket prediction
+                      const actualForSide = side === 'A' ? actualTeamA : actualTeamB
+                      const eliminated = isQFPlus && team && actualForSide && actualForSide !== team
                       return (
                         <div key={side}
                           onClick={() => !roundLocked && team && updateKnockout(id, 'advance', team)}
@@ -1054,13 +1066,17 @@ export default function Predict({ lang }: { lang: Lang }) {
                             borderBottom: side === 'A' ? '1px solid #ebebeb' : 'none',
                             background: isAdv ? '#DBEAFE' : 'transparent',
                             cursor: (!roundLocked && team) ? 'pointer' : 'default',
+                            opacity: eliminated ? 0.55 : 1,
                           }}>
-                          <span style={{ lineHeight: 1, flexShrink: 0 }}>{team ? <Flag emoji={FLAGS[team] ?? ''} size={22} /> : ''}</span>
+                          <span style={{ lineHeight: 1, flexShrink: 0, filter: eliminated ? 'grayscale(80%)' : 'none' }}>
+                            {team ? <Flag emoji={FLAGS[team] ?? ''} size={22} /> : ''}
+                          </span>
                           <span style={{
                             flex: 1,
                             fontSize: compact ? 11 : 12, fontWeight: isAdv ? 700 : 500,
-                            color: isAdv ? '#1a4fa8' : team ? '#222' : '#ccc',
+                            color: eliminated ? '#999' : isAdv ? '#1a4fa8' : team ? '#222' : '#ccc',
                             fontStyle: team ? 'normal' : 'italic',
+                            textDecoration: eliminated ? 'line-through' : 'none',
                             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                           }}>{team ? tn(team) : '...'}</span>
                           {/* Score shown inline only for R32/R16 where bracket = actual match */}
@@ -1069,7 +1085,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                               {predScore}
                             </span>
                           )}
-                          {isAdv && <span style={{ fontSize: 11, color: '#2563EB', fontWeight: 700, marginRight: 2 }}>●</span>}
+                          {isAdv && !eliminated && <span style={{ fontSize: 11, color: '#2563EB', fontWeight: 700, marginRight: 2 }}>●</span>}
+                          {eliminated && <span style={{ fontSize: 10, color: '#cc4444' }}>✕</span>}
                         </div>
                       )
                     })}
@@ -1139,7 +1156,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                     {/* ━━ SECTION 3: USER'S MATCH BET (QF+ only) ━━━━━━━━━━━━━━━━━━
                         Always shown for QF+ when user has a prediction (hasSomePred).
                         Uses ACTUAL teams (what was really played), not bracket teams. */}
-                    {isQFPlus && hasSomePred && (pred?.prediction1X2 || (pred?.scoreA !== null && pred?.scoreA !== undefined)) && (() => {
+                    {isQFPlus && pred?.prediction1X2 && (() => {
                       const x = pred?.prediction1X2
                       const winA = x === '1', winB = x === '2'
                       const sA = pred?.scoreA, sB = pred?.scoreB
@@ -1197,9 +1214,10 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                       // 1X2 row
                       if (pred1x2Label) {
+                        const prefix1x2 = predResult === '1' ? '1: ' : predResult === '2' ? '2: ' : 'X: '
                         rows.push({
                           key: '1x2',
-                          labelText: pred1x2Label,
+                          labelText: `${prefix1x2}${pred1x2Label}`,
                           flag: pred1x2Flag ?? undefined,
                           ok: isPlayed ? pts1x2 > 0 : null,
                           pts: pts1x2,
@@ -1207,7 +1225,6 @@ export default function Predict({ lang }: { lang: Lang }) {
                             if (!km) return 0
                             const base = ({ R32: 1, R16: 1, QF: 2, SF: 3, '3P': 2, F: 3 } as Record<string,number>)[km.round]
                             const catBonus = { A: 0, B: 1, C: 2, D: 3 }[dynCat] ?? 0
-                            // Use actual pick — favorite gets base, underdog gets base+catBonus, draw gets base+max(0,cat-1)
                             if (predResult === 'X') return base + Math.max(0, catBonus - 1)
                             const pickIsFav = (predResult === '1' && aIsFav) || (predResult === '2' && !aIsFav)
                             return pickIsFav ? base : base + catBonus
@@ -1218,21 +1235,23 @@ export default function Predict({ lang }: { lang: Lang }) {
                       // Score row
                       if (hasScore) {
                         if (isPlayed) {
-                          const scoreLabel = ptsScore === 2 ? t.exactScore : ptsScore === 1 ? (lang === 'he' ? 'הפרש נכון' : 'Right diff') : t.exactScore
+                          const scoreBase = ptsScore === 2 ? t.exactScore : ptsScore === 1 ? (lang === 'he' ? 'הפרש נכון' : 'Right diff') : t.exactScore
+                          // Add (אנדר/אובר) suffix when OU bonus applies
+                          const ouSuffix = (ptsOU > 0 && predOuLabel) ? ` (${predOuLabel})` : ''
                           rows.push({
                             key: 'score',
-                            labelText: scoreLabel,
+                            labelText: `${scoreBase}${ouSuffix}`,
                             ok: ptsScore > 0,
                             pts: ptsScore + ptsOU,
                           })
                         } else {
-                          // Pre-match: show predicted score + potential OU bonus
                           const sA = pred?.scoreA, sB = pred?.scoreB
                           const scoreStr = (sA !== undefined && sB !== undefined) ? (lang === 'he' ? `${sB}:${sA}` : `${sA}:${sB}`) : '?'
                           const ouPts = km ? ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<string,number>)[km.round] : 1
+                          const ouSuffix = predOuLabel ? ` (${predOuLabel})` : ''
                           rows.push({
                             key: 'score',
-                            labelText: `${t.exactScore} ${scoreStr}`,
+                            labelText: `${t.exactScore} ${scoreStr}${ouSuffix}`,
                             ok: null,
                             pts: 0,
                             potential: 2 + (predOuLabel ? ouPts : 0),
@@ -1240,11 +1259,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                         }
                       }
 
-                      // Advance pick row
+                      // Advance pick row — prefix "עולה: "
                       if (advPicked) {
+                        const advPrefix = lang === 'he' ? 'עולה: ' : 'Adv: '
                         rows.push({
                           key: 'adv',
-                          labelText: tn(advPicked),
+                          labelText: `${advPrefix}${tn(advPicked)}`,
                           flag: FLAGS[advPicked] ?? undefined,
                           lock: isLockedAdvance,
                           ok: isPlayed ? (advCorrect && advBV) : null,
@@ -1501,7 +1521,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FAEEDA', color: '#633806', fontWeight: 600 }}>עולה: {maxPtsAdv}</span>
                                 {maxPtsRC > 0 && <>
                                   <span style={{ fontSize: 10, color: '#ccc' }}>+</span>
-                                  <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥 {maxPtsRC}</span>
+                                  <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>כרטיס: {maxPtsRC}</span>
                                 </>}
                                 <span style={{ fontSize: 13, fontWeight: 700, color: '#555' }}>≈{maxTotal}</span>
                               </div>
@@ -1522,7 +1542,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FAEEDA', color: '#633806', fontWeight: 600 }}>עולה: {actPtsAdv}</span>
                                 {(actPtsRC > 0 || maxPtsRC > 0) && <>
                                   <span style={{ fontSize: 10, color: '#ccc' }}>+</span>
-                                  <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>🟥 {actPtsRC}</span>
+                                  <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 5, background: '#FCEBEB', color: '#791F1F', fontWeight: 600 }}>כרטיס: {actPtsRC}</span>
                                 </>}
                                 <span style={{ fontSize: 14, fontWeight: 800, color: '#1a7a44' }}>= {actTotal}</span>
                               </div>
@@ -1583,7 +1603,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                 round === 'R16' ? r16Deadline :
                 round === 'QF'  ? qfDeadline :
                 round === 'SF' ? sfDeadline :
-                round === '3P' ? finalDeadline :
+                round === '3P' ? (p3Deadline ?? finalDeadline) :
                 round === 'F'   ? finalDeadline : null
 
               // Hide rounds with no deadline yet — they're future rounds not yet opened

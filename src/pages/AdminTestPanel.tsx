@@ -150,6 +150,18 @@ export default function AdminTestPanel() {
     finally { setBusy(false) }
   }
 
+  // Use dot-notation merge to avoid overwriting other rounds' data
+  // setDoc with merge:true replaces the entire 'knockout' map — dot notation merges at field level
+  const saveKnockout = async (uid: string, preds: Record<number, Partial<KnockoutMatchPrediction>>) => {
+    const data: Record<string, any> = {}
+    for (const [id, pred] of Object.entries(preds)) {
+      for (const [field, val] of Object.entries(pred as Record<string, any>)) {
+        if (val !== undefined) data[`knockout.${id}.${field}`] = val
+      }
+    }
+    await setDoc(doc(db, 'predictions', uid), data, { merge: true })
+  }
+
   // ── Pre-compute tournament data ───────────────────────────────────────────
   const gsResults = genGroupResults()
   const groups    = computeQualifiers(gsResults)
@@ -377,7 +389,7 @@ export default function AdminTestPanel() {
           preds[km.id] = { matchId: km.id, advance: koPreds[km.id]?.advance }
         }
 
-        await setDoc(doc(db, 'predictions', TEST_UID), { knockout: preds }, { merge: true })
+        await saveKnockout(TEST_UID, preds)
         addLog(`  → R16: ניחושים מלאים | QF/SF/3P/F: עולה בלבד (ברקט)`)
 
         // Verify bracket consistency
@@ -417,7 +429,7 @@ export default function AdminTestPanel() {
             // advance was already saved in fill-r16-preds — don't overwrite
           }
         }
-        await setDoc(doc(db, 'predictions', TEST_UID), { knockout: preds }, { merge: true })
+        await saveKnockout(TEST_UID, preds)
         addLog(`  → ${Object.keys(preds).length} ניחושי QF (1X2 + תוצאה בלבד)`)
       }),
     },
@@ -440,7 +452,7 @@ export default function AdminTestPanel() {
           const existing = koPreds[km.id]
           preds[km.id] = { matchId: km.id, prediction1X2: existing.prediction1X2, scoreA: existing.scoreA, scoreB: existing.scoreB }
         }
-        await setDoc(doc(db, 'predictions', TEST_UID), { knockout: preds }, { merge: true })
+        await saveKnockout(TEST_UID, preds)
         addLog(`  → ${Object.keys(preds).length} ניחושי SF`)
       }),
     },
@@ -478,7 +490,7 @@ export default function AdminTestPanel() {
           const existing = koPreds[km.id]
           preds[km.id] = { matchId: km.id, prediction1X2: existing.prediction1X2, scoreA: existing.scoreA, scoreB: existing.scoreB }
         }
-        await setDoc(doc(db, 'predictions', TEST_UID), { knockout: preds }, { merge: true })
+        await saveKnockout(TEST_UID, preds)
         addLog(`  → ניחוש מקום 3`)
       }),
     },
@@ -520,7 +532,7 @@ export default function AdminTestPanel() {
             scoreB: existing.scoreB,
           }
         }
-        await setDoc(doc(db, 'predictions', TEST_UID), { knockout: preds }, { merge: true })
+        await saveKnockout(TEST_UID, preds)
         addLog(`  → גמר ניחוש: ${koPreds[104]?.advance ?? '?'} יזכה`)
       }),
     },

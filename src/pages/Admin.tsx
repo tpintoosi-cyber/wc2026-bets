@@ -32,7 +32,7 @@ export default function Admin() {
   const [settings, setSettings] = useState({
     isOpen: true, deadline: '',
     knockoutOpen: false, knockoutDeadline: '',
-    r16Deadline: '', qfDeadline: '', sfDeadline: '', finalDeadline: '',
+    r16Deadline: '', qfDeadline: '', sfDeadline: '', p3Deadline: '', finalDeadline: '',
   })
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -81,6 +81,7 @@ export default function Admin() {
           r16Deadline:   d.r16Deadline   ? new Date(d.r16Deadline).toISOString().slice(0, 16)   : '',
           qfDeadline:    d.qfDeadline    ? new Date(d.qfDeadline).toISOString().slice(0, 16)    : '',
           sfDeadline:    d.sfDeadline    ? new Date(d.sfDeadline).toISOString().slice(0, 16)    : '',
+          p3Deadline:    d.p3Deadline    ? new Date(d.p3Deadline).toISOString().slice(0, 16)    : '',
           finalDeadline: d.finalDeadline ? new Date(d.finalDeadline).toISOString().slice(0, 16) : '',
         })
       }
@@ -446,6 +447,7 @@ export default function Admin() {
       r16Deadline:   settings.r16Deadline   ? new Date(settings.r16Deadline).getTime()   : null,
       qfDeadline:    settings.qfDeadline    ? new Date(settings.qfDeadline).getTime()    : null,
       sfDeadline:    settings.sfDeadline    ? new Date(settings.sfDeadline).getTime()    : null,
+      p3Deadline:    settings.p3Deadline    ? new Date(settings.p3Deadline).getTime()    : null,
       finalDeadline: settings.finalDeadline ? new Date(settings.finalDeadline).getTime() : null,
     }, { merge: true })
     setMsg('✓ הגדרות נשמרו')
@@ -679,7 +681,8 @@ export default function Admin() {
                 ['שמינית גמר + עץ (R16)', 'r16Deadline'],
                 ['רבע גמר (QF)', 'qfDeadline'],
                 ['חצי גמר (SF)', 'sfDeadline'],
-                ['מקום 3 + גמר (3P/F)', 'finalDeadline'],
+                ['מקום שלישי (3P)', 'p3Deadline'],
+                ['גמר (F)', 'finalDeadline'],
               ] as [string, keyof typeof settings][]).map(([label, key]) => (
                 <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
                   <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: key === 'knockoutDeadline' ? 700 : 400 }}>{label}</td>
