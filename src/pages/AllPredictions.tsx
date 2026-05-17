@@ -1017,7 +1017,7 @@ ${userRows}
                             {/* Row 1: Match header — user's bet */}
                             <div style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', gap: 8, flexWrap: 'wrap', background: '#fafbff' }}>
                               <span style={{ fontSize: 11, color: '#bbb', minWidth: 28 }}>#{km.id}</span>
-                              <span style={{ fontSize: 11, padding: '1px 6px', borderRadius: 5,
+                              <span style={{ padding: '1px 6px', borderRadius: 5,
                                 background: { A:'#E6F1FB', B:'#EAF3DE', C:'#FFF8E7', D:'#FCF0F0'}[cat as 'A'|'B'|'C'|'D'] ?? '#eee',
                                 color: { A:'#0C447C', B:'#27500A', C:'#633806', D:'#7A0C0C'}[cat as 'A'|'B'|'C'|'D'] ?? '#333',
                                 fontWeight: 700, fontSize: 10 }}>{cat}</span>
