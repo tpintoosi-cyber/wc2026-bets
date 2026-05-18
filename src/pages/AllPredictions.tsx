@@ -18,6 +18,7 @@ interface UserData {
   groups: Record<Group, GroupPrediction>
   bonus: Partial<BonusPredictions>
   knockout?: Record<number, KnockoutMatchPrediction>
+  knockoutRedCards?: { R32?: number[]; R16?: number[]; QF?: number[] }
 }
 
 type MainTab = 'user' | 'match' | 'stats'
@@ -464,6 +465,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
           nickname: d.data().nickname ?? '',
           matches: d.data().matches ?? {}, groups: d.data().groups ?? {}, bonus: d.data().bonus ?? {},
           knockout: d.data().knockout ?? {},
+          knockoutRedCards: d.data().knockoutRedCards ?? { R32: [], R16: [], QF: [] },
         }))
         setUsers(data)
         if (data.length > 0) {
@@ -974,7 +976,7 @@ ${userRows}
                   const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
                   const hasAny = roundMatches.some(km => current.knockout?.[km.id]?.prediction1X2)
                   const redRound = round as 'R32' | 'R16' | 'QF'
-                  const redPicks: number[] = (current as any).knockoutRedCards?.[redRound] ?? []
+                  const redPicks: number[] = current.knockoutRedCards?.[redRound] ?? []
                   const maxRed = ({ R32: 3, R16: 2, QF: 1 } as Record<string, number>)[round] ?? 0
                   const hasRedSection = maxRed > 0 && redPicks.length > 0
                   if (!hasAny && !hasRedSection) return null
@@ -1074,10 +1076,21 @@ ${userRows}
                                   const hadRed = knockoutAdminMatches[matchId]?.hadRedCard
                                   const wasPlayed = knockoutAdminMatches[matchId]?.isPlayed
                                   return (
-                                    <span key={matchId} style={{ fontSize: 11, padding: '3px 7px', borderRadius: 7, background: hadRed ? '#FCEBEB' : wasPlayed ? '#f5f5f5' : '#fff', border: `1px solid ${hadRed ? '#f5c2c2' : '#ddd'}`, color: hadRed ? '#A32D2D' : wasPlayed ? '#999' : '#555', fontWeight: hadRed ? 700 : 400, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                      {pTeamA && <Flag emoji={FLAGS[pTeamA]??''} size={14}/>}{pTeamA} vs {pTeamB}{pTeamB && <Flag emoji={FLAGS[pTeamB]??''} size={14}/>}
-                                      {wasPlayed && (hadRed ? ' ✓🟥' : ' ✗')}
-                                    </span>
+                                    <div key={matchId} style={{
+                                      fontSize: 11, padding: '4px 8px', borderRadius: 7,
+                                      background: hadRed ? '#FCEBEB' : wasPlayed ? '#f5f5f5' : '#fff',
+                                      border: `1px solid ${hadRed ? '#f5c2c2' : wasPlayed ? '#ddd' : '#e8e8f0'}`,
+                                      display: 'flex', alignItems: 'center', gap: 4,
+                                    }}>
+                                      {pTeamA && <Flag emoji={FLAGS[pTeamA]??''} size={14}/>}
+                                      <span style={{ color: '#555' }}>{pTeamA} vs {pTeamB}</span>
+                                      {pTeamB && <Flag emoji={FLAGS[pTeamB]??''} size={14}/>}
+                                      {wasPlayed && (
+                                        <span style={{ fontWeight: 700, color: hadRed ? '#A32D2D' : '#888', marginRight: 2 }}>
+                                          {hadRed ? '✓ 🟥 +2' : '✗ לא היה'}
+                                        </span>
+                                      )}
+                                    </div>
                                   )
                                 })}
                               </div>

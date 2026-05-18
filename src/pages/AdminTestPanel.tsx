@@ -364,8 +364,11 @@ export default function AdminTestPanel() {
         const r32preds: Record<number, any> = {}
         for (const km of allKo.filter(k => k.round === 'R32')) r32preds[km.id] = koPreds[km.id]
         await saveKnockout(TEST_UID, r32preds)
-        // knockoutRedCards is a top-level field — safe to use setDoc merge here
-        await setDoc(doc(db, 'predictions', TEST_UID), { knockoutRedCards: koRedCards }, { merge: true })
+        // knockoutRedCards: only R32 picks now — R16/QF saved in their steps
+        await setDoc(doc(db, 'predictions', TEST_UID),
+          { knockoutRedCards: { R32: koRedCards.R32, R16: [], QF: [] } },
+          { merge: true }
+        )
         addLog(`  → ${Object.keys(r32preds).length} משחקי R32`)
       }),
     },
@@ -398,6 +401,8 @@ export default function AdminTestPanel() {
         }
 
         await saveKnockout(TEST_UID, preds)
+        // R16 red card picks
+        await updateDoc(doc(db, 'predictions', TEST_UID), { 'knockoutRedCards.R16': koRedCards.R16 })
         addLog(`  → R16: ניחושים מלאים | QF/SF/3P/F: עולה בלבד (ברקט)`)
 
         // Verify bracket consistency
@@ -438,6 +443,8 @@ export default function AdminTestPanel() {
           }
         }
         await saveKnockout(TEST_UID, preds)
+        // QF red card pick
+        await updateDoc(doc(db, 'predictions', TEST_UID), { 'knockoutRedCards.QF': koRedCards.QF })
         addLog(`  → ${Object.keys(preds).length} ניחושי QF (1X2 + תוצאה בלבד)`)
       }),
     },
