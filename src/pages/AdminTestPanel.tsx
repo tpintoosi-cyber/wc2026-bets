@@ -150,8 +150,7 @@ export default function AdminTestPanel() {
     finally { setBusy(false) }
   }
 
-  // Use dot-notation merge to avoid overwriting other rounds' data
-  // setDoc with merge:true replaces the entire 'knockout' map — dot notation merges at field level
+  // updateDoc treats dots as nested field paths (setDoc with merge:true does NOT)
   const saveKnockout = async (uid: string, preds: Record<number, Partial<KnockoutMatchPrediction>>) => {
     const data: Record<string, any> = {}
     for (const [id, pred] of Object.entries(preds)) {
@@ -159,7 +158,17 @@ export default function AdminTestPanel() {
         if (val !== undefined) data[`knockout.${id}.${field}`] = val
       }
     }
-    await setDoc(doc(db, 'predictions', uid), data, { merge: true })
+    if (Object.keys(data).length === 0) return
+    const { updateDoc: fbUpdate, setDoc: fbSet } = await import('firebase/firestore')
+    try {
+      await fbUpdate(doc(db, 'predictions', uid), data)
+    } catch (e: any) {
+      if (e?.code === 'not-found') {
+        // Document doesn't exist yet — create empty then update
+        await fbSet(doc(db, 'predictions', uid), { userId: uid })
+        await fbUpdate(doc(db, 'predictions', uid), data)
+      } else throw e
+    }
   }
 
   // ── Pre-compute tournament data ───────────────────────────────────────────
