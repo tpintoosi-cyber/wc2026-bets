@@ -417,6 +417,9 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [statsSubTab, setStatsSubTab] = useState<'overview' | 'matches' | 'groups' | 'bonus'>('overview')
   const [userSubTab, setUserSubTab] = useState<'matches' | 'groups' | 'bonus' | 'knockout'>('matches')
   const [refreshKey, setRefreshKey] = useState(0)
+  const [openKoRounds, setOpenKoRounds] = useState<Set<string>>(new Set(['R32', 'R16', 'QF', 'SF', '3P', 'F']))
+  const toggleKoRound = (round: string) =>
+    setOpenKoRounds(prev => { const s = new Set(prev); s.has(round) ? s.delete(round) : s.add(round); return s })
 
   useEffect(() => {
     if (authLoading) return
@@ -970,143 +973,118 @@ ${userRows}
                 {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
                   const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
                   const hasAny = roundMatches.some(km => current.knockout?.[km.id]?.prediction1X2)
-                  if (!hasAny) return null
+                  const redRound = round as 'R32' | 'R16' | 'QF'
+                  const redPicks: number[] = (current as any).knockoutRedCards?.[redRound] ?? []
+                  const maxRed = ({ R32: 3, R16: 2, QF: 1 } as Record<string, number>)[round] ?? 0
+                  const hasRedSection = maxRed > 0 && redPicks.length > 0
+                  if (!hasAny && !hasRedSection) return null
+
+                  const isRoundOpen = openKoRounds.has(round)
+                  const filled = roundMatches.filter(km => current.knockout?.[km.id]?.prediction1X2).length
+                  const playedInRound = roundMatches.filter(km => knockoutAdminMatches[km.id]?.isPlayed).length
+                  const correctInRound = roundMatches.filter(km => {
+                    const pred = current.knockout?.[km.id]
+                    if (!pred?.prediction1X2) return false
+                    const akm = knockoutAdminMatches[km.id]
+                    if (!akm?.isPlayed || akm.resultA == null) return false
+                    const act = akm.resultA > akm.resultB ? '1' : akm.resultA < akm.resultB ? '2' : 'X'
+                    return pred.prediction1X2 === act
+                  }).length
+
                   return (
-                    <div key={round} style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 6, letterSpacing: '0.04em' }}>{KNOCKOUT_ROUND_LABELS[round]}</div>
-                      {roundMatches.map(km => {
-                        const pred = current.knockout?.[km.id]
-                        if (!pred?.prediction1X2) return null
-                        const tA = getTeam(km.id, 'A')
-                        const tB = getTeam(km.id, 'B')
-                        const adminKm = knockoutAdminMatches[km.id]
-                        const isPlayed = !!(adminKm?.isPlayed && adminKm?.resultA != null)
+                    <div key={round} style={{ marginBottom: 8, borderRadius: 10, border: '1px solid #e8e8f0', overflow: 'hidden' }}>
+                      <div onClick={() => toggleKoRound(round)} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '8px 12px', cursor: 'pointer', background: '#fafbff',
+                        borderBottom: isRoundOpen ? '1px solid #e8e8f0' : 'none',
+                      }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#1a1a2e' }}>{KNOCKOUT_ROUND_LABELS[round]}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {playedInRound > 0 && <span style={{ fontSize: 11, color: '#1a7a44', fontWeight: 600 }}>✓ {correctInRound}/{playedInRound}</span>}
+                          {filled > 0 && playedInRound === 0 && <span style={{ fontSize: 11, color: '#888' }}>{filled} ניחושים</span>}
+                          {hasRedSection && <span style={{ fontSize: 11 }}>🟥 {redPicks.length}/{maxRed}</span>}
+                          <span style={{ fontSize: 11, color: '#bbb', display: 'inline-block', transform: isRoundOpen ? 'rotate(180deg)' : 'none' }}>▼</span>
+                        </div>
+                      </div>
 
-                        // Use actual teams for category (not bracket-predicted)
-                        const actualTeamA = adminKm?.teamA ?? tA
-                        const actualTeamB = adminKm?.teamB ?? tB
-                        const ptA = actualTeamA ? (TEAM_FIFA_POINTS[actualTeamA] ?? 1500) : 1500
-                        const ptB = actualTeamB ? (TEAM_FIFA_POINTS[actualTeamB] ?? 1500) : 1500
-                        const cat = calcCategoryByRound(ptA, ptB, km.round) as any
-
-                        const rA = isPlayed ? Number(adminKm!.resultA) : null
-                        const rB = isPlayed ? Number(adminKm!.resultB) : null
-                        const actual1x2 = rA != null ? (rA > rB! ? '1' : rA < rB! ? '2' : 'X') : null
-                        const correct1x2 = !!(actual1x2 && pred.prediction1X2 === actual1x2)
-                        const correctAdvance = !!(isPlayed && adminKm?.advanceTeam && pred.advance === adminKm.advanceTeam)
-
-                        // Score breakdown
-                        const p1x2 = isPlayed ? calc1X2KnockoutPoints(pred.prediction1X2, rA!, rB!, ptA, ptB, cat, km.round) : 0
-                        const pScore = (isPlayed && pred.scoreA != null) ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round) : 0
-                        const pAdv = (isPlayed && pred.advance && adminKm?.advanceTeam) ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, actualTeamA ?? '', actualTeamB ?? '') : 0
-                        const total = p1x2 + pScore + pAdv
-
-                        // Display labels
-                        const pred1x2Label = pred.prediction1X2 === '1' ? (actualTeamA ?? '1')
-                          : pred.prediction1X2 === '2' ? (actualTeamB ?? '2') : 'תיקו'
-                        const pred1x2Flag = pred.prediction1X2 === '1' ? (FLAGS[actualTeamA ?? ''] ?? '')
-                          : pred.prediction1X2 === '2' ? (FLAGS[actualTeamB ?? ''] ?? '') : null
-
-                        return (
-                          <div key={km.id} style={{
-                            border: `1.5px solid ${isPlayed ? (total > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`,
-                            borderRadius: 10, marginBottom: 8, overflow: 'hidden',
-                            boxShadow: total > 0 ? '0 1px 4px rgba(26,122,68,0.08)' : 'none',
-                          }}>
-
-                            {/* Row 1: Match header — user's bet */}
-                            <div style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', gap: 8, flexWrap: 'wrap', background: '#fafbff' }}>
-                              <span style={{ fontSize: 11, color: '#bbb', minWidth: 28 }}>#{km.id}</span>
-                              <span style={{ padding: '1px 6px', borderRadius: 5,
-                                background: { A:'#E6F1FB', B:'#EAF3DE', C:'#FFF8E7', D:'#FCF0F0'}[cat as 'A'|'B'|'C'|'D'] ?? '#eee',
-                                color: { A:'#0C447C', B:'#27500A', C:'#633806', D:'#7A0C0C'}[cat as 'A'|'B'|'C'|'D'] ?? '#333',
-                                fontWeight: 700, fontSize: 10 }}>{cat}</span>
-                              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                                {actualTeamA ? <><Flag emoji={FLAGS[actualTeamA]??''} size={20} /> {actualTeamA}</> : '?'}
-                              </span>
-                              {/* User's predicted score */}
-                              <span style={{ fontSize: 13, fontWeight: 700, color: '#555' }}>
-                                {pred.scoreA ?? '?'}–{pred.scoreB ?? '?'}
-                              </span>
-                              <span style={{ fontWeight: 600, fontSize: 13 }}>
-                                {actualTeamB ? <>{actualTeamB} <Flag emoji={FLAGS[actualTeamB]??''} size={20} /></> : '?'}
-                              </span>
-                              {/* 1X2 badge */}
-                              <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, marginRight: 'auto',
-                                background: correct1x2 ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f0f0f0',
-                                color: correct1x2 ? '#1a7a44' : isPlayed ? '#A32D2D' : '#666', fontWeight: 600 }}>
-                                {pred1x2Flag && <Flag emoji={pred1x2Flag} size={16} />}
-                                {' '}{pred1x2Label}
-                              </span>
-                              {/* Total points badge */}
-                              {isPlayed && (
-                                <span style={{ fontSize: 13, fontWeight: 800,
-                                  color: total > 0 ? '#1a7a44' : '#999',
-                                  background: total > 0 ? '#EAF3DE' : '#f5f5f5',
-                                  padding: '2px 8px', borderRadius: 8 }}>
-                                  {total > 0 ? `+${total}` : '0'} נק׳
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Row 2: Actual result (when played) */}
-                            {isPlayed && rA != null && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', background: '#f2f2f2', borderTop: '1px solid #e8e8e8', fontSize: 12 }}>
-                                <span style={{ color: '#888', fontWeight: 600, flexShrink: 0 }}>בפועל:</span>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600,
-                                  color: adminKm?.advanceTeam === actualTeamA ? '#1a5c30' : '#333' }}>
-                                  <Flag emoji={FLAGS[actualTeamA ?? ''] ?? ''} size={18} /> {actualTeamA}
-                                </span>
-                                <span style={{ fontWeight: 800, color: '#333' }}>{lang === 'he' ? `${rB}:${rA}` : `${rA}:${rB}`}</span>
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600,
-                                  color: adminKm?.advanceTeam === actualTeamB ? '#1a5c30' : '#333' }}>
-                                  {actualTeamB} <Flag emoji={FLAGS[actualTeamB ?? ''] ?? ''} size={18} />
-                                </span>
-                                {adminKm?.advanceTeam && (
-                                  <span style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: 3, color: '#1a5c30', fontWeight: 700, fontSize: 11 }}>
-                                    → <Flag emoji={FLAGS[adminKm.advanceTeam] ?? ''} size={18} /> {adminKm.advanceTeam}
+                      {isRoundOpen && (
+                        <div style={{ padding: '8px 12px' }}>
+                          {roundMatches.map(km => {
+                            const pred = current.knockout?.[km.id]
+                            if (!pred?.prediction1X2) return null
+                            const tA = getTeam(km.id, 'A')
+                            const tB = getTeam(km.id, 'B')
+                            const adminKm = knockoutAdminMatches[km.id]
+                            const isPlayed = !!(adminKm?.isPlayed && adminKm?.resultA != null)
+                            const actualTeamA = adminKm?.teamA ?? tA
+                            const actualTeamB = adminKm?.teamB ?? tB
+                            const ptA = actualTeamA ? (TEAM_FIFA_POINTS[actualTeamA] ?? 1500) : 1500
+                            const ptB = actualTeamB ? (TEAM_FIFA_POINTS[actualTeamB] ?? 1500) : 1500
+                            const cat = calcCategoryByRound(ptA, ptB, km.round) as any
+                            const rA = isPlayed ? Number(adminKm!.resultA) : null
+                            const rB = isPlayed ? Number(adminKm!.resultB) : null
+                            const actual1x2 = rA != null ? (rA > rB! ? '1' : rA < rB! ? '2' : 'X') : null
+                            const correct1x2 = !!(actual1x2 && pred.prediction1X2 === actual1x2)
+                            const correctAdvance = !!(isPlayed && adminKm?.advanceTeam && pred.advance === adminKm.advanceTeam)
+                            const p1x2 = isPlayed ? calc1X2KnockoutPoints(pred.prediction1X2, rA!, rB!, ptA, ptB, cat, km.round) : 0
+                            const pScore = (isPlayed && pred.scoreA != null) ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round) : 0
+                            const pAdv = (isPlayed && pred.advance && adminKm?.advanceTeam) ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, actualTeamA ?? '', actualTeamB ?? '') : 0
+                            const total = p1x2 + pScore + pAdv
+                            const pred1x2Label = pred.prediction1X2 === '1' ? (actualTeamA ?? '1') : pred.prediction1X2 === '2' ? (actualTeamB ?? '2') : 'תיקו'
+                            const pred1x2Flag = pred.prediction1X2 === '1' ? (FLAGS[actualTeamA ?? ''] ?? '') : pred.prediction1X2 === '2' ? (FLAGS[actualTeamB ?? ''] ?? '') : null
+                            return (
+                              <div key={km.id} style={{ border: `1px solid ${isPlayed ? (total > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', gap: 6, flexWrap: 'wrap', background: '#fafbff' }}>
+                                  <span style={{ fontSize: 10, color: '#bbb' }}>#{km.id}</span>
+                                  <span style={{ fontWeight: 600, fontSize: 12 }}>{actualTeamA ? <><Flag emoji={FLAGS[actualTeamA]??''} size={18} /> {actualTeamA}</> : '?'}</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: '#555' }}>{pred.scoreA ?? '?'}–{pred.scoreB ?? '?'}</span>
+                                  <span style={{ fontWeight: 600, fontSize: 12 }}>{actualTeamB ? <>{actualTeamB} <Flag emoji={FLAGS[actualTeamB]??''} size={18} /></> : '?'}</span>
+                                  <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, marginRight: 'auto', background: correct1x2 ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f0f0f0', color: correct1x2 ? '#1a7a44' : isPlayed ? '#A32D2D' : '#666', fontWeight: 600 }}>
+                                    {pred1x2Flag && <Flag emoji={pred1x2Flag} size={14} />} {pred1x2Label}
                                   </span>
+                                  {isPlayed && <span style={{ fontSize: 12, fontWeight: 700, color: total > 0 ? '#1a7a44' : '#999', background: total > 0 ? '#EAF3DE' : '#f5f5f5', padding: '1px 6px', borderRadius: 8 }}>{total > 0 ? `+${total}` : '0'} נק׳</span>}
+                                </div>
+                                {isPlayed && rA != null && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 8px', background: '#f2f2f2', borderTop: '1px solid #eee', fontSize: 11 }}>
+                                    <span style={{ color: '#888', fontWeight: 600 }}>בפועל:</span>
+                                    <span style={{ fontWeight: 600, color: adminKm?.advanceTeam === actualTeamA ? '#1a5c30' : '#333', display: 'flex', alignItems: 'center', gap: 3 }}><Flag emoji={FLAGS[actualTeamA??'']??''} size={16}/>{actualTeamA}</span>
+                                    <span style={{ fontWeight: 800 }}>{lang === 'he' ? `${rB}:${rA}` : `${rA}:${rB}`}</span>
+                                    <span style={{ fontWeight: 600, color: adminKm?.advanceTeam === actualTeamB ? '#1a5c30' : '#333', display: 'flex', alignItems: 'center', gap: 3 }}>{actualTeamB}<Flag emoji={FLAGS[actualTeamB??'']??''} size={16}/></span>
+                                    {adminKm?.advanceTeam && <span style={{ color: '#1a5c30', fontWeight: 700, marginRight: 'auto', display: 'flex', alignItems: 'center', gap: 2 }}>→ <Flag emoji={FLAGS[adminKm.advanceTeam]??''} size={16}/>{adminKm.advanceTeam}</span>}
+                                  </div>
+                                )}
+                                {isPlayed && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderTop: '1px solid #eee', fontSize: 11, flexWrap: 'wrap', background: '#fff' }}>
+                                    <span style={{ color: p1x2>0?'#1a7a44':'#cc3333', fontWeight: 600 }}>{p1x2>0?'✓':'✗'} 1X2{p1x2>0?` +${p1x2}`:''}</span>
+                                    <span style={{ color: '#ddd' }}>|</span>
+                                    <span style={{ color: pScore>0?'#1a7a44':'#cc3333', fontWeight: 600 }}>{pScore>0?`✓ תוצאה +${pScore}`:'✗ תוצאה'}</span>
+                                    {pred.advance && <><span style={{ color: '#ddd' }}>|</span><span style={{ display:'flex', alignItems:'center', gap:2, color: pAdv>0?'#1a7a44':'#cc3333', fontWeight:600 }}>{pAdv>0?'✓':'✗'} עולה:<Flag emoji={FLAGS[pred.advance]??''} size={13}/>{pAdv>0?` +${pAdv}`:''}{!correctAdvance && adminKm?.advanceTeam && <span style={{color:'#aaa',fontWeight:400}}> (עלה: {adminKm.advanceTeam})</span>}</span></>}
+                                  </div>
                                 )}
                               </div>
-                            )}
-
-                            {/* Row 3: Score breakdown (when played) */}
-                            {isPlayed && (
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderTop: '1px solid #eee', flexWrap: 'wrap', background: '#fff' }}>
-                                {/* 1X2 */}
-                                <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 2,
-                                  color: p1x2 > 0 ? '#1a7a44' : '#cc3333', fontWeight: 600 }}>
-                                  {p1x2 > 0 ? '✓' : '✗'}
-                                  {pred1x2Flag && <Flag emoji={pred1x2Flag} size={15} />}
-                                  {p1x2 > 0 ? ` +${p1x2}` : ''}
-                                </span>
-                                <span style={{ color: '#ddd' }}>|</span>
-                                {/* Score */}
-                                <span style={{ fontSize: 11, color: pScore > 0 ? '#1a7a44' : '#cc3333', fontWeight: 600 }}>
-                                  {pScore > 0 ? `✓ תוצאה +${pScore}` : '✗ תוצאה'}
-                                </span>
-                                {pred.advance && (<>
-                                  <span style={{ color: '#ddd' }}>|</span>
-                                  {/* Advance */}
-                                  <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 2,
-                                    color: pAdv > 0 ? '#1a7a44' : '#cc3333', fontWeight: 600 }}>
-                                    {pAdv > 0 ? '✓' : '✗'}
-                                    <span>עולה:</span>
-                                    <Flag emoji={FLAGS[pred.advance] ?? ''} size={15} />
-                                    {pAdv > 0 ? ` +${pAdv}` : ''}
-                                    {!correctAdvance && adminKm?.advanceTeam && (
-                                      <span style={{ color: '#aaa', fontWeight: 400, fontSize: 10 }}>
-                                        {' '}(עלה: {adminKm.advanceTeam})
-                                      </span>
-                                    )}
-                                  </span>
-                                </>)}
+                            )
+                          })}
+                          {hasRedSection && (
+                            <div style={{ marginTop: 6, padding: '7px 10px', background: '#fff5f5', borderRadius: 8, border: '1px solid #fdd' }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: '#A32D2D', marginBottom: 5 }}>🟥 ניחושי כרטיסים אדומים ({redPicks.length}/{maxRed})</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                {redPicks.map(matchId => {
+                                  const pTeamA = knockoutAdminMatches[matchId]?.teamA ?? getTeam(matchId, 'A')
+                                  const pTeamB = knockoutAdminMatches[matchId]?.teamB ?? getTeam(matchId, 'B')
+                                  const hadRed = knockoutAdminMatches[matchId]?.hadRedCard
+                                  const wasPlayed = knockoutAdminMatches[matchId]?.isPlayed
+                                  return (
+                                    <span key={matchId} style={{ fontSize: 11, padding: '3px 7px', borderRadius: 7, background: hadRed ? '#FCEBEB' : wasPlayed ? '#f5f5f5' : '#fff', border: `1px solid ${hadRed ? '#f5c2c2' : '#ddd'}`, color: hadRed ? '#A32D2D' : wasPlayed ? '#999' : '#555', fontWeight: hadRed ? 700 : 400, display: 'flex', alignItems: 'center', gap: 3 }}>
+                                      {pTeamA && <Flag emoji={FLAGS[pTeamA]??''} size={14}/>}{pTeamA} vs {pTeamB}{pTeamB && <Flag emoji={FLAGS[pTeamB]??''} size={14}/>}
+                                      {wasPlayed && (hadRed ? ' ✓🟥' : ' ✗')}
+                                    </span>
+                                  )
+                                })}
                               </div>
-                            )}
-
-                          </div>
-                        )
-                      })}
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )
                 })}

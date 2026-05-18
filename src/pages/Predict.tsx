@@ -1081,9 +1081,23 @@ export default function Predict({ lang }: { lang: Lang }) {
                             ? (knockoutDeadline != null && now > knockoutDeadline)
                             : isLocked)
                         : true
-                      // Team eliminated: actual match has different teams than bracket prediction
-                      const actualForSide = side === 'A' ? actualTeamA : actualTeamB
-                      const eliminated = isQFPlus && team && actualForSide && actualForSide !== team
+                      // Team eliminated detection - immediate when feeder match is played,
+                      // don't wait for next-round teams to be propagated
+                      const checkEliminated = (teamName: string | undefined, s: 'A' | 'B'): boolean => {
+                        if (!teamName || !isQFPlus) return false
+                        // Check 1: actual match teams set and differ
+                        const actualForSide = s === 'A' ? actualTeamA : actualTeamB
+                        if (actualForSide && actualForSide !== teamName) return true
+                        // Check 2: trace feeder match — if played and team didn't advance
+                        const bracket = KNOCKOUT_BRACKET[id]
+                        if (!bracket) return false
+                        const feederId = s === 'A' ? bracket.feederA : bracket.feederB
+                        if (!feederId || feederId <= 0) return false
+                        const feederKm = knockoutMatches[feederId]
+                        if (feederKm?.isPlayed && feederKm?.advanceTeam && feederKm.advanceTeam !== teamName) return true
+                        return false
+                      }
+                      const eliminated = checkEliminated(team, side as 'A' | 'B')
                       return (
                         <div key={side}
                           onClick={() => !roundLocked && team && updateKnockout(id, 'advance', team)}
@@ -1351,7 +1365,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 {!row.warn && row.ok === null && row.potential !== undefined && (
                                   <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 4, fontWeight: 700,
                                     background: '#e8f5e9', color: '#1a5c30' }}>
-                                    עד +{row.potential}
+                                    +{row.potential}
                                   </span>
                                 )}
                               </span>
