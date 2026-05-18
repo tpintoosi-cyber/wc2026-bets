@@ -275,7 +275,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     ko?: Record<number, KnockoutMatchPrediction>,
     koRed?: { R32: number[]; R16: number[]; QF: number[] }
   ) => {
-    if (!user || !isOpen) return
+    if (!user || (!isOpen && !knockoutOpen)) return
     if (saveTimer.current) clearTimeout(saveTimer.current)
     saveTimer.current = setTimeout(async () => {
       setSaving(true)
@@ -1232,8 +1232,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                         })
                       }
 
-                      // Score row
-                      if (hasScore) {
+                      // Score row — only show pre-match when 1X2 is also filled
+                      if (hasScore && (isPlayed || pred?.prediction1X2)) {
                         if (isPlayed) {
                           const scoreBase = ptsScore === 2 ? t.exactScore : ptsScore === 1 ? (lang === 'he' ? 'הפרש נכון' : 'Right diff') : t.exactScore
                           // Add (אנדר/אובר) suffix when OU bonus applies
@@ -1710,7 +1710,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                       {maxRedCards && (
                         <div style={{ margin: '0 0 12px', padding: '10px 14px', background: '#fff5f5', border: '1px solid #fdd', borderRadius: 10 }}>
                           <div style={{ fontSize: 12, fontWeight: 600, color: '#A32D2D', marginBottom: 8 }}>
-                            🟥 {maxRedCards === 1 ? t.redCard : t.redCards} — {t.redCards}
+                            {maxRedCards === 1 ? t.redCard : `🟥 ${t.redCards}`}
                             <span style={{ fontWeight: 400, color: '#999', marginRight: 6 }}>({redCardPicks.length}/{maxRedCards} נבחרו | 2 נק׳ לכל ניחוש נכון)</span>
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -1928,7 +1928,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                   return (knockoutRedCards[rk as 'R32'|'R16'|'QF'] ?? []).includes(km.id)
                                 })()
                                 if (isRedCard) {
-                                  breakdown.push(`🟥 ${t.redCard}: 2`)
+                                  breakdown.push(`${t.redCard}: 2`)
                                   total += 2
                                 }
 
