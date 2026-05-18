@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { doc, setDoc, deleteDoc, collection, getDocs } from 'firebase/firestore'
+import { doc, setDoc, deleteDoc, collection, getDocs, updateDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import {
   MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, KNOCKOUT_MATCHES,
@@ -152,21 +152,21 @@ export default function AdminTestPanel() {
 
   // updateDoc treats dots as nested field paths (setDoc with merge:true does NOT)
   const saveKnockout = async (uid: string, preds: Record<number, Partial<KnockoutMatchPrediction>>) => {
+    if (!uid) { addLog('  ⚠️ לא נבחר משתמש'); return }
     const data: Record<string, any> = {}
     for (const [id, pred] of Object.entries(preds)) {
+      if (!pred) continue
       for (const [field, val] of Object.entries(pred as Record<string, any>)) {
         if (val !== undefined) data[`knockout.${id}.${field}`] = val
       }
     }
-    if (Object.keys(data).length === 0) return
-    const { updateDoc: fbUpdate, setDoc: fbSet } = await import('firebase/firestore')
+    if (Object.keys(data).length === 0) { addLog('  ⚠️ אין נתונים לשמור'); return }
     try {
-      await fbUpdate(doc(db, 'predictions', uid), data)
+      await updateDoc(doc(db, 'predictions', uid), data)
     } catch (e: any) {
       if (e?.code === 'not-found') {
-        // Document doesn't exist yet — create empty then update
-        await fbSet(doc(db, 'predictions', uid), { userId: uid })
-        await fbUpdate(doc(db, 'predictions', uid), data)
+        await setDoc(doc(db, 'predictions', uid), { userId: uid })
+        await updateDoc(doc(db, 'predictions', uid), data)
       } else throw e
     }
   }
@@ -363,10 +363,9 @@ export default function AdminTestPanel() {
       action: () => wrap('fill-r32-preds', async () => {
         const r32preds: Record<number, any> = {}
         for (const km of allKo.filter(k => k.round === 'R32')) r32preds[km.id] = koPreds[km.id]
-        await setDoc(doc(db, 'predictions', TEST_UID),
-          { knockout: r32preds, knockoutRedCards: koRedCards },
-          { merge: true }
-        )
+        await saveKnockout(TEST_UID, r32preds)
+        // knockoutRedCards is a top-level field — safe to use setDoc merge here
+        await setDoc(doc(db, 'predictions', TEST_UID), { knockoutRedCards: koRedCards }, { merge: true })
         addLog(`  → ${Object.keys(r32preds).length} משחקי R32`)
       }),
     },
