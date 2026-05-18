@@ -1116,7 +1116,24 @@ export default function Predict({ lang }: { lang: Lang }) {
                         const b = KNOCKOUT_BRACKET[matchId]
                         if (!b) return true
                         const feederId = s === 'A' ? b.feederA : b.feederB
-                        if (!feederId || feederId <= 0) return true  // admin-set slot
+                        if (feederId === null) return true  // admin-set slot
+
+                        // Negative feeder = loser of that SF match (3P case)
+                        if (feederId < 0) {
+                          const sfId = Math.abs(feederId)
+                          const sfBracket = KNOCKOUT_BRACKET[sfId]
+                          if (!sfBracket) return true
+                          // Team must be able to reach SF on either side
+                          const canBeA = canTeamReachMatch(team, sfId, 'A', depth + 1)
+                          const canBeB = canTeamReachMatch(team, sfId, 'B', depth + 1)
+                          if (!canBeA && !canBeB) return false  // can't reach SF → can't be 3P
+                          // If SF was played, team must be the loser (not the winner)
+                          const sfKm = knockoutMatches[sfId]
+                          if (sfKm?.isPlayed && sfKm?.advanceTeam) return sfKm.advanceTeam !== team
+                          return true
+                        }
+
+                        if (feederId === 0) return true  // admin-set slot
                         const feederKm = knockoutMatches[feederId]
                         if (!feederKm) return true  // no admin data yet
 
