@@ -289,7 +289,7 @@ export default function Predict({ lang }: { lang: Lang }) {
       setSaving(false)
       setLastSaved(new Date())
     }, 1500)
-  }, [user, isOpen])
+  }, [user, isOpen, knockoutOpen])
 
   const updateMatch = (id: number, field: keyof MatchPrediction, value: unknown) => {
     if (!isOpen) return
