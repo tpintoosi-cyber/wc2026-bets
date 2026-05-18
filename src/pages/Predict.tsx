@@ -430,7 +430,34 @@ export default function Predict({ lang }: { lang: Lang }) {
           {isOpen && !saving && lastSaved && <span className="text-muted">{t.saved} {lastSaved.toLocaleTimeString('he-IL')}</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span className="text-muted">{t.matches}: {matchProgress}/72 • {t.redCards}: {redCardCount}/{MAX_RED_CARDS}</span>
+          <span
+            title={lang === 'he'
+              ? `מילאת ${matchProgress} מתוך 72 משחקים בשלב הבתים`
+              : `Filled ${matchProgress} of 72 group stage matches`}
+            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'default' }}>
+            <span style={{
+              padding: '2px 8px', borderRadius: 10,
+              background: matchProgress === 72 ? '#EAF3DE' : '#f0f0f0',
+              color: matchProgress === 72 ? '#1a7a44' : '#555',
+              fontWeight: 600,
+            }}>
+              {matchProgress === 72 ? '✓' : `${matchProgress}/72`} {lang === 'he' ? 'משחקים' : 'matches'}
+            </span>
+          </span>
+          <span
+            title={lang === 'he'
+              ? `בחרת ${redCardCount} משחקים שלדעתך יהיה בהם כרטיס אדום (מקסימום ${MAX_RED_CARDS})`
+              : `You picked ${redCardCount} matches with a red card (max ${MAX_RED_CARDS})`}
+            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'default' }}>
+            <span style={{
+              padding: '2px 8px', borderRadius: 10,
+              background: redCardCount > 0 ? '#FCEBEB' : '#f0f0f0',
+              color: redCardCount > 0 ? '#A32D2D' : '#aaa',
+              fontWeight: 600,
+            }}>
+              <span style={{ direction: 'ltr', display: 'inline-block' }}>🟥 {redCardCount}/{MAX_RED_CARDS}</span>
+            </span>
+          </span>
           {/* Nickname editor */}
           {!editingNick ? (
             <button onClick={() => { setNickInput(nickname || user?.displayName || ''); setEditingNick(true) }}
