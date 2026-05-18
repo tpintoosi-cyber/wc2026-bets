@@ -1081,23 +1081,41 @@ export default function Predict({ lang }: { lang: Lang }) {
                             ? (knockoutDeadline != null && now > knockoutDeadline)
                             : isLocked)
                         : true
-                      // Team eliminated detection - immediate when feeder match is played,
-                      // don't wait for next-round teams to be propagated
-                      const checkEliminated = (teamName: string | undefined, s: 'A' | 'B'): boolean => {
-                        if (!teamName || !isQFPlus) return false
-                        // Check 1: actual match teams set and differ
-                        const actualForSide = s === 'A' ? actualTeamA : actualTeamB
-                        if (actualForSide && actualForSide !== teamName) return true
-                        // Check 2: trace feeder match — if played and team didn't advance
-                        const bracket = KNOCKOUT_BRACKET[id]
-                        if (!bracket) return false
-                        const feederId = s === 'A' ? bracket.feederA : bracket.feederB
-                        if (!feederId || feederId <= 0) return false
+                      // Recursive chain check — traces the ENTIRE bracket path back.
+                      // Handles cases where intermediate rounds haven't been played yet.
+                      // e.g. Argentina eliminated in QF → shows grayed in SF AND Final.
+                      const canTeamReachMatch = (team: string, matchId: number, s: 'A' | 'B', depth = 0): boolean => {
+                        if (depth > 8 || !team) return true
+                        const b = KNOCKOUT_BRACKET[matchId]
+                        if (!b) return true
+                        const feederId = s === 'A' ? b.feederA : b.feederB
+                        if (!feederId || feederId <= 0) return true  // admin-set slot
                         const feederKm = knockoutMatches[feederId]
-                        if (feederKm?.isPlayed && feederKm?.advanceTeam && feederKm.advanceTeam !== teamName) return true
-                        return false
+                        if (!feederKm) return true  // no admin data yet
+
+                        // Feeder played → team must have actually advanced
+                        if (feederKm.isPlayed && feederKm.advanceTeam) {
+                          return feederKm.advanceTeam === team
+                        }
+
+                        // Feeder not played — check actual team stubs (set via propagation)
+                        const fA = feederKm.teamA, fB = feederKm.teamB
+                        if (fA && fB && fA !== team && fB !== team) return false  // team not in feeder
+
+                        // Known which side team is on in feeder — recurse that side
+                        if (fA === team) return canTeamReachMatch(team, feederId, 'A', depth + 1)
+                        if (fB === team) return canTeamReachMatch(team, feederId, 'B', depth + 1)
+
+                        // Stubs not set — use user's bracket predictions to find team's side
+                        const fb = KNOCKOUT_BRACKET[feederId]
+                        const predA = fb?.feederA && fb.feederA > 0 ? knockoutPreds[fb.feederA]?.advance : undefined
+                        const predB = fb?.feederB && fb.feederB > 0 ? knockoutPreds[fb.feederB]?.advance : undefined
+                        if (predA === team) return canTeamReachMatch(team, feederId, 'A', depth + 1)
+                        if (predB === team) return canTeamReachMatch(team, feederId, 'B', depth + 1)
+
+                        return true  // can't determine → assume possible
                       }
-                      const eliminated = checkEliminated(team, side as 'A' | 'B')
+                      const eliminated = isQFPlus && !!team && !canTeamReachMatch(team, id, side as 'A' | 'B')
                       return (
                         <div key={side}
                           onClick={() => !roundLocked && team && updateKnockout(id, 'advance', team)}
