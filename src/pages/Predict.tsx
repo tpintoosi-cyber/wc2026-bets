@@ -430,34 +430,61 @@ export default function Predict({ lang }: { lang: Lang }) {
           {isOpen && !saving && lastSaved && <span className="text-muted">{t.saved} {lastSaved.toLocaleTimeString('he-IL')}</span>}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span
-            title={lang === 'he'
-              ? `מילאת ${matchProgress} מתוך 72 משחקים בשלב הבתים`
-              : `Filled ${matchProgress} of 72 group stage matches`}
-            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'default' }}>
-            <span style={{
-              padding: '2px 8px', borderRadius: 10,
-              background: matchProgress === 72 ? '#EAF3DE' : '#f0f0f0',
-              color: matchProgress === 72 ? '#1a7a44' : '#555',
-              fontWeight: 600,
-            }}>
-              {matchProgress === 72 ? '✓' : `${matchProgress}/72`} {lang === 'he' ? 'משחקים' : 'matches'}
+          {/* Group stage progress — only on matches tab */}
+          {tab === 'matches' && (
+            <span
+              title={lang === 'he'
+                ? `מילאת ${matchProgress} מתוך 72 משחקים בשלב הבתים`
+                : `Filled ${matchProgress} of 72 group stage matches`}
+              style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'default' }}>
+              <span style={{
+                padding: '2px 8px', borderRadius: 10,
+                background: matchProgress === 72 ? '#EAF3DE' : '#f0f0f0',
+                color: matchProgress === 72 ? '#1a7a44' : '#555',
+                fontWeight: 600,
+              }}>
+                {matchProgress === 72 ? '✓' : `${matchProgress}/72`} {lang === 'he' ? 'משחקים' : 'matches'}
+              </span>
             </span>
-          </span>
-          <span
-            title={lang === 'he'
-              ? `בחרת ${redCardCount} משחקים שלדעתך יהיה בהם כרטיס אדום (מקסימום ${MAX_RED_CARDS})`
-              : `You picked ${redCardCount} matches with a red card (max ${MAX_RED_CARDS})`}
-            style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'default' }}>
-            <span style={{
-              padding: '2px 8px', borderRadius: 10,
-              background: redCardCount > 0 ? '#FCEBEB' : '#f0f0f0',
-              color: redCardCount > 0 ? '#A32D2D' : '#aaa',
-              fontWeight: 600,
-            }}>
-              <span style={{ direction: 'ltr', display: 'inline-block' }}>🟥 {redCardCount}/{MAX_RED_CARDS}</span>
+          )}
+          {/* Red cards — group stage only on matches tab */}
+          {tab === 'matches' && (
+            <span
+              title={lang === 'he'
+                ? `בחרת ${Math.min(redCardCount, MAX_RED_CARDS)} מתוך ${MAX_RED_CARDS} משחקים עם כרטיס אדום (שלב הבתים)`
+                : `Picked ${Math.min(redCardCount, MAX_RED_CARDS)} of ${MAX_RED_CARDS} red card matches (group stage)`}
+              style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'default' }}>
+              <span style={{
+                padding: '2px 8px', borderRadius: 10,
+                background: redCardCount > 0 ? '#FCEBEB' : '#f0f0f0',
+                color: redCardCount > 0 ? '#A32D2D' : '#aaa',
+                fontWeight: 600,
+              }}>
+                <span style={{ direction: 'ltr', display: 'inline-block' }}>
+                  🟥 {Math.min(redCardCount, MAX_RED_CARDS)}/{MAX_RED_CARDS}
+                </span>
+              </span>
             </span>
-          </span>
+          )}
+          {/* Knockout red cards summary — only on knockout tab */}
+          {tab === 'knockout' && knockoutOpen && (() => {
+            const r32 = knockoutRedCards.R32?.length ?? 0
+            const r16 = knockoutRedCards.R16?.length ?? 0
+            const qf  = knockoutRedCards.QF?.length ?? 0
+            const total = r32 + r16 + qf
+            if (total === 0) return null
+            return (
+              <span
+                title={lang === 'he'
+                  ? `אדומים נוקאאוט: R32 ${r32}/3 · R16 ${r16}/2 · QF ${qf}/1`
+                  : `Knockout reds: R32 ${r32}/3 · R16 ${r16}/2 · QF ${qf}/1`}
+                style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, cursor: 'default' }}>
+                <span style={{ padding: '2px 8px', borderRadius: 10, background: '#FCEBEB', color: '#A32D2D', fontWeight: 600 }}>
+                  <span style={{ direction: 'ltr', display: 'inline-block' }}>🟥 {total}/6</span>
+                </span>
+              </span>
+            )
+          })()}
           {/* Nickname editor */}
           {!editingNick ? (
             <button onClick={() => { setNickInput(nickname || user?.displayName || ''); setEditingNick(true) }}
