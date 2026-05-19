@@ -532,11 +532,22 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
     if (p1 > 0) items.push(`1X2: +${p1}`)
     if (pA !== null && pB !== null) {
       if (pA === rA && pB === rB) {
-        items.push('מדויק: +2')
         const total = rA + rB
-        const isOU = (match.category === 'A' || match.category === 'B') ? (total <= 1 || total >= 4) : (total <= 2 || total >= 5)
-        if (isOU) items.push((total <= ((match.category === 'A' || match.category === 'B') ? 1 : 2) ? 'אנדר' : 'אובר') + ': +1')
-      } else if ((pA - pB) === (rA - rB)) items.push('הפרש: +1')
+        const isOU = (match.category === 'A' || match.category === 'B') ? (total < 2 || total > 3) : (total < 3 || total > 4)
+        const ouLabel = total <= ((match.category === 'A' || match.category === 'B') ? 1 : 2) ? 'אנדר' : 'אובר'
+        items.push(`מדויק: +2${isOU ? ` (${ouLabel})` : ''}`)
+        if (isOU) items.push(`${ouLabel}: +1`)
+      } else {
+        if ((pA - pB) === (rA - rB)) items.push('הפרש: +1')
+        // Non-exact OU: check if both predicted and actual totals share same OU type
+        const predTotal = pA + pB, actTotal = rA + rB
+        const isAB = match.category === 'A' || match.category === 'B'
+        const getOUType = (t: number) => isAB ? (t < 2 ? 'under' : t > 3 ? 'over' : null) : (t < 3 ? 'under' : t > 4 ? 'over' : null)
+        const predOU = getOUType(predTotal), actOU = getOUType(actTotal)
+        if (predOU && predOU === actOU) {
+          items.push((predOU === 'under' ? 'אנדר' : 'אובר') + ': +1')
+        }
+      }
     }
     const pr = calcRedCardPoints(pred.redCard, result.hadRedCard ?? false)
     if (pr > 0) items.push('🟥: +2')
