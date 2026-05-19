@@ -1047,7 +1047,12 @@ ${userRows}
                                       + calcOUPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round)
                                     : 0
                             const pAdv = (isPlayed && pred.advance && adminKm?.advanceTeam) ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, actualTeamA ?? '', actualTeamB ?? '') : 0
-                            const total = p1x2 + pScore + pAdv
+                            // Knockout red card — stored as array of match IDs per round
+                            const redRoundKey = km.round as 'R32' | 'R16' | 'QF'
+                            const pickedRedCard = ['R32','R16','QF'].includes(km.round) &&
+                              (current.knockoutRedCards?.[redRoundKey] ?? []).includes(km.id)
+                            const pRed = isPlayed && pickedRedCard && adminKm?.hadRedCard ? 2 : 0
+                            const total = p1x2 + pScore + pAdv + pRed
                             const pred1x2Label = pred.prediction1X2 === '1' ? (actualTeamA ?? '1') : pred.prediction1X2 === '2' ? (actualTeamB ?? '2') : 'תיקו'
                             const pred1x2Flag = pred.prediction1X2 === '1' ? (FLAGS[actualTeamA ?? ''] ?? '') : pred.prediction1X2 === '2' ? (FLAGS[actualTeamB ?? ''] ?? '') : null
                             return (
@@ -1095,6 +1100,8 @@ ${userRows}
                                       </>
                                     })()}
                                     {pred.advance && <><span style={{ color: '#ddd' }}>|</span><span style={{ display:'flex', alignItems:'center', gap:2, color: pAdv>0?'#1a7a44':'#cc3333', fontWeight:600 }}>{pAdv>0?'✓':'✗'} עולה:<Flag emoji={FLAGS[pred.advance]??''} size={13}/>{pAdv>0?` +${pAdv}`:''}{!correctAdvance && adminKm?.advanceTeam && <span style={{color:'#aaa',fontWeight:400}}> (עלה: {adminKm.advanceTeam})</span>}</span></>}
+                                    {pickedRedCard && isPlayed && <><span style={{ color: '#ddd' }}>|</span>
+                                      <span style={{ color: pRed>0?'#A32D2D':'#cc3333', fontWeight:600 }}>{pRed>0?'✓':'✗'} 🟥{pRed>0?` +${pRed}`:''}</span></>}
                                   </div>
                                 )}
                               </div>
@@ -1264,7 +1271,10 @@ ${userRows}
                                         + calcOUPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB), cat, km!.round)
                                       : 0
                               const pAdv = p.advance ? calcAdvancePoints(p.advance, actual.advanceTeam, km!.round, cat, ptA, ptB, tA, tB) : 0
-                              return <PtsBadge pts={p1x2 + pScore + pAdv} played={true} />
+                              const redKey = km!.round as 'R32'|'R16'|'QF'
+                              const userReds = (u.knockoutRedCards?.[redKey] ?? []) as number[]
+                              const pRed = ['R32','R16','QF'].includes(km!.round) && userReds.includes(km!.id) && actual.hadRedCard ? 2 : 0
+                              return <PtsBadge pts={p1x2 + pScore + pAdv + pRed} played={true} />
                             })()}
                           </div>
                         )
