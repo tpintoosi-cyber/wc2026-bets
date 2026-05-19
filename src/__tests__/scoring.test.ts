@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   calc1X2Points,
   calcScorePoints,
+  calcOUPoints,
   calcOverUnder,
   calcRedCardPoints,
   calcGroupPoints,
@@ -290,5 +291,113 @@ describe('computeUserScore', () => {
     )
     // No predictions → 0
     expect(score.groupPoints).toBe(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// calcOUPoints — independent OU bonus for non-exact predictions
+// Rules:
+//   - Both predicted total AND actual total must share the same OU type
+//   - Exact scores return 0 (OU already bundled in calcScorePoints)
+//   - A/B: under = <2 goals, over = >3 goals
+//   - C/D: under = <3 goals, over = >4 goals
+//   - Points: group/R32/R16/3P = 1pt, QF/SF/F = 2pt
+// ─────────────────────────────────────────────────────────────────────────────
+describe('calcOUPoints', () => {
+
+  // ── Exact score → 0 (avoid double-counting with calcScorePoints) ──────────
+  it('exact score → 0pt (OU already counted in calcScorePoints)', () => {
+    expect(calcOUPoints(1, 0, 1, 0, 'A')).toBe(0)
+  })
+  it('exact score 0-0 Cat B → 0pt', () => {
+    expect(calcOUPoints(0, 0, 0, 0, 'B')).toBe(0)
+  })
+
+  // ── Cat A/B: under (<2 goals) ─────────────────────────────────────────────
+  it('pred 0-0 (under A), actual 1-0 (under A), non-exact → 1pt', () => {
+    expect(calcOUPoints(0, 0, 1, 0, 'A')).toBe(1)
+  })
+  it('pred 0-0 (under B), actual 0-1 (under B), non-exact → 1pt', () => {
+    expect(calcOUPoints(0, 0, 0, 1, 'B')).toBe(1)
+  })
+  it('pred 1-0 (under A), actual 0-0 (under A) → 1pt', () => {
+    expect(calcOUPoints(1, 0, 0, 0, 'A')).toBe(1)
+  })
+
+  // ── Cat A/B: over (>3 goals) ──────────────────────────────────────────────
+  it('pred 3-1 (over A), actual 4-0 (over A), non-exact → 1pt', () => {
+    expect(calcOUPoints(3, 1, 4, 0, 'A')).toBe(1)
+  })
+  it('pred 2-3 (over A), actual 5-0 (over A), non-exact → 1pt', () => {
+    expect(calcOUPoints(2, 3, 5, 0, 'A')).toBe(1)
+  })
+
+  // ── Cat C/D: under (<3 goals) ─────────────────────────────────────────────
+  it('pred 0-2 (under C), actual 1-0 (under C), non-exact → 1pt', () => {
+    expect(calcOUPoints(0, 2, 1, 0, 'C')).toBe(1)
+  })
+  it('pred 1-0 (under D), actual 0-1 (under D), non-exact → 1pt', () => {
+    expect(calcOUPoints(1, 0, 0, 1, 'D')).toBe(1)
+  })
+
+  // ── Cat C/D: over (>4 goals) ──────────────────────────────────────────────
+  it('pred 3-2 (over D, 5 goals), actual 4-2 (over D, 6 goals), non-exact → 1pt', () => {
+    expect(calcOUPoints(3, 2, 4, 2, 'D')).toBe(1)
+  })
+  it('pred 4-1 (over C), actual 5-0 (over C), non-exact → 1pt', () => {
+    expect(calcOUPoints(4, 1, 5, 0, 'C')).toBe(1)
+  })
+
+  // ── Neither (between thresholds) → 0pt ───────────────────────────────────
+  it('Cat A: pred 2-0 (neither), actual 2-1 (neither) → 0pt', () => {
+    expect(calcOUPoints(2, 0, 2, 1, 'A')).toBe(0)  // 2 and 3 goals = neither
+  })
+  it('Cat A: pred 3-0 (neither), actual 3-1 (neither) → 0pt', () => {
+    expect(calcOUPoints(3, 0, 3, 1, 'A')).toBe(0)  // 3 and 4 goals = neither
+  })
+  it('Cat C: pred 3-0 (neither), actual 4-0 (neither) → 0pt', () => {
+    expect(calcOUPoints(3, 0, 4, 0, 'C')).toBe(0)  // 3 and 4 goals = neither for C/D
+  })
+
+  // ── Type mismatch → 0pt ───────────────────────────────────────────────────
+  it('pred under A, actual over A → 0pt', () => {
+    expect(calcOUPoints(0, 0, 2, 3, 'A')).toBe(0)  // pred=0 under, actual=5 over
+  })
+  it('pred over A, actual under A → 0pt', () => {
+    expect(calcOUPoints(3, 2, 0, 1, 'A')).toBe(0)
+  })
+  it('pred neither, actual under → 0pt', () => {
+    expect(calcOUPoints(2, 1, 0, 0, 'A')).toBe(0)  // pred=3 neither, actual=0 under
+  })
+  it('pred under, actual neither → 0pt', () => {
+    expect(calcOUPoints(0, 0, 1, 1, 'A')).toBe(0)  // pred=0 under, actual=2 neither
+  })
+
+  // ── Knockout rounds: higher OU points ─────────────────────────────────────
+  it('R32: non-exact under Cat A → 1pt', () => {
+    expect(calcOUPoints(0, 0, 1, 0, 'A', 'R32')).toBe(1)
+  })
+  it('R16: non-exact under Cat B → 1pt', () => {
+    expect(calcOUPoints(0, 0, 0, 1, 'B', 'R16')).toBe(1)
+  })
+  it('QF: non-exact under Cat A → 2pt', () => {
+    expect(calcOUPoints(0, 0, 0, 1, 'A', 'QF')).toBe(2)
+  })
+  it('SF: non-exact over Cat A → 2pt', () => {
+    expect(calcOUPoints(3, 2, 2, 3, 'A', 'SF')).toBe(2)
+  })
+  it('F: non-exact under Cat A → 2pt', () => {
+    expect(calcOUPoints(0, 0, 1, 0, 'A', 'F')).toBe(2)
+  })
+  it('3P: non-exact under Cat C → 1pt', () => {
+    expect(calcOUPoints(1, 0, 0, 2, 'C', '3P')).toBe(1)  // pred=1 under C, actual=2 under C
+  })
+
+  // ── No round (group stage) ────────────────────────────────────────────────
+  it('group stage (no round): non-exact under → 1pt', () => {
+    expect(calcOUPoints(0, 0, 1, 0, 'A', undefined)).toBe(1)
+  })
+  it('group stage (no round): non-exact over Cat D → 1pt', () => {
+    expect(calcOUPoints(3, 2, 4, 2, 'D', undefined)).toBe(1)
   })
 })

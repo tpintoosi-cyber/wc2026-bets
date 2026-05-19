@@ -218,7 +218,37 @@ describe('Edge cases', () => {
     })
   })
 
-  it('Penalty shootout — same score at FT and ET, only penalty determines winner', () => {
+  it('Non-exact OU: pred 0-0 (under A), actual 1-0 (under A) → OU bonus in matchPoints', () => {
+    const playedMatch = {
+      id: 99, group: 'A' as const, round: 1 as const,
+      teamA: 'France', teamB: 'Brazil',
+      category: 'A' as const, fifaPointsA: 1877, fifaPointsB: 1761,
+      resultA: 1, resultB: 0, hadRedCard: false, isPlayed: true,
+    }
+    const score = computeUserScore(
+      'u1', 'Test',
+      { 99: { matchId: 99, prediction1X2: '1', scoreA: 0, scoreB: 0, redCard: false } },
+      {}, {}, [playedMatch], {}, {}
+    )
+    // 1X2: 1pt (France wins, correct) + score: 0pt (diff 0 vs 1, wrong) + OU: 1pt (both under A)
+    expect(score.matchPoints).toBe(2)
+  })
+
+  it('Non-exact OU: pred 2-0 (neither A), actual 1-0 (under A) → no OU bonus', () => {
+    const playedMatch = {
+      id: 98, group: 'A' as const, round: 1 as const,
+      teamA: 'France', teamB: 'Brazil',
+      category: 'A' as const, fifaPointsA: 1877, fifaPointsB: 1761,
+      resultA: 1, resultB: 0, hadRedCard: false, isPlayed: true,
+    }
+    const score = computeUserScore(
+      'u1', 'Test',
+      { 98: { matchId: 98, prediction1X2: '1', scoreA: 2, scoreB: 0, redCard: false } },
+      {}, {}, [playedMatch], {}, {}
+    )
+    // 1X2: 1pt + score: 0pt (diff 2 vs 1, wrong) + OU: 0pt (pred=2 neither, actual=1 under)
+    expect(score.matchPoints).toBe(1)
+  })
     // 1-1 FT, 1-1 ET (no ET goals), decided by penalties
     const fixture = makeFixture('PEN', 'Portugal', 'Spain', 1, 1, 1, 1, 5, 3)
     const result = getKnockoutResult(fixture, 'Portugal', 'Spain')!

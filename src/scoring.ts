@@ -88,6 +88,8 @@ export function getOUType(total: number, category: Category): OUType {
 }
 
 // OU bonus points: earned when both predicted total AND actual total share the same OU type.
+// For EXACT scores, OU is already bundled in calcScorePoints/calcScoreKnockoutPoints.
+// This function adds OU ONLY for NON-EXACT predictions (right diff or wrong).
 // Group stage: 1pt | R32/R16/3P: 1pt | QF/SF/F: 2pts
 export function calcOUPoints(
   predA: number, predB: number,
@@ -95,6 +97,8 @@ export function calcOUPoints(
   category: Category,
   round?: KnockoutRound
 ): number {
+  // Exact score already includes OU in calcScorePoints — skip to avoid double counting
+  if (predA === resultA && predB === resultB) return 0
   const predType  = getOUType(predA + predB, category)
   const actType   = getOUType(resultA + resultB, category)
   if (!predType || predType !== actType) return 0
@@ -107,8 +111,6 @@ export function calcOverUnder(total: number, category: Category): boolean {
   return getOUType(total, category) !== null
 }
 
-// ── GROUP STAGE OVER/UNDER (legacy — kept for display) ───────────────────────
-
 // ── KNOCKOUT OVER/UNDER (legacy — kept for display) ──────────────────────────
 export function calcOverUnderKnockout(
   total: number,
@@ -120,30 +122,42 @@ export function calcOverUnderKnockout(
 }
 
 // ── GROUP STAGE SCORE ─────────────────────────────────────────────────────────
-// Score only (2=exact, 1=right diff). OU is now a separate calc via calcOUPoints.
+// Returns 3 for exact score + OU, 2 for exact score alone,
+// 1 for right goal difference, 0 otherwise.
+// OU for non-exact scores is handled separately by calcOUPoints.
 export function calcScorePoints(
   predA: number,
   predB: number,
   resultA: number,
   resultB: number,
-  _category?: Category  // kept for signature compatibility
+  category?: Category
 ): number {
-  if (predA === resultA && predB === resultB) return 2
+  if (predA === resultA && predB === resultB) {
+    const total = resultA + resultB
+    const ouBonus = category && getOUType(total, category) !== null ? 1 : 0
+    return 2 + ouBonus
+  }
   if ((predA - predB) === (resultA - resultB)) return 1
   return 0
 }
 
 // ── KNOCKOUT SCORE ────────────────────────────────────────────────────────────
-// Score only (2=exact, 1=right diff). OU is separate.
+// Returns 2+OU for exact, 1 for right diff. OU for non-exact via calcOUPoints.
 export function calcScoreKnockoutPoints(
   predA: number,
   predB: number,
   resultA: number,
   resultB: number,
-  _category?: Category,
-  _round?: KnockoutRound
+  category?: Category,
+  round?: KnockoutRound
 ): number {
-  if (predA === resultA && predB === resultB) return 2
+  if (predA === resultA && predB === resultB) {
+    const total = resultA + resultB
+    const ouPts = (category && round && getOUType(total, category) !== null)
+      ? (({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round] ?? 0)
+      : 0
+    return 2 + ouPts
+  }
   if ((predA - predB) === (resultA - resultB)) return 1
   return 0
 }
@@ -308,7 +322,7 @@ export function computeUserScore(
       match.fifaPointsA, match.fifaPointsB,
       match.category
     )
-    const pScore = calcScorePoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB)
+    const pScore = calcScorePoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB, match.category)
     const pOU   = calcOUPoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB, match.category)
     const pRed  = calcRedCardPoints(pred.redCard, match.hadRedCard ?? false)
 
