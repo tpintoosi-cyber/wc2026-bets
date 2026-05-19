@@ -512,9 +512,9 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
     const match = MATCHES.find(m => m.id === matchId)!
     const rA = Number(result.resultA), rB = Number(result.resultB)
     const p1 = calc1X2Points(pred.prediction1X2, rA, rB, match.fifaPointsA, match.fifaPointsB, match.category)
-    const psBase = pred.scoreA != null && pred.scoreB != null ? calcScorePoints(Number(pred.scoreA), Number(pred.scoreB), rA, rB) : 0
-        const psOU   = pred.scoreA != null && pred.scoreB != null ? calcOUPoints(Number(pred.scoreA), Number(pred.scoreB), rA, rB, match.category) : 0
-        const ps = psBase + psOU
+    const psBase = pred.scoreA != null && pred.scoreB != null ? calcScorePoints(Number(pred.scoreA), Number(pred.scoreB), rA, rB, match.category) : 0
+    const psOU   = pred.scoreA != null && pred.scoreB != null ? calcOUPoints(Number(pred.scoreA), Number(pred.scoreB), rA, rB, match.category) : 0
+    const ps = psBase + psOU
     const pr = calcRedCardPoints(pred.redCard, result.hadRedCard ?? false)
     return p1 + ps + pr
   }
@@ -1043,7 +1043,7 @@ ${userRows}
                             const correctAdvance = !!(isPlayed && adminKm?.advanceTeam && pred.advance === adminKm.advanceTeam)
                             const p1x2 = isPlayed ? calc1X2KnockoutPoints(pred.prediction1X2, rA!, rB!, ptA, ptB, cat, km.round) : 0
                             const pScore = (isPlayed && pred.scoreA != null)
-                                    ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!)
+                                    ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round)
                                       + calcOUPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round)
                                     : 0
                             const pAdv = (isPlayed && pred.advance && adminKm?.advanceTeam) ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, actualTeamA ?? '', actualTeamB ?? '') : 0
@@ -1075,7 +1075,25 @@ ${userRows}
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderTop: '1px solid #eee', fontSize: 11, flexWrap: 'wrap', background: '#fff' }}>
                                     <span style={{ color: p1x2>0?'#1a7a44':'#cc3333', fontWeight: 600 }}>{p1x2>0?'✓':'✗'} 1X2{p1x2>0?` +${p1x2}`:''}</span>
                                     <span style={{ color: '#ddd' }}>|</span>
-                                    <span style={{ color: pScore>0?'#1a7a44':'#cc3333', fontWeight: 600 }}>{pScore>0?`✓ תוצאה +${pScore}`:'✗ תוצאה'}</span>
+                                    {(() => {
+                                      // Separate score vs OU for clear display
+                                      const pA = Number(pred.scoreA), pB = Number(pred.scoreB ?? 0)
+                                      const isExact = pA === rA && pB === rB
+                                      const isDiff = !isExact && (pA - pB) === (rA! - rB!)
+                                      const isAB = cat === 'A' || cat === 'B'
+                                      const ouType = (t: number) => isAB ? (t < 2 ? 'אנדר' : t > 3 ? 'אובר' : null) : (t < 3 ? 'אנדר' : t > 4 ? 'אובר' : null)
+                                      const predOuType = pred.scoreA != null ? ouType(pA + pB) : null
+                                      const actOuType  = ouType((rA ?? 0) + (rB ?? 0))
+                                      const ouBonus = predOuType && predOuType === actOuType
+                                        ? ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<string,number>)[km.round] : 0
+                                      return <>
+                                        <span style={{ color: (isExact||isDiff)?'#1a7a44':'#cc3333', fontWeight: 600 }}>
+                                          {isExact ? `✓ תוצאה +2` : isDiff ? `✓ הפרש +1` : '✗ תוצאה'}
+                                        </span>
+                                        {ouBonus > 0 && <><span style={{ color: '#ddd' }}>|</span>
+                                          <span style={{ color: '#1a7a44', fontWeight: 600 }}>✓ {predOuType} +{ouBonus}</span></>}
+                                      </>
+                                    })()}
                                     {pred.advance && <><span style={{ color: '#ddd' }}>|</span><span style={{ display:'flex', alignItems:'center', gap:2, color: pAdv>0?'#1a7a44':'#cc3333', fontWeight:600 }}>{pAdv>0?'✓':'✗'} עולה:<Flag emoji={FLAGS[pred.advance]??''} size={13}/>{pAdv>0?` +${pAdv}`:''}{!correctAdvance && adminKm?.advanceTeam && <span style={{color:'#aaa',fontWeight:400}}> (עלה: {adminKm.advanceTeam})</span>}</span></>}
                                   </div>
                                 )}
@@ -1242,7 +1260,7 @@ ${userRows}
                               const cat = calcCategoryByRound(ptA, ptB, km!.round) as any
                               const p1x2 = p.prediction1X2 ? calc1X2KnockoutPoints(p.prediction1X2, Number(actual.resultA), Number(actual.resultB), ptA, ptB, cat, km!.round) : 0
                               const pScore = p.scoreA != null
-                                      ? calcScoreKnockoutPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB))
+                                      ? calcScoreKnockoutPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB), cat, km!.round)
                                         + calcOUPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB), cat, km!.round)
                                       : 0
                               const pAdv = p.advance ? calcAdvancePoints(p.advance, actual.advanceTeam, km!.round, cat, ptA, ptB, tA, tB) : 0
