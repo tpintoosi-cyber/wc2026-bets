@@ -1347,15 +1347,29 @@ export default function Predict({ lang }: { lang: Lang }) {
                       // Score row — only show pre-match when 1X2 is also filled
                       if (hasScore && (isPlayed || pred?.prediction1X2)) {
                         if (isPlayed) {
-                          const scoreBase = ptsScore === 2 ? t.exactScore : ptsScore === 1 ? (lang === 'he' ? 'הפרש נכון' : 'Right diff') : t.exactScore
-                          // Add (אנדר/אובר) suffix when OU bonus applies
-                          const ouSuffix = (ptsOU > 0 && predOuLabel) ? ` (${predOuLabel})` : ''
+                          const scoreBase = ptsScore === 2 || ptsScore === 3
+                            ? t.exactScore
+                            : ptsScore === 1 ? (lang === 'he' ? 'הפרש נכון' : 'Right diff')
+                            : t.exactScore
+                          // For exact scores: OU is bundled in ptsScore (=3), show suffix inline
+                          // For non-exact: show score row alone, OU gets its own row below
+                          const exactHasOU = ptsScore > 2  // calcScorePoints returns 3 = 2+OU
+                          const ouSuffix = exactHasOU && predOuLabel ? ` (${predOuLabel})` : ''
                           rows.push({
                             key: 'score',
                             labelText: `${scoreBase}${ouSuffix}`,
                             ok: ptsScore > 0,
-                            pts: ptsScore + ptsOU,
+                            pts: ptsScore,  // ptsScore already includes OU for exact scores
                           })
+                          // Independent OU row — only for non-exact predictions
+                          if (ptsOU > 0 && predOuLabel && !exactHasOU) {
+                            rows.push({
+                              key: 'ou',
+                              labelText: predOuLabel,  // "אנדר" or "אובר"
+                              ok: true,
+                              pts: ptsOU,
+                            })
+                          }
                         } else {
                           const sA = pred?.scoreA, sB = pred?.scoreB
                           const scoreStr = (sA !== undefined && sB !== undefined) ? (lang === 'he' ? `${sB}:${sA}` : `${sA}:${sB}`) : '?'
@@ -1415,6 +1429,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 color: row.warn ? '#B45309' : row.ok === true ? '#1a5c30' : row.ok === false ? '#8b1f1f' : '#444' }}>
                                 {row.flag && row.key !== 'red' && <Flag emoji={row.flag} size={16} />}
                                 {row.key === 'red' && <span style={{ fontSize: 13 }}>🟥</span>}
+                                {row.key === 'ou' && <span style={{ fontSize: 11 }}>⚽</span>}
                                 {row.labelText}
                                 {row.lock && <span style={{ fontSize: 9, opacity: 0.45, marginRight: 2 }}>🔒</span>}
                                 {row.special && <span>{row.special}</span>}
