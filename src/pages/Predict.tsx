@@ -1135,7 +1135,16 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                         if (feederId === 0) return true  // admin-set slot
                         const feederKm = knockoutMatches[feederId]
-                        if (!feederKm) return true  // no admin data yet
+                        if (!feederKm || (!feederKm.teamA && !feederKm.teamB)) {
+                          // No data for feeder — recurse to feeder's own feeders
+                          const fb = KNOCKOUT_BRACKET[feederId]
+                          if (!fb) return true
+                          const canA = fb.feederA !== null && fb.feederA > 0
+                            ? canTeamReachMatch(team, feederId, 'A', depth + 1) : true
+                          const canB = fb.feederB !== null && fb.feederB > 0
+                            ? canTeamReachMatch(team, feederId, 'B', depth + 1) : true
+                          return canA || canB
+                        }
 
                         // Feeder played → team must have actually advanced
                         if (feederKm.isPlayed && feederKm.advanceTeam) {
