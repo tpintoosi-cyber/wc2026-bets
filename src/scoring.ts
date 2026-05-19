@@ -69,68 +69,81 @@ export function calc1X2KnockoutPoints(
   return base + catBonus
 }
 
-// ── GROUP STAGE OVER/UNDER ───────────────────────────────────────────────────
-export function calcOverUnder(total: number, category: Category): boolean {
-  if (category === 'A' || category === 'B') return total <= 1 || total >= 4
-  return total <= 2 || total >= 5
+// ── OVER/UNDER TYPE ──────────────────────────────────────────────────────────
+// Determines if a goal total qualifies as under, over, or neither.
+// A/B: under < 2 goals (0–1), over > 3 goals (4+), 2–3 = neither
+// C/D: under < 3 goals (0–2), over > 4 goals (5+), 3–4 = neither
+export type OUType = 'under' | 'over' | null
+
+export function getOUType(total: number, category: Category): OUType {
+  if (category === 'A' || category === 'B') {
+    if (total < 2) return 'under'
+    if (total > 3) return 'over'
+    return null
+  } else {
+    if (total < 3) return 'under'
+    if (total > 4) return 'over'
+    return null
+  }
 }
 
-// ── KNOCKOUT OVER/UNDER ───────────────────────────────────────────────────────
-// Points: R32/R16/3P=1, QF/SF/F=2
-// Thresholds:
-//   R32/R16/QF/SF: same as group stage by category
-//   3P: ≤2 or ≥5 (C/D thresholds for all)
-//   Final: under=0-0 only, over=≥4
+// OU bonus points: earned when both predicted total AND actual total share the same OU type.
+// Group stage: 1pt | R32/R16/3P: 1pt | QF/SF/F: 2pts
+export function calcOUPoints(
+  predA: number, predB: number,
+  resultA: number, resultB: number,
+  category: Category,
+  round?: KnockoutRound
+): number {
+  const predType  = getOUType(predA + predB, category)
+  const actType   = getOUType(resultA + resultB, category)
+  if (!predType || predType !== actType) return 0
+  if (!round) return 1  // group stage
+  return ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round] ?? 1
+}
+
+// Keep old calcOverUnder as alias (used in displays)
+export function calcOverUnder(total: number, category: Category): boolean {
+  return getOUType(total, category) !== null
+}
+
+// ── GROUP STAGE OVER/UNDER (legacy — kept for display) ───────────────────────
+
+// ── KNOCKOUT OVER/UNDER (legacy — kept for display) ──────────────────────────
 export function calcOverUnderKnockout(
   total: number,
   category: Category,
   round: KnockoutRound
 ): { qualifies: boolean; points: number } {
   const points = ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round]
-
-  let qualifies: boolean
-  if (round === 'F') {
-    qualifies = total === 0 || total >= 4
-  } else if (round === '3P') {
-    qualifies = total <= 2 || total >= 5
-  } else {
-    qualifies = calcOverUnder(total, category)
-  }
-
-  return { qualifies, points }
+  return { qualifies: getOUType(total, category) !== null, points }
 }
 
 // ── GROUP STAGE SCORE ─────────────────────────────────────────────────────────
+// Score only (2=exact, 1=right diff). OU is now a separate calc via calcOUPoints.
 export function calcScorePoints(
   predA: number,
   predB: number,
   resultA: number,
   resultB: number,
-  category: Category
+  _category?: Category  // kept for signature compatibility
 ): number {
-  if (predA === resultA && predB === resultB) {
-    const total = resultA + resultB
-    const overUnder = calcOverUnder(total, category) ? 1 : 0
-    return 2 + overUnder
-  }
+  if (predA === resultA && predB === resultB) return 2
   if ((predA - predB) === (resultA - resultB)) return 1
   return 0
 }
 
 // ── KNOCKOUT SCORE ────────────────────────────────────────────────────────────
+// Score only (2=exact, 1=right diff). OU is separate.
 export function calcScoreKnockoutPoints(
   predA: number,
   predB: number,
   resultA: number,
   resultB: number,
-  category: Category,
-  round: KnockoutRound
+  _category?: Category,
+  _round?: KnockoutRound
 ): number {
-  if (predA === resultA && predB === resultB) {
-    const total = resultA + resultB
-    const { qualifies, points } = calcOverUnderKnockout(total, category, round)
-    return 2 + (qualifies ? points : 0)
-  }
+  if (predA === resultA && predB === resultB) return 2
   if ((predA - predB) === (resultA - resultB)) return 1
   return 0
 }
@@ -295,11 +308,12 @@ export function computeUserScore(
       match.fifaPointsA, match.fifaPointsB,
       match.category
     )
-    const pScore = calcScorePoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB, match.category)
-    const pRed = calcRedCardPoints(pred.redCard, match.hadRedCard ?? false)
+    const pScore = calcScorePoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB)
+    const pOU   = calcOUPoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB, match.category)
+    const pRed  = calcRedCardPoints(pred.redCard, match.hadRedCard ?? false)
 
-    matchDetails[match.id] = { matchId: match.id, points1X2: p1x2, pointsScore: pScore, pointsRedCard: pRed, total: p1x2 + pScore + pRed }
-    matchPoints += p1x2 + pScore
+    matchDetails[match.id] = { matchId: match.id, points1X2: p1x2, pointsScore: pScore + pOU, pointsRedCard: pRed, total: p1x2 + pScore + pOU + pRed }
+    matchPoints += p1x2 + pScore + pOU
     redCardPoints += pRed
   }
 
@@ -331,12 +345,18 @@ export function computeUserScore(
         )
       }
 
-      // Score points
+      // Score points (exact=2, right diff=1)
       if (pred.scoreA !== null && pred.scoreA !== undefined &&
           pred.scoreB !== null && pred.scoreB !== undefined) {
         matchPts += calcScoreKnockoutPoints(
           Number(pred.scoreA), Number(pred.scoreB),
-          km.resultA, km.resultB, km.category, km.round
+          km.resultA, km.resultB
+        )
+        // OU points — independent of exact score
+        matchPts += calcOUPoints(
+          Number(pred.scoreA), Number(pred.scoreB),
+          km.resultA, km.resultB,
+          km.category, km.round
         )
       }
 

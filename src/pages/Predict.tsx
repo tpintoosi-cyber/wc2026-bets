@@ -5,7 +5,7 @@ import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
 import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, KNOCKOUT_BRACKET, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category, KnockoutMatchPrediction, Result1X2 } from '../types'
-import { calc1X2Points, calcOverUnder, calcAdvancePoints } from '../scoring'
+import { calc1X2Points, calcOverUnder, calcAdvancePoints, calcOUPoints } from '../scoring'
 import { T, Lang, Translations, BONUS_QUESTIONS_EN } from '../i18n'
 
 const MAX_RED_CARDS = 6
@@ -953,15 +953,15 @@ export default function Predict({ lang }: { lang: Lang }) {
                   }
                   if (hasScore && pred!.scoreA !== null && pred!.scoreB !== null) {
                     const pA = Number(pred!.scoreA), pB = Number(pred!.scoreB)
-                    if (pA === actualA && pB === actualB) {
-                      const total = actualA! + actualB!
-                      const ouPts = ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<string, number>)[km.round]
-                      const ouQ = km.round === 'F' ? (total === 0 || total >= 4) : km.round === '3P' ? (total <= 2 || total >= 5) : catIdx <= 1 ? (total <= 1 || total >= 4) : (total <= 2 || total >= 5)
-                      ptsScore = 2
-                      ptsOU = ouQ ? ouPts : 0
-                    } else if ((pA - pB) === (actualA! - actualB!)) {
-                      ptsScore = 1
-                    }
+                    // Score: exact=2, right diff=1
+                    if (pA === actualA && pB === actualB) ptsScore = 2
+                    else if ((pA - pB) === (actualA! - actualB!)) ptsScore = 1
+                    // OU: independent — both predicted AND actual total must match same type
+                    const ouPts = ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<string, number>)[km.round]
+                    const ouType = (total: number) => catIdx <= 1 ? (total < 2 ? 'under' : total > 3 ? 'over' : null) : (total < 3 ? 'under' : total > 4 ? 'over' : null)
+                    const predOUType = ouType(pA + pB)
+                    const actOUType  = ouType((actualA ?? 0) + (actualB ?? 0))
+                    if (predOUType && predOUType === actOUType) ptsOU = ouPts
                   }
                   if (pred?.advance && actualAdvance) {
                     if (pred.advance === actualAdvance) {
@@ -980,12 +980,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                   }
                 }
 
-                // Prediction OU label
+                // Prediction OU label (based on user's predicted total)
                 let predOuLabel: string | null = null
                 if (hasScore && km && pred!.scoreA !== null && pred!.scoreB !== null) {
                   const goalTotal = Number(pred!.scoreA) + Number(pred!.scoreB)
-                  const isOU = km.round === 'F' ? (goalTotal === 0 || goalTotal >= 4) : km.round === '3P' ? (goalTotal <= 2 || goalTotal >= 5) : catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
-                  if (isOU) predOuLabel = goalTotal <= (catIdx <= 1 ? 1 : 2) ? t.under : t.over
+                  const ouType = catIdx <= 1 ? (goalTotal < 2 ? 'under' : goalTotal > 3 ? 'over' : null) : (goalTotal < 3 ? 'under' : goalTotal > 4 ? 'over' : null)
+                  if (ouType) predOuLabel = ouType === 'under' ? t.under : t.over
                 }
 
                 // Advance pick
