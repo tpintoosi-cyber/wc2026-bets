@@ -7,7 +7,7 @@ import { Lang, T } from '../i18n'
 import StatsCharts from './StatsCharts'
 import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, KNOCKOUT_BRACKET } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Match, KnockoutMatchPrediction } from '../types'
-import { calc1X2Points, calcScorePoints, calcRedCardPoints, calcGroupPoints, calcBonusPoints, calcAdvancePoints, calc1X2KnockoutPoints, calcScoreKnockoutPoints } from '../scoring'
+import { calc1X2Points, calcScorePoints, calcRedCardPoints, calcGroupPoints, calcBonusPoints, calcAdvancePoints, calc1X2KnockoutPoints, calcScoreKnockoutPoints, calcOUPoints } from '../scoring'
 import { TEAM_FIFA_POINTS, calcCategoryByRound } from '../data/matches'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
@@ -512,7 +512,9 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
     const match = MATCHES.find(m => m.id === matchId)!
     const rA = Number(result.resultA), rB = Number(result.resultB)
     const p1 = calc1X2Points(pred.prediction1X2, rA, rB, match.fifaPointsA, match.fifaPointsB, match.category)
-    const ps = pred.scoreA != null && pred.scoreB != null ? calcScorePoints(Number(pred.scoreA), Number(pred.scoreB), rA, rB, match.category) : 0
+    const psBase = pred.scoreA != null && pred.scoreB != null ? calcScorePoints(Number(pred.scoreA), Number(pred.scoreB), rA, rB) : 0
+        const psOU   = pred.scoreA != null && pred.scoreB != null ? calcOUPoints(Number(pred.scoreA), Number(pred.scoreB), rA, rB, match.category) : 0
+        const ps = psBase + psOU
     const pr = calcRedCardPoints(pred.redCard, result.hadRedCard ?? false)
     return p1 + ps + pr
   }
@@ -1029,7 +1031,10 @@ ${userRows}
                             const correct1x2 = !!(actual1x2 && pred.prediction1X2 === actual1x2)
                             const correctAdvance = !!(isPlayed && adminKm?.advanceTeam && pred.advance === adminKm.advanceTeam)
                             const p1x2 = isPlayed ? calc1X2KnockoutPoints(pred.prediction1X2, rA!, rB!, ptA, ptB, cat, km.round) : 0
-                            const pScore = (isPlayed && pred.scoreA != null) ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round) : 0
+                            const pScore = (isPlayed && pred.scoreA != null)
+                                    ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!)
+                                      + calcOUPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round)
+                                    : 0
                             const pAdv = (isPlayed && pred.advance && adminKm?.advanceTeam) ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, actualTeamA ?? '', actualTeamB ?? '') : 0
                             const total = p1x2 + pScore + pAdv
                             const pred1x2Label = pred.prediction1X2 === '1' ? (actualTeamA ?? '1') : pred.prediction1X2 === '2' ? (actualTeamB ?? '2') : 'תיקו'
@@ -1225,7 +1230,10 @@ ${userRows}
                               const ptB = TEAM_FIFA_POINTS[tB] ?? 1500
                               const cat = calcCategoryByRound(ptA, ptB, km!.round) as any
                               const p1x2 = p.prediction1X2 ? calc1X2KnockoutPoints(p.prediction1X2, Number(actual.resultA), Number(actual.resultB), ptA, ptB, cat, km!.round) : 0
-                              const pScore = p.scoreA != null ? calcScoreKnockoutPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB), cat, km!.round) : 0
+                              const pScore = p.scoreA != null
+                                      ? calcScoreKnockoutPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB))
+                                        + calcOUPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB), cat, km!.round)
+                                      : 0
                               const pAdv = p.advance ? calcAdvancePoints(p.advance, actual.advanceTeam, km!.round, cat, ptA, ptB, tA, tB) : 0
                               return <PtsBadge pts={p1x2 + pScore + pAdv} played={true} />
                             })()}

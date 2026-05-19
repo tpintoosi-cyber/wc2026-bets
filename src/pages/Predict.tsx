@@ -5,7 +5,7 @@ import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
 import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, KNOCKOUT_BRACKET, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category, KnockoutMatchPrediction, Result1X2 } from '../types'
-import { calc1X2Points, calcOverUnder, calcAdvancePoints, calcOUPoints } from '../scoring'
+import { calc1X2Points, calcOverUnder, calcAdvancePoints } from '../scoring'
 import { T, Lang, Translations, BONUS_QUESTIONS_EN } from '../i18n'
 
 const MAX_RED_CARDS = 6
