@@ -249,6 +249,8 @@ describe('Edge cases', () => {
     // 1X2: 1pt + score: 0pt (diff 2 vs 1, wrong) + OU: 0pt (pred=2 neither, actual=1 under)
     expect(score.matchPoints).toBe(1)
   })
+
+  it('Penalty shootout — same score at FT and ET, only penalty determines winner', () => {
     // 1-1 FT, 1-1 ET (no ET goals), decided by penalties
     const fixture = makeFixture('PEN', 'Portugal', 'Spain', 1, 1, 1, 1, 5, 3)
     const result = getKnockoutResult(fixture, 'Portugal', 'Spain')!
