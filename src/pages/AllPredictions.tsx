@@ -401,6 +401,8 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [selectedMatchId, setSelectedMatchId] = useState<number>(() => getNextMatchId())
   const [isOpen, setIsOpen] = useState(true)
   const [loading, setLoading] = useState(true)
+  const [koDeadlines, setKoDeadlines] = useState<Record<string, number | null>>({})
+  const now = Date.now()
   const [mainTab, setMainTab] = useState<MainTab>('user')
   const [userTab, setUserTab] = useState<UserTab>('matches')
   const [adminResults, setAdminResults] = useState<Record<number, Match>>({})
@@ -419,6 +421,14 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [userSubTab, setUserSubTab] = useState<'matches' | 'groups' | 'bonus' | 'knockout'>('matches')
   const [refreshKey, setRefreshKey] = useState(0)
   const [openKoRounds, setOpenKoRounds] = useState<Set<string>>(new Set(['R32', 'R16', 'QF', 'SF', '3P', 'F']))
+  // A knockout round is visible only when its deadline has passed (betting closed)
+  // Admins can always see everything
+  const isRoundVisible = (round: string) => {
+    if (isAdmin) return true
+    const dl = koDeadlines[round]
+    return dl != null && now > dl
+  }
+
   const toggleKoRound = (round: string) =>
     setOpenKoRounds(prev => { const s = new Set(prev); s.has(round) ? s.delete(round) : s.add(round); return s })
 
@@ -430,6 +440,19 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
       const deadline = settings.exists() ? settings.data().deadline : null
       const isClosed = !open || (deadline && Date.now() > deadline)
       setIsOpen(!isClosed)
+
+      // Load knockout round deadlines for visibility filtering
+      if (settings.exists()) {
+        const d = settings.data()
+        setKoDeadlines({
+          R32: d.knockoutDeadline ?? null,
+          R16: d.r16Deadline    ?? null,
+          QF:  d.qfDeadline     ?? null,
+          SF:  d.sfDeadline     ?? null,
+          '3P': d.p3Deadline ?? d.finalDeadline ?? null,
+          F:   d.finalDeadline  ?? null,
+        })
+      }
 
       const [resultsSnap, predsSnap, scoresSnap, koSnap, schedSnap] = await Promise.all([
         getDoc(doc(db, 'admin', 'results')),
@@ -986,6 +1009,7 @@ ${userRows}
                   )}
                 </div>
                 {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
+                  if (!isRoundVisible(round)) return null
                   const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
                   const hasAny = roundMatches.some(km => current.knockout?.[km.id]?.prediction1X2)
                   const redRound = round as 'R32' | 'R16' | 'QF'
@@ -1166,6 +1190,7 @@ ${userRows}
                 ))}
               </optgroup>
               {(['R32','R16','QF','SF','3P','F'] as const).map(round => {
+                  if (!isRoundVisible(round)) return null
                 const roundMatches = KNOCKOUT_MATCHES.filter(km => km.round === round)
                 const hasAny = roundMatches.some(km => knockoutAdminMatches[km.id]?.teamA || adminSchedule[km.id])
                 if (!hasAny) return null
@@ -1463,6 +1488,7 @@ ${userRows}
 
               {/* ── נוקאאוט ── */}
               {(['R32','R16','QF','SF','3P','F'] as const).map(round => {
+                  if (!isRoundVisible(round)) return null
                 const roundMatches = KNOCKOUT_MATCHES.filter(km => {
                   const adminKm = knockoutAdminMatches[km.id]
                   return adminKm?.teamA && users.some(u => u.knockout?.[km.id]?.prediction1X2)
