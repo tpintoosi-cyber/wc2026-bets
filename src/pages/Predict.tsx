@@ -1003,8 +1003,47 @@ export default function Predict({ lang }: { lang: Lang }) {
                   || advPicked === tA || advPicked === tB
                 if (!advBracketValid) ptsAdv = 0
 
-                // For QF+: use recursive bracket check — prevents showing potential
+                // For QF+: recursive bracket check — prevents showing potential
                 // for eliminated teams even when SF/Final team stubs aren't set yet
+                const canTeamReachMatch = (team: string, matchId: number, s: 'A' | 'B', depth = 0): boolean => {
+                  if (depth > 8 || !team) return true
+                  const b = KNOCKOUT_BRACKET[matchId]
+                  if (!b) return true
+                  const feederId = s === 'A' ? b.feederA : b.feederB
+                  if (feederId === null) return true
+                  if (feederId < 0) {
+                    const sfId = Math.abs(feederId)
+                    const sfBracket = KNOCKOUT_BRACKET[sfId]
+                    if (!sfBracket) return true
+                    const canBeA = canTeamReachMatch(team, sfId, 'A', depth + 1)
+                    const canBeB = canTeamReachMatch(team, sfId, 'B', depth + 1)
+                    if (!canBeA && !canBeB) return false
+                    const sfKm = knockoutMatches[sfId]
+                    if (sfKm?.isPlayed && sfKm?.advanceTeam) return sfKm.advanceTeam !== team
+                    return true
+                  }
+                  if (feederId === 0) return true
+                  const feederKm = knockoutMatches[feederId]
+                  if (!feederKm || (!feederKm.teamA && !feederKm.teamB)) {
+                    const fb = KNOCKOUT_BRACKET[feederId]
+                    if (!fb) return true
+                    const canA = fb.feederA !== null && fb.feederA > 0 ? canTeamReachMatch(team, feederId, 'A', depth + 1) : true
+                    const canB = fb.feederB !== null && fb.feederB > 0 ? canTeamReachMatch(team, feederId, 'B', depth + 1) : true
+                    return canA || canB
+                  }
+                  if (feederKm.isPlayed && feederKm.advanceTeam) return feederKm.advanceTeam === team
+                  const fA = feederKm.teamA, fB = feederKm.teamB
+                  if (fA && fB && fA !== team && fB !== team) return false
+                  if (fA === team) return canTeamReachMatch(team, feederId, 'A', depth + 1)
+                  if (fB === team) return canTeamReachMatch(team, feederId, 'B', depth + 1)
+                  const fb2 = KNOCKOUT_BRACKET[feederId]
+                  const predA2 = fb2?.feederA && fb2.feederA > 0 ? knockoutPreds[fb2.feederA]?.advance : undefined
+                  const predB2 = fb2?.feederB && fb2.feederB > 0 ? knockoutPreds[fb2.feederB]?.advance : undefined
+                  if (predA2 === team) return canTeamReachMatch(team, feederId, 'A', depth + 1)
+                  if (predB2 === team) return canTeamReachMatch(team, feederId, 'B', depth + 1)
+                  return true
+                }
+
                 const advInActualMatch = !isQFPlus || !advPicked
                   ? true
                   : canTeamReachMatch(advPicked, id, 'A') || canTeamReachMatch(advPicked, id, 'B')
@@ -1109,65 +1148,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             : isLocked)
                         : true
                       // Recursive chain check — traces the ENTIRE bracket path back.
-                      // Handles cases where intermediate rounds haven't been played yet.
-                      // e.g. Argentina eliminated in QF → shows grayed in SF AND Final.
-                      const canTeamReachMatch = (team: string, matchId: number, s: 'A' | 'B', depth = 0): boolean => {
-                        if (depth > 8 || !team) return true
-                        const b = KNOCKOUT_BRACKET[matchId]
-                        if (!b) return true
-                        const feederId = s === 'A' ? b.feederA : b.feederB
-                        if (feederId === null) return true  // admin-set slot
-
-                        // Negative feeder = loser of that SF match (3P case)
-                        if (feederId < 0) {
-                          const sfId = Math.abs(feederId)
-                          const sfBracket = KNOCKOUT_BRACKET[sfId]
-                          if (!sfBracket) return true
-                          // Team must be able to reach SF on either side
-                          const canBeA = canTeamReachMatch(team, sfId, 'A', depth + 1)
-                          const canBeB = canTeamReachMatch(team, sfId, 'B', depth + 1)
-                          if (!canBeA && !canBeB) return false  // can't reach SF → can't be 3P
-                          // If SF was played, team must be the loser (not the winner)
-                          const sfKm = knockoutMatches[sfId]
-                          if (sfKm?.isPlayed && sfKm?.advanceTeam) return sfKm.advanceTeam !== team
-                          return true
-                        }
-
-                        if (feederId === 0) return true  // admin-set slot
-                        const feederKm = knockoutMatches[feederId]
-                        if (!feederKm || (!feederKm.teamA && !feederKm.teamB)) {
-                          // No data for feeder — recurse to feeder's own feeders
-                          const fb = KNOCKOUT_BRACKET[feederId]
-                          if (!fb) return true
-                          const canA = fb.feederA !== null && fb.feederA > 0
-                            ? canTeamReachMatch(team, feederId, 'A', depth + 1) : true
-                          const canB = fb.feederB !== null && fb.feederB > 0
-                            ? canTeamReachMatch(team, feederId, 'B', depth + 1) : true
-                          return canA || canB
-                        }
-
-                        // Feeder played → team must have actually advanced
-                        if (feederKm.isPlayed && feederKm.advanceTeam) {
-                          return feederKm.advanceTeam === team
-                        }
-
-                        // Feeder not played — check actual team stubs (set via propagation)
-                        const fA = feederKm.teamA, fB = feederKm.teamB
-                        if (fA && fB && fA !== team && fB !== team) return false  // team not in feeder
-
-                        // Known which side team is on in feeder — recurse that side
-                        if (fA === team) return canTeamReachMatch(team, feederId, 'A', depth + 1)
-                        if (fB === team) return canTeamReachMatch(team, feederId, 'B', depth + 1)
-
-                        // Stubs not set — use user's bracket predictions to find team's side
-                        const fb = KNOCKOUT_BRACKET[feederId]
-                        const predA = fb?.feederA && fb.feederA > 0 ? knockoutPreds[fb.feederA]?.advance : undefined
-                        const predB = fb?.feederB && fb.feederB > 0 ? knockoutPreds[fb.feederB]?.advance : undefined
-                        if (predA === team) return canTeamReachMatch(team, feederId, 'A', depth + 1)
-                        if (predB === team) return canTeamReachMatch(team, feederId, 'B', depth + 1)
-
-                        return true  // can't determine → assume possible
-                      }
+                      // canTeamReachMatch defined above (before advInActualMatch)
                       const eliminated = isQFPlus && !!team && !canTeamReachMatch(team, id, side as 'A' | 'B')
                       return (
                         <div key={side}
