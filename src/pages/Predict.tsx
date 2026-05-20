@@ -114,6 +114,8 @@ export default function Predict({ lang }: { lang: Lang }) {
   const { user } = useAuth()
   const t = T[lang]
   const [tab, setTab] = useState<Tab>('matches')
+  // Auto-switch to knockout tab on first load once knockout window opens
+  const tabInitializedRef = useRef(false)
   const [bonusStandingsOpen, setBonusStandingsOpen] = useState(false)
   const [isOpen, setIsOpen] = useState(true)
   const [groupDeadline, setGroupDeadline] = useState<number | null>(null)
@@ -140,6 +142,14 @@ export default function Predict({ lang }: { lang: Lang }) {
   useEffect(() => {
     if (r16Deadline == null) setKnockoutView('form')
   }, [r16Deadline])
+
+  // Auto-switch to knockout tab on first load when knockout window is open
+  useEffect(() => {
+    if (!tabInitializedRef.current && knockoutOpen) {
+      setTab('knockout')
+      tabInitializedRef.current = true
+    }
+  }, [knockoutOpen])
 
   // Accordion state: which rounds are open in form view
   const [openRounds, setOpenRounds] = useState<Set<string>>(new Set(['R32']))
@@ -886,10 +896,13 @@ export default function Predict({ lang }: { lang: Lang }) {
               const handleMatchClick = (id: number) => {
                 setKnockoutView('form')
                 setFocusMatchId(id)
+                // Open the accordion for this round (in case it's collapsed)
+                const km = KNOCKOUT_MATCHES.find(m => m.id === id)
+                if (km) setOpenRounds(prev => new Set([...prev, km.round]))
                 setTimeout(() => {
                   const el = document.getElementById(`ko-match-${id}`)
                   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                }, 100)
+                }, 200)
               }
 
               const MatchCard = ({ id, compact = false, variant = 'normal' }: { id: number; compact?: boolean; variant?: 'normal' | 'final' | 'third' }) => {
@@ -1888,6 +1901,25 @@ export default function Predict({ lang }: { lang: Lang }) {
                             <span style={{ fontSize: 12, color: '#bbb' }}>
                               {round === 'R32' ? t.koPendingAdmin : t.koPendingPrev}
                             </span>
+                          )}
+                          {r16Deadline != null && (
+                            <button
+                              onClick={() => {
+                                setKnockoutView('bracket')
+                                setTimeout(() => {
+                                  document.getElementById(`bracket-match-${km.id}`)
+                                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                }, 150)
+                              }}
+                              title={lang === 'he' ? 'עבור לעץ' : 'Go to bracket'}
+                              style={{
+                                marginRight: 'auto', fontSize: 12, padding: '2px 7px',
+                                borderRadius: 6, border: '1px solid #ccc',
+                                background: '#f8f8f8', color: '#555',
+                                cursor: 'pointer', fontFamily: 'inherit',
+                              }}>
+                              🌳
+                            </button>
                           )}
                         </div>
 
