@@ -383,7 +383,23 @@ export default function Admin() {
     const data = matchData ?? matches
     const usersSnap = await getDocs(collection(db, 'predictions'))
     const playedMatches = MATCHES.map(m => ({ ...m, ...(data[m.id] ?? {}) })).filter(m => m.isPlayed)
-    const batch = writeBatch(db)
+
+    // Read current scores before computing new ones (for delta tracking)
+    const currentScoresSnap = await getDocs(collection(db, 'scores'))
+    const currentTotals: Record<string, number> = {}
+    const currentRanks: Record<string, number> = {}
+    const sortedCurrent = currentScoresSnap.docs
+      .map(d => ({ userId: d.id, total: (d.data().total ?? 0) as number,
+        prevTotal: d.data().prevTotal as number | undefined,
+        prevRank:  d.data().prevRank  as number | undefined }))
+      .sort((a, b) => b.total - a.total)
+    sortedCurrent.forEach((s, i) => {
+      currentTotals[s.userId] = s.total
+      currentRanks[s.userId] = i + 1
+    })
+
+    // Compute new scores
+    const newScores: { userId: string; score: ReturnType<typeof computeUserScore> }[] = []
     for (const userDoc of usersSnap.docs) {
       const d = userDoc.data()
       const playedKO = KNOCKOUT_MATCHES.map(km => ({ ...km, ...(knockoutMatches[km.id] ?? {}) })).filter(km => km.isPlayed)
@@ -394,8 +410,26 @@ export default function Admin() {
         d.bonus ?? {}, playedMatches, actualGroups, actualBonus,
         d.knockout ?? {}, playedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] }
       )
-      batch.set(doc(db, 'scores', userDoc.id), score)
+      newScores.push({ userId: userDoc.id, score })
     }
+
+    // Sort to compute new ranks
+    const sorted = [...newScores].sort((a, b) => b.score.total - a.score.total)
+
+    const batch = writeBatch(db)
+    sorted.forEach(({ userId, score }, i) => {
+      const newRank = i + 1
+      const prevTotal = currentTotals[userId] ?? score.total
+      const prevRank  = currentRanks[userId]  ?? newRank
+      const changed   = score.total !== prevTotal
+      const existingPrev = sortedCurrent.find(s => s.userId === userId)
+      batch.set(doc(db, 'scores', userId), {
+        ...score,
+        // Only update prev fields when score actually changed (avoid wiping delta on double-click)
+        prevTotal: changed ? prevTotal : (existingPrev?.prevTotal ?? prevTotal),
+        prevRank:  changed ? prevRank  : (existingPrev?.prevRank  ?? newRank),
+      })
+    })
     await batch.commit()
   }
 
@@ -707,6 +741,7 @@ export default function Admin() {
                   r16Deadline: null,
                   qfDeadline: null,
                   sfDeadline: null,
+                  p3Deadline: null,
                   finalDeadline: null,
                 }
                 const { doc: fbDoc, setDoc: fbSet } = await import('firebase/firestore')
@@ -719,6 +754,7 @@ export default function Admin() {
                   r16Deadline: '',
                   qfDeadline: '',
                   sfDeadline: '',
+                  p3Deadline: '',
                   finalDeadline: '',
                 }))
               }}

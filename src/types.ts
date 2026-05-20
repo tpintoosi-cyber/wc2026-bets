@@ -121,6 +121,8 @@ export interface UserScore {
   koF?:   number
   matchDetails: Record<number, MatchScore>
   lastUpdated: number
+  prevTotal?: number   // total before last חשב ניקוד click
+  prevRank?:  number   // rank before last חשב ניקוד click
 }
 
 export interface AppSettings {

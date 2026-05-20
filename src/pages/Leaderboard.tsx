@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { collection, onSnapshot, query, orderBy, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -8,17 +8,9 @@ export default function Leaderboard() {
   const { user } = useAuth()
   const [scores,    setScores]    = useState<UserScore[]>([])
   const [nicknames, setNicknames] = useState<Record<string, string>>({})
-  const [deltas,    setDeltas]    = useState<Record<string, number>>({})
   const [loading,   setLoading]   = useState(true)
-  const prevRef = useRef<Record<string, number>>({})
 
   useEffect(() => {
-    // Restore previous scores and deltas from last session
-    const savedPrev = localStorage.getItem('lb_prev_scores')
-    if (savedPrev) prevRef.current = JSON.parse(savedPrev)
-    const savedDeltas = localStorage.getItem('lb_deltas')
-    if (savedDeltas) setDeltas(JSON.parse(savedDeltas))
-
     getDocs(collection(db, 'predictions')).then(snap => {
       const nicks: Record<string, string> = {}
       snap.docs.forEach(d => { if (d.data().nickname) nicks[d.id] = d.data().nickname })
@@ -27,28 +19,9 @@ export default function Leaderboard() {
 
     const q = query(collection(db, 'scores'), orderBy('total', 'desc'))
     return onSnapshot(q, snap => {
-      const newScores = snap.docs.map(d => d.data() as UserScore)
-      const newDeltas: Record<string, number> = {}
-      let anyDelta = false
-      newScores.forEach(s => {
-        const prev = prevRef.current[s.userId]
-        if (prev !== undefined && s.total !== prev) {
-          newDeltas[s.userId] = s.total - prev
-          anyDelta = true
-        }
-      })
-      // Save current scores for next comparison
-      prevRef.current = Object.fromEntries(newScores.map(s => [s.userId, s.total]))
-      localStorage.setItem('lb_prev_scores', JSON.stringify(prevRef.current))
-
+      const newScores = snap.docs.map(d => ({ ...d.data() } as UserScore & { prevTotal?: number; prevRank?: number }))
       setScores(newScores)
       setLoading(false)
-
-      if (anyDelta) {
-        setDeltas(newDeltas)
-        localStorage.setItem('lb_deltas', JSON.stringify(newDeltas))
-        // No timeout — deltas stay until the next real score update
-      }
     })
   }, [])
 
@@ -199,7 +172,9 @@ export default function Leaderboard() {
         {scores.map((s, i) => {
           const isMe  = s.userId === user?.uid
           const pct   = maxTotal > 0 ? (s.total / maxTotal) * 100 : 0
-          const delta = deltas[s.userId]
+          const sExt  = s as UserScore & { prevTotal?: number; prevRank?: number }
+          const ptsDelta  = sExt.prevTotal != null && sExt.prevTotal !== s.total ? s.total - sExt.prevTotal : null
+          const rankDelta = sExt.prevRank  != null && sExt.prevRank  !== (i + 1)  ? sExt.prevRank - (i + 1) : null
           const rank  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1
 
           const rowContent = (
@@ -207,7 +182,14 @@ export default function Leaderboard() {
               {tournamentStarted && (
                 <div className="lb-row-bar" style={{ width: `${pct}%` }} />
               )}
-              <span className="lb-rank" style={{ fontWeight: 800 }}>{rank}</span>
+              <span className="lb-rank" style={{ fontWeight: 800 }}>
+                {rank}
+                {rankDelta != null && rankDelta !== 0 && (
+                  <span style={{ fontSize: 10, marginRight: 2, color: rankDelta > 0 ? '#1a7a44' : '#c0392b' }}>
+                    {rankDelta > 0 ? `▲${rankDelta}` : `▼${Math.abs(rankDelta)}`}
+                  </span>
+                )}
+              </span>
               <span className="lb-name" style={{ fontWeight: isMe ? 700 : 400 }}>
                 {displayName(s)}
                 {isMe && <span style={{ fontSize: 11, color: '#185FA5', marginRight: 4 }}>(אני)</span>}
@@ -220,13 +202,13 @@ export default function Leaderboard() {
               ))}
               <span className="lb-total" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
                 <span>{s.total}</span>
-                {delta != null && delta !== 0 && (
-                  <span className="delta-badge" style={{
+                {ptsDelta != null && ptsDelta !== 0 && (
+                  <span style={{
                     fontSize: 11, fontWeight: 800, padding: '1px 6px', borderRadius: 20,
-                    background: delta > 0 ? '#EAF3DE' : '#FCEBEB',
-                    color:      delta > 0 ? '#1a7a44' : '#c0392b',
+                    background: ptsDelta > 0 ? '#EAF3DE' : '#FCEBEB',
+                    color:      ptsDelta > 0 ? '#1a7a44' : '#c0392b',
                   }}>
-                    {delta > 0 ? `+${delta}` : delta}
+                    {ptsDelta > 0 ? `+${ptsDelta}` : ptsDelta}
                   </span>
                 )}
               </span>

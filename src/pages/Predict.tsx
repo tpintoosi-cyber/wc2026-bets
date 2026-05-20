@@ -5,7 +5,7 @@ import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
 import { MATCHES, GROUPS_TEAMS, BONUS_QUESTIONS, FLAGS, MATCH_SCHEDULE, TEAM_EN, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, KNOCKOUT_BRACKET, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { MatchPrediction, GroupPrediction, BonusPredictions, Group, Category, KnockoutMatchPrediction, Result1X2 } from '../types'
-import { calc1X2Points, calcOverUnder, calcAdvancePoints } from '../scoring'
+import { calc1X2Points, calcOverUnder, calcAdvancePoints, getOUType } from '../scoring'
 import { T, Lang, Translations, BONUS_QUESTIONS_EN } from '../i18n'
 
 const MAX_RED_CARDS = 6
@@ -984,8 +984,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                 let predOuLabel: string | null = null
                 if (hasScore && km && pred!.scoreA !== null && pred!.scoreB !== null) {
                   const goalTotal = Number(pred!.scoreA) + Number(pred!.scoreB)
-                  const ouType = catIdx <= 1 ? (goalTotal < 2 ? 'under' : goalTotal > 3 ? 'over' : null) : (goalTotal < 3 ? 'under' : goalTotal > 4 ? 'over' : null)
-                  if (ouType) predOuLabel = ouType === 'under' ? t.under : t.over
+                  const ouT = getOUType(goalTotal, dynCat as Category, km.round)
+                  if (ouT) predOuLabel = ouT === 'under' ? t.under : t.over
                 }
 
                 // Advance pick
@@ -1003,11 +1003,11 @@ export default function Predict({ lang }: { lang: Lang }) {
                   || advPicked === tA || advPicked === tB
                 if (!advBracketValid) ptsAdv = 0
 
-                // For QF+: is the advance pick actually in the real match?
-                // (bracket-valid but actual teams may differ — Spain predicted but Argentina played)
+                // For QF+: use recursive bracket check — prevents showing potential
+                // for eliminated teams even when SF/Final team stubs aren't set yet
                 const advInActualMatch = !isQFPlus || !advPicked
-                  || !actualTeamA || !actualTeamB
-                  || advPicked === actualTeamA || advPicked === actualTeamB
+                  ? true
+                  : canTeamReachMatch(advPicked, id, 'A') || canTeamReachMatch(advPicked, id, 'B')
 
                 // Potential advance points (pre-match)
                 const potentialAdvPts = (() => {
@@ -1716,7 +1716,35 @@ export default function Predict({ lang }: { lang: Lang }) {
             }
 
             // ── FORM VIEW ───────────────────────────────────────────────────
-            return (['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
+            // Compute first unfilled match across all open rounds for sticky button
+            const allOpenRounds = (['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).filter(r => !isRoundLocked(r))
+            const firstUnfilledId = (() => {
+              for (const r of allOpenRounds) {
+                const needsAdv = r === 'R32' || r === 'R16'
+                for (const km of KNOCKOUT_MATCHES.filter(m => m.round === r)) {
+                  const tA = getFormTeam(km.id, 'A'), tB = getFormTeam(km.id, 'B')
+                  if (!tA || !tB) continue
+                  const p = knockoutPreds[km.id]
+                  if (!p?.prediction1X2 || p?.scoreA == null || p?.scoreB == null) return km.id
+                  if (needsAdv && !p?.advance) return km.id
+                }
+              }
+              return null
+            })()
+
+            const jumpToNext = () => {
+              if (!firstUnfilledId) return
+              // Open the round accordion if closed
+              const km = KNOCKOUT_MATCHES.find(m => m.id === firstUnfilledId)
+              if (km) setOpenRounds(prev => new Set([...prev, km.round]))
+              setTimeout(() => {
+                document.getElementById(`ko-match-${firstUnfilledId}`)
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+              }, 80)
+            }
+
+            return (<>
+              {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
               const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
               const redCardRounds = { R32: 3, R16: 2, QF: 1 } as Record<string, number>
               const maxRedCards = redCardRounds[round]
@@ -1811,27 +1839,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                     <div style={{ borderTop: `1px solid ${isActive ? '#c0e8d0' : '#eee'}` }}>
                       <DeadlineBanner deadline={roundDeadlineTs} locked={roundLocked} />
 
-                      {/* Jump to first unfilled match */}
-                      {!roundLocked && !allFilled && total > 0 && (
-                        <div style={{ padding: '6px 14px 0' }}>
-                          <button
-                            onClick={() => {
-                              const firstUnfilled = availableMatches.find(km => !filledMatches.includes(km))
-                              if (firstUnfilled) {
-                                const el = document.getElementById(`ko-match-${firstUnfilled.id}`)
-                                el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                              }
-                            }}
-                            style={{
-                              width: '100%', padding: '6px', borderRadius: 8,
-                              border: '1px dashed #1a7a44', background: '#f0fbf4',
-                              color: '#1a5c30', fontSize: 12, fontWeight: 600,
-                              cursor: 'pointer', fontFamily: 'inherit',
-                            }}>
-                            {lang === 'he' ? `↓ קפוץ למשחק הבא שלא מולא (${filled}/${total})` : `↓ Jump to next unfilled (${filled}/${total})`}
-                          </button>
-                        </div>
-                      )}
+                      {/* Jump button now handled by sticky bar below — just mark matches with IDs */}
 
                       {/* Red card picks — per round */}
                       {maxRedCards && (
@@ -2034,13 +2042,9 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 if (pred.scoreA !== null && pred.scoreA !== undefined) {
                                   const goalTotal = Number(pred.scoreA) + Number(pred.scoreB ?? 0)
                                   const ouPts = { R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 }[km.round]
-                                  const isOU = km.round === 'F'
-                                    ? (goalTotal === 0 || goalTotal >= 4)
-                                    : km.round === '3P'
-                                    ? (goalTotal <= 2 || goalTotal >= 5)
-                                    : catIdx <= 1 ? (goalTotal <= 1 || goalTotal >= 4) : (goalTotal <= 2 || goalTotal >= 5)
-                                  if (isOU) {
-                                    const ouLabel = goalTotal <= (catIdx <= 1 ? 1 : 2) ? t.under : t.over
+                                  const ouT = getOUType(goalTotal, dynCat as any, km.round)
+                                  if (ouT) {
+                                    const ouLabel = ouT === 'under' ? t.under : t.over
                                     breakdown.push(`${t.exactScore}: 2 (הפרש: 1) | ${ouLabel}: ${ouPts}`)
                                     total += 2 + ouPts
                                   } else {
@@ -2095,7 +2099,31 @@ export default function Predict({ lang }: { lang: Lang }) {
                   )}
                 </div>
               )
-            })
+            })}
+
+              {/* Sticky "next unfilled" button — always visible at bottom of form */}
+              {firstUnfilledId && (
+                <div style={{
+                  position: 'sticky', bottom: 12, zIndex: 50,
+                  display: 'flex', justifyContent: 'center',
+                  pointerEvents: 'none',
+                }}>
+                  <button
+                    onClick={jumpToNext}
+                    style={{
+                      pointerEvents: 'all',
+                      padding: '9px 20px', borderRadius: 24,
+                      border: 'none', background: '#1a1a2e',
+                      color: '#fff', fontSize: 13, fontWeight: 700,
+                      cursor: 'pointer', fontFamily: 'inherit',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                      display: 'flex', alignItems: 'center', gap: 6,
+                    }}>
+                    ↓ {lang === 'he' ? 'משחק הבא שלא מולא' : 'Next unfilled match'}
+                  </button>
+                </div>
+              )}
+            </>)
           })()}
         </div>
       )}</div>

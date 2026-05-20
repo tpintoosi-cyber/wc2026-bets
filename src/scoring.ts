@@ -70,12 +70,23 @@ export function calc1X2KnockoutPoints(
 }
 
 // ── OVER/UNDER TYPE ──────────────────────────────────────────────────────────
-// Determines if a goal total qualifies as under, over, or neither.
 // A/B: under < 2 goals (0–1), over > 3 goals (4+), 2–3 = neither
 // C/D: under < 3 goals (0–2), over > 4 goals (5+), 3–4 = neither
+// F (Final):  under ≤ 1 goal, over ≥ 4 goals  — ignores category
+// 3P:         under ≤ 1 goal, over ≥ 5 goals  — ignores category
 export type OUType = 'under' | 'over' | null
 
-export function getOUType(total: number, category: Category): OUType {
+export function getOUType(total: number, category: Category, round?: KnockoutRound): OUType {
+  if (round === 'F') {
+    if (total <= 1) return 'under'
+    if (total >= 4) return 'over'
+    return null
+  }
+  if (round === '3P') {
+    if (total <= 1) return 'under'
+    if (total >= 5) return 'over'
+    return null
+  }
   if (category === 'A' || category === 'B') {
     if (total < 2) return 'under'
     if (total > 3) return 'over'
@@ -97,18 +108,17 @@ export function calcOUPoints(
   category: Category,
   round?: KnockoutRound
 ): number {
-  // Exact score already includes OU in calcScorePoints — skip to avoid double counting
   if (predA === resultA && predB === resultB) return 0
-  const predType  = getOUType(predA + predB, category)
-  const actType   = getOUType(resultA + resultB, category)
+  const predType  = getOUType(predA + predB, category, round)
+  const actType   = getOUType(resultA + resultB, category, round)
   if (!predType || predType !== actType) return 0
-  if (!round) return 1  // group stage
+  if (!round) return 1
   return ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round] ?? 1
 }
 
 // Keep old calcOverUnder as alias (used in displays)
 export function calcOverUnder(total: number, category: Category): boolean {
-  return getOUType(total, category) !== null
+  return getOUType(total, category, round) !== null
 }
 
 // ── KNOCKOUT OVER/UNDER (legacy — kept for display) ──────────────────────────
@@ -118,7 +128,7 @@ export function calcOverUnderKnockout(
   round: KnockoutRound
 ): { qualifies: boolean; points: number } {
   const points = ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round]
-  return { qualifies: getOUType(total, category) !== null, points }
+  return { qualifies: getOUType(total, category, round) !== null, points }
 }
 
 // ── GROUP STAGE SCORE ─────────────────────────────────────────────────────────
@@ -134,7 +144,7 @@ export function calcScorePoints(
 ): number {
   if (predA === resultA && predB === resultB) {
     const total = resultA + resultB
-    const ouBonus = category && getOUType(total, category) !== null ? 1 : 0
+    const ouBonus = category && getOUType(total, category, round) !== null ? 1 : 0
     return 2 + ouBonus
   }
   if ((predA - predB) === (resultA - resultB)) return 1
@@ -153,7 +163,7 @@ export function calcScoreKnockoutPoints(
 ): number {
   if (predA === resultA && predB === resultB) {
     const total = resultA + resultB
-    const ouPts = (category && round && getOUType(total, category) !== null)
+    const ouPts = (category && round && getOUType(total, category, round) !== null)
       ? (({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round] ?? 0)
       : 0
     return 2 + ouPts
@@ -359,14 +369,15 @@ export function computeUserScore(
         )
       }
 
-      // Score points (exact=2, right diff=1)
+      // calcScoreKnockoutPoints includes OU for exact (returns 2+OU when category+round passed)
+      // calcOUPoints adds OU for non-exact only (returns 0 for exact to avoid double count)
       if (pred.scoreA !== null && pred.scoreA !== undefined &&
           pred.scoreB !== null && pred.scoreB !== undefined) {
         matchPts += calcScoreKnockoutPoints(
           Number(pred.scoreA), Number(pred.scoreB),
-          km.resultA, km.resultB
+          km.resultA, km.resultB,
+          km.category, km.round
         )
-        // OU points — independent of exact score
         matchPts += calcOUPoints(
           Number(pred.scoreA), Number(pred.scoreB),
           km.resultA, km.resultB,

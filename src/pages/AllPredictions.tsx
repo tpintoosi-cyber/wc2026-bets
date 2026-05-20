@@ -554,19 +554,21 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
     const p1 = calc1X2Points(pred.prediction1X2, rA, rB, match.fifaPointsA, match.fifaPointsB, match.category)
     if (p1 > 0) items.push(`1X2: +${p1}`)
     if (pA !== null && pB !== null) {
+      // Use scoring.ts getOUType for consistency (group stage has no round override)
+      const ouTypeOf = (t: number) => {
+        const isAB = match.category === 'A' || match.category === 'B'
+        return isAB ? (t < 2 ? 'under' : t > 3 ? 'over' : null) : (t < 3 ? 'under' : t > 4 ? 'over' : null)
+      }
       if (pA === rA && pB === rB) {
         const total = rA + rB
-        const isOU = (match.category === 'A' || match.category === 'B') ? (total < 2 || total > 3) : (total < 3 || total > 4)
-        const ouLabel = total <= ((match.category === 'A' || match.category === 'B') ? 1 : 2) ? 'אנדר' : 'אובר'
-        items.push(`מדויק: +2${isOU ? ` (${ouLabel})` : ''}`)
-        if (isOU) items.push(`${ouLabel}: +1`)
+        const ouT = ouTypeOf(total)
+        const ouLabel = ouT === 'under' ? 'אנדר' : ouT === 'over' ? 'אובר' : null
+        // For exact: show OU inline in מדויק chip only (no separate chip)
+        items.push(`מדויק: +2${ouLabel ? ` (${ouLabel})` : ''}`)
       } else {
         if ((pA - pB) === (rA - rB)) items.push('הפרש: +1')
-        // Non-exact OU: check if both predicted and actual totals share same OU type
-        const predTotal = pA + pB, actTotal = rA + rB
-        const isAB = match.category === 'A' || match.category === 'B'
-        const getOUType = (t: number) => isAB ? (t < 2 ? 'under' : t > 3 ? 'over' : null) : (t < 3 ? 'under' : t > 4 ? 'over' : null)
-        const predOU = getOUType(predTotal), actOU = getOUType(actTotal)
+        // Non-exact OU: show separate chip
+        const predOU = ouTypeOf(pA + pB), actOU = ouTypeOf(rA + rB)
         if (predOU && predOU === actOU) {
           items.push((predOU === 'under' ? 'אנדר' : 'אובר') + ': +1')
         }
@@ -867,11 +869,11 @@ ${userRows}
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, marginBottom: 5 }}>{t.myPrediction}</div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                  <span style={{ fontSize: 13, fontWeight: 600 }}>{match.teamB}</span>
-                                  <span style={{ fontSize: 15, fontWeight: 700 }}>{p.scoreB ?? '?'}</span>
-                                  <span style={{ color: '#aaa' }}>–</span>
-                                  <span style={{ fontSize: 15, fontWeight: 700 }}>{p.scoreA ?? '?'}</span>
                                   <span style={{ fontSize: 13, fontWeight: 600 }}>{match.teamA}</span>
+                                  <span style={{ fontSize: 15, fontWeight: 700 }}>{p.scoreA ?? '?'}</span>
+                                  <span style={{ color: '#aaa' }}>–</span>
+                                  <span style={{ fontSize: 15, fontWeight: 700 }}>{p.scoreB ?? '?'}</span>
+                                  <span style={{ fontSize: 13, fontWeight: 600 }}>{match.teamB}</span>
                                   <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#1a1a2e', color: '#fff' }}>
                                     {p.prediction1X2 === '1' ? match.teamA : p.prediction1X2 === '2' ? match.teamB : 'תיקו'}
                                   </span>
@@ -886,11 +888,11 @@ ${userRows}
                                     {tag && <ResultTag label={tag.label} type={tag.type} />}
                                   </div>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{match.teamB}</span>
-                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#555' }}>{result.resultB ?? 0}</span>
-                                    <span style={{ color: '#aaa' }}>–</span>
-                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#555' }}>{result.resultA ?? 0}</span>
                                     <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{match.teamA}</span>
+                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#555' }}>{result.resultA ?? 0}</span>
+                                    <span style={{ color: '#aaa' }}>–</span>
+                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#555' }}>{result.resultB ?? 0}</span>
+                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{match.teamB}</span>
                                     {result.hadRedCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥</span>}
                                   </div>
                                   {breakdown.length > 0 && (
@@ -1083,6 +1085,7 @@ ${userRows}
                               <div key={km.id} style={{ border: `1px solid ${isPlayed ? (total > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', gap: 6, flexWrap: 'wrap', background: '#fafbff' }}>
                                   <span style={{ fontSize: 10, color: '#bbb' }}>#{km.id}</span>
+                                  <span className={`cat-badge cat-${cat?.toLowerCase?.() ?? 'a'}`}>{cat}</span>
                                   <span style={{ fontWeight: 600, fontSize: 12 }}>{actualTeamA ? <><Flag emoji={FLAGS[actualTeamA]??''} size={18} /> {actualTeamA}</> : '?'}</span>
                                   <span style={{ fontSize: 12, fontWeight: 700, color: '#555' }}>{pred.scoreA ?? '?'}–{pred.scoreB ?? '?'}</span>
                                   <span style={{ fontWeight: 600, fontSize: 12 }}>{actualTeamB ? <>{actualTeamB} <Flag emoji={FLAGS[actualTeamB]??''} size={18} /></> : '?'}</span>
