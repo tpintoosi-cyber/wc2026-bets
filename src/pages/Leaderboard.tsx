@@ -108,14 +108,14 @@ export default function Leaderboard() {
             <div style={{ fontSize: 11, color: '#aaa', marginBottom: 2 }}>הניקוד שלי</div>
             <div style={{ fontSize: 32, fontWeight: 800, color: '#7EC8E3', lineHeight: 1 }}>
               {myScore.total}
-              {deltas[myScore.userId] != null && deltas[myScore.userId] !== 0 && (
+              {(() => { const ms = myScore as typeof myScore & { prevTotal?: number }; const d = ms.prevTotal != null && ms.prevTotal !== myScore.total ? myScore.total - ms.prevTotal : null; return d != null && d !== 0 ? (
                 <span className="delta-badge" style={{
                   fontSize: 14, marginRight: 8, padding: '2px 8px', borderRadius: 20,
                   background: '#EAF3DE', color: '#1a7a44', fontWeight: 800,
                 }}>
-                  +{deltas[myScore.userId]}
+                  {d > 0 ? `+${d}` : d}
                 </span>
-              )}
+              ) : null })()}
             </div>
             <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>נקודות</div>
           </div>
@@ -238,13 +238,13 @@ export default function Leaderboard() {
                   <span style={{ fontWeight: 800, fontSize: 20, minWidth: 44, textAlign: 'left' }}>
                     {s.total}
                   </span>
-                  {delta != null && delta !== 0 && (
+                  {ptsDelta != null && ptsDelta !== 0 && (
                     <span className="delta-badge" style={{
                       fontSize: 11, fontWeight: 800, padding: '1px 6px', borderRadius: 20,
-                      background: delta > 0 ? '#EAF3DE' : '#FCEBEB',
-                      color:      delta > 0 ? '#1a7a44' : '#c0392b',
+                      background: ptsDelta > 0 ? '#EAF3DE' : '#FCEBEB',
+                      color:      ptsDelta > 0 ? '#1a7a44' : '#c0392b',
                     }}>
-                      {delta > 0 ? `+${delta}` : delta}
+                      {ptsDelta > 0 ? `+${ptsDelta}` : ptsDelta}
                     </span>
                   )}
                 </div>
