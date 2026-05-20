@@ -143,13 +143,13 @@ export default function Predict({ lang }: { lang: Lang }) {
     if (r16Deadline == null) setKnockoutView('form')
   }, [r16Deadline])
 
-  // Auto-switch to knockout tab on first load when knockout window is open
+  // Auto-switch to knockout tab on first load only when group stage is closed and knockout is open
   useEffect(() => {
-    if (!tabInitializedRef.current && knockoutOpen) {
+    if (!tabInitializedRef.current && knockoutOpen && !isOpen) {
       setTab('knockout')
       tabInitializedRef.current = true
     }
-  }, [knockoutOpen])
+  }, [knockoutOpen, isOpen])
 
   // Accordion state: which rounds are open in form view
   const [openRounds, setOpenRounds] = useState<Set<string>>(new Set(['R32']))
@@ -551,7 +551,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                         ? calcMaxPoints(p, match.category, match.fifaPointsA, match.fifaPointsB, t)
                         : { total: 0, breakdown: [] }
                       return (
-                        <div key={match.id} className="match-row">
+                        <div key={match.id} id={`match-${match.id}`} className="match-row">
                           <div className="match-header">
                             <span className="match-datetime">
                               🗓 {getMatchTime(match.id) ?? '—'}
@@ -636,6 +636,25 @@ export default function Predict({ lang }: { lang: Lang }) {
               })}
             </div>
           ))}
+          {/* Sticky next-unfilled button for group stage */}
+          {isOpen && (() => {
+            const firstUnfilled = MATCHES.find(m => !matchPreds[m.id]?.prediction1X2)
+            if (!firstUnfilled) return null
+            return (
+              <div style={{ position: 'sticky', bottom: 12, zIndex: 50, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
+                <button
+                  onClick={() => document.getElementById(`match-${firstUnfilled.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                  style={{
+                    pointerEvents: 'all', padding: '9px 20px', borderRadius: 24,
+                    border: 'none', background: '#1a1a2e', color: '#fff',
+                    fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                  }}>
+                  ↓ {lang === 'he' ? 'משחק הבא שלא מולא' : 'Next unfilled match'}
+                </button>
+              </div>
+            )
+          })()}
         </div>
       )}
 
