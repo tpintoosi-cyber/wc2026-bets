@@ -389,8 +389,11 @@ describe('calcOUPoints', () => {
   it('F: non-exact under Cat A → 2pt', () => {
     expect(calcOUPoints(0, 0, 1, 0, 'A', 'F')).toBe(2)
   })
-  it('3P: non-exact under Cat C → 1pt', () => {
-    expect(calcOUPoints(1, 0, 0, 2, 'C', '3P')).toBe(1)  // pred=1 under C, actual=2 under C
+  it('3P: non-exact under → 1pt (under = ≤1 goal for 3P)', () => {
+    expect(calcOUPoints(0, 0, 1, 0, 'C', '3P')).toBe(1)  // pred=0 under 3P (≤1), actual=1 under 3P (≤1)
+  })
+  it('3P: actual=2 goals → neither (not under, not over) → 0pt', () => {
+    expect(calcOUPoints(1, 0, 0, 2, 'C', '3P')).toBe(0)  // actual=2 is neither for 3P
   })
 
   // ── No round (group stage) ────────────────────────────────────────────────
