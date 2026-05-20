@@ -118,7 +118,7 @@ export function calcOUPoints(
 
 // Keep old calcOverUnder as alias (used in displays)
 export function calcOverUnder(total: number, category: Category): boolean {
-  return getOUType(total, category, round) !== null
+  return getOUType(total, category) !== null
 }
 
 // ── KNOCKOUT OVER/UNDER (legacy — kept for display) ──────────────────────────
@@ -144,7 +144,7 @@ export function calcScorePoints(
 ): number {
   if (predA === resultA && predB === resultB) {
     const total = resultA + resultB
-    const ouBonus = category && getOUType(total, category, round) !== null ? 1 : 0
+    const ouBonus = category && getOUType(total, category) !== null ? 1 : 0
     return 2 + ouBonus
   }
   if ((predA - predB) === (resultA - resultB)) return 1
