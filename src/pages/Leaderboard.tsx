@@ -123,7 +123,7 @@ export default function Leaderboard() {
     if (filters.assists  && b.q110 !== filters.assists)  return false
     return true
   })
-  const activeFilterCount = Object.entries(filters).filter(([k, v]) => k === 'topN' ? v > 0 : !!v).length
+  const activeFilterCount = Object.entries(filters).filter(([k, v]) => k === 'topN' ? (v as number) > 0 : !!v).length
 
   return (
     <div className="page" style={{ paddingBottom: 40 }}>
