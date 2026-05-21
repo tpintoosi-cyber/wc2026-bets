@@ -556,6 +556,14 @@ export default function Admin() {
 
       {/* API Sync */}
       {adminTab === 'group' && <>
+      {/* Quick access buttons at top of tab */}
+      <div style={{ display: 'flex', gap: 8, padding: '8px 0', borderBottom: '1px solid #eee', marginBottom: 8 }}>
+        <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ flex: 1 }}>
+          {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
+        </button>
+        <button className="btn-primary" onClick={saveResults} style={{ flex: 1 }}>💾 שמור תוצאות</button>
+      </div>
+
       <section className="admin-section api-sync-section">
         <h2>🔄 סנכרון מ-API</h2>
         <p className="hint">מושך שעות ותוצאות אוטומטית מ-wc2026api.com</p>
@@ -592,6 +600,7 @@ export default function Admin() {
       <section className="admin-section">
         <h2>תוצאות משחקים (ידני)</h2>
         <p className="hint">ניתן גם לסנכרן אוטומטית מה-API למעלה</p>
+        <button className="btn-primary" onClick={saveResults} style={{ marginBottom: 12 }}>💾 שמור תוצאות</button>
         {[1, 2, 3].map(round => (
           <div key={round}>
             <h3>סיבוב {round}</h3>
@@ -689,6 +698,13 @@ export default function Admin() {
 
       {/* ── KNOCKOUT TAB ─────────────────────────────────── */}
       {adminTab === 'knockout' && <>
+      {/* Quick access buttons at top of knockout tab */}
+      <div style={{ display: 'flex', gap: 8, padding: '8px 0', borderBottom: '1px solid #eee', marginBottom: 8 }}>
+        <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ flex: 1 }}>
+          {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
+        </button>
+        <button className="btn-primary" onClick={saveKnockout} style={{ flex: 1 }}>💾 שמור נוקאאוט</button>
+      </div>
 
         {/* Knockout settings */}
         <section className="admin-section">

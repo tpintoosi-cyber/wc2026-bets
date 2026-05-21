@@ -116,6 +116,7 @@ export default function Predict({ lang }: { lang: Lang }) {
   const [tab, setTab] = useState<Tab>('matches')
   // Auto-switch to knockout tab on first load once knockout window opens
   const tabInitializedRef = useRef(false)
+  const [showGroupSummary, setShowGroupSummary] = useState(false)
   const [bonusStandingsOpen, setBonusStandingsOpen] = useState(false)
   const [isOpen, setIsOpen] = useState(true)
   const [groupDeadline, setGroupDeadline] = useState<number | null>(null)
@@ -536,6 +537,62 @@ export default function Predict({ lang }: { lang: Lang }) {
       {tab === 'matches' && (
         <div className="matches-section">
           <DeadlineBanner deadline={groupDeadline} locked={!isOpen} />
+
+          {/* Sticky mini group standings toggle */}
+          <div style={{ position: 'sticky', top: 0, zIndex: 40, background: '#fff', borderBottom: '1px solid #eee', marginBottom: 8 }}>
+            <button
+              onClick={() => setShowGroupSummary(v => !v)}
+              style={{
+                width: '100%', padding: '7px 14px', border: 'none', background: 'transparent',
+                cursor: 'pointer', fontFamily: 'inherit', fontSize: 13, fontWeight: 600,
+                color: '#1a1a2e', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}>
+              📊 {lang === 'he' ? 'מצב הבתים לפי ניחושיי' : 'My predicted standings'}
+              <span style={{ fontSize: 11, color: '#888' }}>{showGroupSummary ? '▲' : '▼'}</span>
+            </button>
+            {showGroupSummary && (
+              <div style={{ padding: '0 8px 10px', overflowX: 'auto' }}>
+                <div style={{ display: 'flex', gap: 8, minWidth: 'max-content' }}>
+                  {GROUPS.map(group => {
+                    const teams = GROUPS_TEAMS[group]
+                    const groupMatches = MATCHES.filter(m => m.group === group)
+                    const standings = teams.map(team => {
+                      let pts = 0, gf = 0, ga = 0
+                      groupMatches.forEach(m => {
+                        const pred = matchPreds[m.id]
+                        if (pred?.scoreA == null || pred?.scoreB == null) return
+                        const isA = m.teamA === team, isB = m.teamB === team
+                        if (!isA && !isB) return
+                        const rA = Number(pred.scoreA), rB = Number(pred.scoreB)
+                        if (isA) { gf += rA; ga += rB; pts += rA > rB ? 3 : rA === rB ? 1 : 0 }
+                        else     { gf += rB; ga += rA; pts += rB > rA ? 3 : rA === rB ? 1 : 0 }
+                      })
+                      return { team, pts, gd: gf - ga }
+                    }).sort((a, b) => b.pts - a.pts || b.gd - a.gd)
+                    return (
+                      <div key={group} style={{ minWidth: 110, fontSize: 11, border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden' }}>
+                        <div style={{ background: '#1a1a2e', color: '#fff', fontWeight: 700, fontSize: 11, padding: '3px 8px', textAlign: 'center' }}>
+                          {t.group} {group}
+                        </div>
+                        {standings.map((s, i) => (
+                          <div key={s.team} style={{
+                            display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px',
+                            background: i < 2 ? (i === 0 ? '#EAF3DE' : '#EDF5FF') : '#fff',
+                            borderBottom: i < standings.length - 1 ? '1px solid #f0f0f0' : 'none',
+                          }}>
+                            <span style={{ fontWeight: 700, color: i < 2 ? '#1a7a44' : '#bbb', minWidth: 10 }}>{i + 1}</span>
+                            <Flag emoji={FLAGS[s.team] ?? ''} size={13} />
+                            <span style={{ flex: 1, fontWeight: i < 2 ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{tn(s.team)}</span>
+                            <span style={{ fontWeight: 700, color: '#333', fontSize: 12 }}>{s.pts}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
           {[1, 2, 3].map(round => (
             <div key={round}>
               <h2 className="round-title">{t.round} {round}</h2>
@@ -638,12 +695,20 @@ export default function Predict({ lang }: { lang: Lang }) {
           ))}
           {/* Sticky next-unfilled button for group stage */}
           {isOpen && (() => {
-            const firstUnfilled = MATCHES.find(m => !matchPreds[m.id]?.prediction1X2)
+            // Find first unfilled in display order (round 1→3, then groups A→L)
+            let firstUnfilled = null
+            outer: for (const round of [1, 2, 3]) {
+              for (const group of GROUPS) {
+                const ms = MATCHES.filter(m => m.round === round && m.group === group)
+                const unf = ms.find(m => !matchPreds[m.id]?.prediction1X2)
+                if (unf) { firstUnfilled = unf; break outer }
+              }
+            }
             if (!firstUnfilled) return null
             return (
               <div style={{ position: 'sticky', bottom: 12, zIndex: 50, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
                 <button
-                  onClick={() => document.getElementById(`match-${firstUnfilled.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                  onClick={() => document.getElementById(`match-${firstUnfilled!.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                   style={{
                     pointerEvents: 'all', padding: '9px 20px', borderRadius: 24,
                     border: 'none', background: '#1a1a2e', color: '#fff',
