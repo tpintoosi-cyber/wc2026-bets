@@ -483,6 +483,7 @@ export default function Admin() {
       sfDeadline:    settings.sfDeadline    ? new Date(settings.sfDeadline).getTime()    : null,
       p3Deadline:    settings.p3Deadline    ? new Date(settings.p3Deadline).getTime()    : null,
       finalDeadline: settings.finalDeadline ? new Date(settings.finalDeadline).getTime() : null,
+      mockNow:       settings.mockNow       ? new Date(settings.mockNow).getTime()       : null,
     }, { merge: true })
     setMsg('✓ הגדרות נשמרו')
     setTimeout(() => setMsg(''), 3000)
@@ -592,6 +593,20 @@ export default function Admin() {
             <input type="datetime-local" value={settings.deadline}
               onChange={e => setSettings(s => ({ ...s, deadline: e.target.value }))} />
           </label>
+        </div>
+        <div className="admin-row" style={{ borderTop: '1px dashed #eee', paddingTop: 10, marginTop: 6 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, color: '#888' }}>🧪 תאריך סימולציה (לבדיקה בלבד):</span>
+            <input type="datetime-local" value={settings.mockNow ?? ''}
+              onChange={e => setSettings(s => ({ ...s, mockNow: e.target.value }))} />
+            {settings.mockNow && (
+              <button onClick={() => setSettings(s => ({ ...s, mockNow: '' }))}
+                style={{ fontSize: 11, padding: '2px 8px', borderRadius: 8, border: '1px solid #ddd', cursor: 'pointer', background: '#fff', fontFamily: 'inherit' }}>
+                ✕ נקה
+              </button>
+            )}
+          </label>
+          {settings.mockNow && <p style={{ fontSize: 11, color: '#e67e22', marginTop: 4 }}>⚠️ פעיל — הדף "הימורי כולם" משתמש בתאריך זה לקביעת המשחק הנוכחי</p>}
         </div>
         <button className="btn-primary" onClick={saveSettings}>שמור הגדרות</button>
       </section>

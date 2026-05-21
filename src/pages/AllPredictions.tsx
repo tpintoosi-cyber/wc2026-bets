@@ -28,8 +28,8 @@ type UserTab = 'matches' | 'groups' | 'bonus'
 function getDisplayName(u: UserData) { return u.nickname || u.userName }
 
 // ── Helpers ──────────────────────────────────────────────────────
-function getBestMatchId(fullSchedule: Record<number | string, string>): number {
-  const now = Date.now()
+function getBestMatchId(fullSchedule: Record<number | string, string>, mockNow?: number): number {
+  const now = mockNow ?? Date.now()
   const TWO_HOURS = 2 * 60 * 60 * 1000
   let nextId = 1, nextTime = Infinity
   let recentId: number | null = null, recentTime = -Infinity
@@ -416,6 +416,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [knockoutScores, setKnockoutScores] = useState<Record<string, number>>({})
   const [knockoutAdminMatches, setKnockoutAdminMatches] = useState<Record<number, any>>({})
   const [adminSchedule, setAdminSchedule] = useState<Record<number, string>>({})
+  const [mockNow, setMockNow] = useState<number | undefined>(undefined)
   const [koSubTab, setKoSubTab] = useState<'byUser' | 'byMatch'>('byUser')
   const [statsSubTab, setStatsSubTab] = useState<'overview' | 'matches' | 'groups' | 'bonus'>('overview')
   const [userSubTab, setUserSubTab] = useState<'matches' | 'groups' | 'bonus' | 'knockout'>('matches')
@@ -452,6 +453,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
           '3P': d.p3Deadline ?? d.finalDeadline ?? null,
           F:   d.finalDeadline  ?? null,
         })
+        if (d.mockNow) setMockNow(d.mockNow)
       }
 
       const [resultsSnap, predsSnap, scoresSnap, koSnap, schedSnap] = await Promise.all([
@@ -525,9 +527,9 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   // Re-compute best match when full schedule (incl. knockout) loads
   useEffect(() => {
     const fullSchedule = { ...MATCH_SCHEDULE, ...adminSchedule }
-    const best = getBestMatchId(fullSchedule)
+    const best = getBestMatchId(fullSchedule, mockNow)
     setSelectedMatchId(best)
-  }, [adminSchedule])
+  }, [adminSchedule, mockNow])
   function getMatchPts(matchId: number, pred: MatchPrediction | undefined) {
     if (!pred) return 0
     const result = adminResults[matchId]
@@ -829,7 +831,22 @@ ${userRows}
               </div>
 
               {/* Matches */}
-              {userSubTab === 'matches' && [1,2,3].map(round => (
+              {userSubTab === 'matches' && (() => {
+                const currentMatchId = getBestMatchId({ ...MATCH_SCHEDULE, ...adminSchedule }, mockNow)
+                return (<>
+                  {/* Sticky button to jump to current/upcoming match */}
+                  <div style={{ position: 'sticky', top: 0, zIndex: 30, background: 'var(--color-background-primary, #fff)', borderBottom: '1px solid #eee', padding: '6px 0', marginBottom: 6, display: 'flex', justifyContent: 'center' }}>
+                    <button onClick={() => {
+                      document.getElementById(`user-match-${currentMatchId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    }} style={{
+                      fontSize: 12, fontWeight: 600, padding: '5px 16px', borderRadius: 20,
+                      border: '1px solid #1a1a2e', background: '#1a1a2e', color: '#fff',
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}>
+                      ↓ {lang === 'he' ? 'קפוץ למשחק הנוכחי' : 'Jump to current match'} #{currentMatchId}
+                    </button>
+                  </div>
+                  {[1,2,3].map(round => (
                 <div key={round}>
                   <h2 className="round-title">{t.round} {round}</h2>
                   {GROUPS.map(group => {
@@ -869,7 +886,7 @@ ${userRows}
                         const pRedPts = (played && p?.redCard && result?.hadRedCard) ? 2 : 0
 
                         return (
-                          <div key={match.id} style={{ border: `1px solid ${played ? (pts > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
+                          <div key={match.id} id={`user-match-${match.id}`} style={{ border: `1px solid ${played ? (pts > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
                             {/* Header */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: played ? (pts > 0 ? '#f5fbf2' : '#fdf5f5') : '#f8f8fc' }}>
                               {/* Match info */}
@@ -958,7 +975,8 @@ ${userRows}
                     </div>
                   })}
                 </div>
-              ))}
+              ))}</>)
+              })()}
 
               {/* ── עולות מהבתים ── */}
               {userSubTab === 'groups' && <div style={{ marginTop: 8 }}>
