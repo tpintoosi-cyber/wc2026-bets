@@ -2039,10 +2039,18 @@ export default function Predict({ lang }: { lang: Lang }) {
 
                         {teamsReady && (
                           <div style={{ padding: '12px 14px' }}>
+                            {/* FIFA rank lookup */}
+                            {(() => {
+                              const sortedTeams = Object.entries(TEAM_FIFA_POINTS).sort((a,b)=>b[1]-a[1])
+                              const rankOf = (t: string) => { const i = sortedTeams.findIndex(([n])=>n===t); return i >= 0 ? i+1 : null }
+                              const rankA = teamA ? rankOf(teamA) : null
+                              const rankB = teamB ? rankOf(teamB) : null
+                              return (
                             <div className="match-body">
                               <div className="team-name">
                                 <span className="team-flag"><Flag emoji={FLAGS[teamA!] ?? ''} size={24} /></span>
                                 <span>{teamA}</span>
+                                {rankA && <span style={{ fontSize: 10, color: '#aaa', display: 'block', textAlign: 'center' }}>FIFA #{rankA}</span>}
                               </div>
                               <div className="score-inputs">
                                 <input className="score-input" type="number" min="0" max="20" placeholder="0"
@@ -2057,9 +2065,12 @@ export default function Predict({ lang }: { lang: Lang }) {
                               </div>
                               <div className="team-name team-name-b">
                                 <span>{teamB}</span>
+                                {rankB && <span style={{ fontSize: 10, color: '#aaa', display: 'block', textAlign: 'center' }}>FIFA #{rankB}</span>}
                                 <span className="team-flag"><Flag emoji={FLAGS[teamB!] ?? ''} size={24} /></span>
                               </div>
                             </div>
+                              )
+                            })()}
 
                             <div className="match-1x2-row">
                               <div className="btn-group-1x2">
