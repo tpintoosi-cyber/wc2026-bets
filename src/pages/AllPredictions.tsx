@@ -1437,7 +1437,6 @@ ${userRows}
                       )
                     })}
                   </div>
-                  </div>
                 </div>
                 <ScoreGroupTable matchId={selectedMatchId} users={users} teamA={match.teamA} teamB={match.teamB} adminResult={result} />
               </>
