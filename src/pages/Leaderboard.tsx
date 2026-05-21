@@ -3,18 +3,30 @@ import { collection, onSnapshot, query, orderBy, getDocs } from 'firebase/firest
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
 import { UserScore } from '../types'
+import { FLAGS } from '../data/matches'
+
+function Flag({ emoji, size = 16 }: { emoji: string; size?: number }) {
+  if (!emoji) return null
+  return <span style={{ fontSize: size, lineHeight: 1 }}>{emoji}</span>
+}
 
 export default function Leaderboard() {
   const { user } = useAuth()
   const [scores,    setScores]    = useState<UserScore[]>([])
   const [nicknames, setNicknames] = useState<Record<string, string>>({})
+  const [bonusPreds, setBonusPreds] = useState<Record<string, Record<string, string>>>({})
   const [loading,   setLoading]   = useState(true)
 
   useEffect(() => {
     getDocs(collection(db, 'predictions')).then(snap => {
       const nicks: Record<string, string> = {}
-      snap.docs.forEach(d => { if (d.data().nickname) nicks[d.id] = d.data().nickname })
+      const bonus: Record<string, Record<string, string>> = {}
+      snap.docs.forEach(d => {
+        if (d.data().nickname) nicks[d.id] = d.data().nickname
+        if (d.data().bonus) bonus[d.id] = d.data().bonus
+      })
       setNicknames(nicks)
+      setBonusPreds(bonus)
     })
 
     const q = query(collection(db, 'scores'), orderBy('total', 'desc'))
@@ -44,15 +56,15 @@ export default function Leaderboard() {
   const tournamentStarted = scores.some(s => s.total > 0)
 
   const COLS: { key: string; label: string; hint: string; sub?: boolean }[] = [
-    { key: 'match',    label: 'בתים',         hint: '1X2 + תוצאה + 🟥' },
-    { key: 'group',    label: 'עולות',         hint: 'עולות מהבתים' },
-    { key: 'koR32',    label: '32 האחרונות',   hint: 'שלב ה-32',            sub: true },
-    { key: 'koR16',    label: 'שמינית גמר',    hint: 'שמינית גמר',          sub: true },
-    { key: 'koQF',     label: 'רבע גמר',       hint: 'רבע גמר',             sub: true },
-    { key: 'koSF',     label: 'חצי גמר',       hint: 'חצי גמר',             sub: true },
-    { key: 'koSF3P',   label: 'מקום שלישי',    hint: 'מקום שלישי',          sub: true },
-    { key: 'koF',      label: 'גמר',           hint: 'גמר',                 sub: true },
-    { key: 'bonus',    label: 'בונוס',         hint: 'שאלות בונוס' },
+    { key: 'match',    label: 'בתים',      hint: '1X2 + תוצאה + 🟥' },
+    { key: 'group',    label: 'עולות',     hint: 'עולות מהבתים' },
+    { key: 'koR32',    label: '×32',       hint: 'שלב ה-32 האחרונות',  sub: true },
+    { key: 'koR16',    label: 'שמינית',    hint: 'שמינית גמר',         sub: true },
+    { key: 'koQF',     label: 'רבע',       hint: 'רבע גמר',            sub: true },
+    { key: 'koSF',     label: 'חצי',       hint: 'חצי גמר',            sub: true },
+    { key: 'koSF3P',   label: '3P',        hint: 'מקום שלישי',         sub: true },
+    { key: 'koF',      label: 'גמר',       hint: 'גמר',                sub: true },
+    { key: 'bonus',    label: 'בונוס',     hint: 'שאלות בונוס' },
   ]
   const colVal = (s: UserScore, key: string) => {
     if (key === 'match')    return (s.matchPoints ?? 0) + (s.redCardPoints ?? 0)
@@ -191,8 +203,34 @@ export default function Leaderboard() {
                 )}
               </span>
               <span className="lb-name" style={{ fontWeight: isMe ? 700 : 400 }}>
-                {displayName(s)}
-                {isMe && <span style={{ fontSize: 11, color: '#185FA5', marginRight: 4 }}>(אני)</span>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    {displayName(s)}
+                    {isMe && <span style={{ fontSize: 11, color: '#185FA5', marginRight: 4 }}>(אני)</span>}
+                  </div>
+                  {bonusPreds[s.userId] && (() => {
+                    const b = bonusPreds[s.userId]
+                    const items = [
+                      b.q105 && { icon: '🏆', val: b.q105, isTeam: true },
+                      b.q106 && { icon: '🥈', val: b.q106, isTeam: true },
+                      b.q107 && { icon: '🥉', val: b.q107, isTeam: true },
+                      b.q108 && { icon: '⚽', val: b.q108, isTeam: false },
+                      b.q110 && { icon: '🍳', val: b.q110, isTeam: false },
+                    ].filter(Boolean) as { icon: string; val: string; isTeam: boolean }[]
+                    if (!items.length) return null
+                    return (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {items.map((item, i) => (
+                          <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 11, color: '#888' }}>
+                            <span>{item.icon}</span>
+                            {item.isTeam && <Flag emoji={FLAGS[item.val] ?? ''} size={12} />}
+                            <span style={{ maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.val}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
               </span>
               {COLS.map(c => (
                 <span key={c.key} className="lb-pts"

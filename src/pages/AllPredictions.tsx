@@ -845,64 +845,75 @@ ${userRows}
                         const breakdown = played ? getBreakdown(match.id, p) : []
                         const tag = getTag(match.id, p, pts)
                         const borderColor = !played ? 'transparent' : pts > 0 ? '#3B6D11' : '#ddd'
+                        const predTeamLabel = p?.prediction1X2 === '1' ? match.teamA : p?.prediction1X2 === '2' ? match.teamB : p?.prediction1X2 === 'X' ? (lang === 'he' ? 'תיקו' : 'Draw') : null
+
                         if (!p) return (
-                          <div key={match.id} className="match-row-view" style={{ borderRight: `3px solid ${played ? '#ddd' : 'transparent'}` }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span className="match-num">#{match.id}</span>
-                              <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                              <span style={{ fontSize: 13 }}><><Flag emoji={FLAGS[match.teamA]??''} size={22} /> {match.teamA}</> נגד <Flag emoji={FLAGS[match.teamB]??''} size={22} /> {match.teamB}</span>
-                              <span style={{ marginRight: 'auto', fontSize: 12, color: '#ccc' }}>לא מולא</span>
-                              {played && <PtsBadge pts={0} played={true} />}
+                          <div key={match.id} style={{ border: '1px solid #eee', borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: '#f8f8fc' }}>
+                              <span style={{ fontSize: 12, color: '#ccc' }}>לא מולא</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
+                                <span style={{ fontSize: 12, color: '#888' }}>
+                                  <Flag emoji={FLAGS[match.teamA]??''} size={16} /> {match.teamA} נגד <Flag emoji={FLAGS[match.teamB]??''} size={16} /> {match.teamB}
+                                </span>
+                                <span className="match-num">#{match.id}</span>
+                              </div>
                             </div>
                           </div>
                         )
+
                         return (
-                          <div key={match.id} className="match-row-view" style={{ borderRight: `3px solid ${borderColor}` }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                              <span className="match-num">#{match.id}</span>
-                              <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                              <span style={{ fontSize: 13, fontWeight: 500 }}><><Flag emoji={FLAGS[match.teamA]??''} size={22} /> {match.teamA}</> נגד <Flag emoji={FLAGS[match.teamB]??''} size={22} /> {match.teamB}</span>
-                              <span style={{ marginRight: 'auto' }} />
-                              {played && <PtsBadge pts={pts} played={true} />}
-                            </div>
-                            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8, display: 'flex', gap: 0 }}>
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, marginBottom: 5 }}>{t.myPrediction}</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                                  <span style={{ fontSize: 13, fontWeight: 600 }}>{match.teamA}</span>
-                                  <span style={{ fontSize: 15, fontWeight: 700 }}>{p.scoreA ?? '?'}</span>
-                                  <span style={{ color: '#aaa' }}>–</span>
-                                  <span style={{ fontSize: 15, fontWeight: 700 }}>{p.scoreB ?? '?'}</span>
-                                  <span style={{ fontSize: 13, fontWeight: 600 }}>{match.teamB}</span>
-                                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#1a1a2e', color: '#fff' }}>
-                                    {p.prediction1X2 === '1' ? match.teamA : p.prediction1X2 === '2' ? match.teamB : 'תיקו'}
+                          <div key={match.id} style={{ border: `1px solid ${played ? (pts > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
+                            {/* Header row — knockout card style */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: played ? (pts > 0 ? '#f5fbf2' : '#fdf5f5') : '#f8f8fc' }}>
+                              {/* Left: pts + 1X2 prediction badge + red card */}
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                {played && <PtsBadge pts={pts} played={true} />}
+                                {predTeamLabel && (
+                                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                                    background: '#1a1a2e', color: '#fff', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                    {p.prediction1X2 !== 'X' && <Flag emoji={FLAGS[predTeamLabel]??''} size={13} />}
+                                    {predTeamLabel}
                                   </span>
-                                  {p.redCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥</span>}
+                                )}
+                                {p.redCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10, fontWeight: 700 }}>🟥</span>}
+                              </div>
+                              {/* Right: ID + category + predicted score */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
+                                <span style={{ fontWeight: 600, fontSize: 13 }}>
+                                  <Flag emoji={FLAGS[match.teamA]??''} size={18} /> {match.teamA}
+                                  {' '}<span style={{ fontWeight: 800, fontSize: 14 }}>{p.scoreA ?? '?'}–{p.scoreB ?? '?'}</span>{' '}
+                                  <Flag emoji={FLAGS[match.teamB]??''} size={18} /> {match.teamB}
+                                </span>
+                                <span className="match-num">#{match.id}</span>
+                              </div>
+                            </div>
+
+                            {/* בפועל row */}
+                            {played && (
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 10px', fontSize: 12, color: '#555', background: '#fff', borderTop: '1px solid #eee' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  {tag && <ResultTag label={tag.label} type={tag.type} />}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span style={{ color: '#aaa', fontSize: 11 }}>בפועל:</span>
+                                  <Flag emoji={FLAGS[match.teamA]??''} size={14} />
+                                  <span style={{ fontWeight: 700 }}>{match.teamA} {result.resultA ?? 0}:{result.resultB ?? 0} {match.teamB}</span>
+                                  <Flag emoji={FLAGS[match.teamB]??''} size={14} />
+                                  {result.hadRedCard && <span>🟥</span>}
                                 </div>
                               </div>
-                              {played && <div style={{ width: 1, background: '#e5e5e5', margin: '0 14px' }} />}
-                              {played && (
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 11, color: '#aaa', fontWeight: 600, marginBottom: 5, display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>בפועל</span>
-                                    {tag && <ResultTag label={tag.label} type={tag.type} />}
-                                  </div>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{match.teamA}</span>
-                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#555' }}>{result.resultA ?? 0}</span>
-                                    <span style={{ color: '#aaa' }}>–</span>
-                                    <span style={{ fontSize: 15, fontWeight: 700, color: '#555' }}>{result.resultB ?? 0}</span>
-                                    <span style={{ fontSize: 13, fontWeight: 600, color: '#555' }}>{match.teamB}</span>
-                                    {result.hadRedCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10 }}>🟥</span>}
-                                  </div>
-                                  {breakdown.length > 0 && (
-                                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
-                                      {breakdown.map((b, i) => <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#EAF3DE', color: '#3B6D11' }}>{b}</span>)}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
+                            )}
+
+                            {/* Breakdown chips */}
+                            {breakdown.length > 0 && (
+                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 8px 6px', background: '#fff', borderTop: '1px solid #f5f5f5' }}>
+                                {breakdown.map((b, i) => (
+                                  <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#EAF3DE', color: '#3B6D11' }}>{b}</span>
+                                ))}
+                              </div>
+                            )}
                           </div>
                         )
                       })}

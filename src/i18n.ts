@@ -49,7 +49,7 @@ export type Translations = {
 
 export const T: Record<Lang, Translations> = {
   he: {
-    tabMatches: 'משחקים',
+    tabMatches: 'שלב הבתים',
     tabGroups: 'עולים מהבית',
     tabBonus: 'בונוס',
     tabKnockout: '🏆 נוקאאוט',
@@ -163,7 +163,7 @@ export const T: Record<Lang, Translations> = {
     goToPrediction: 'עבור להימור',
   },
   en: {
-    tabMatches: 'Matches',
+    tabMatches: 'Group Stage',
     tabGroups: 'Group Qualifiers',
     tabBonus: 'Bonus',
     tabKnockout: '🏆 Knockout',
