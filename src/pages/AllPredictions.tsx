@@ -1335,6 +1335,10 @@ ${userRows}
             if (!match) return null
             const result = adminResults[selectedMatchId]
             const played = result?.isPlayed ?? false
+            // Rank map: sort users by total score
+            const rankMap: Record<string, number> = {}
+            ;[...users].sort((a, b) => (scores[b.userId] ?? 0) - (scores[a.userId] ?? 0))
+              .forEach((u, i) => { rankMap[u.userId] = i + 1 })
             return (
               <>
                 <div className="match-row-view">
@@ -1401,8 +1405,19 @@ ${userRows}
                           padding: '5px 4px', borderBottom: '1px solid #f5f5f5',
                           background: u.userId === user?.uid ? '#f8f9ff' : 'transparent',
                         }}>
-                          {/* Name */}
-                          <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {/* Name + rank */}
+                          <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                            {rankMap[u.userId] != null && (
+                              <span style={{ fontSize: 11, fontWeight: 600, minWidth: 20, color:
+                                rankMap[u.userId] === 1 ? '#B8860B' :
+                                rankMap[u.userId] === 2 ? '#888' :
+                                rankMap[u.userId] === 3 ? '#CD7F32' : '#999'
+                              }}>
+                                {rankMap[u.userId] <= 3
+                                  ? ['🥇','🥈','🥉'][rankMap[u.userId]-1]
+                                  : `#${rankMap[u.userId]}`}
+                              </span>
+                            )}
                             {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
                           </span>
                           {p ? <>
