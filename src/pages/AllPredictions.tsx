@@ -864,9 +864,19 @@ ${userRows}
 
                         return (
                           <div key={match.id} style={{ border: `1px solid ${played ? (pts > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
-                            {/* Header row — knockout card style */}
+                            {/* Header row — first child = RIGHT in RTL */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: played ? (pts > 0 ? '#f5fbf2' : '#fdf5f5') : '#f8f8fc' }}>
-                              {/* Left: pts + 1X2 prediction badge + red card */}
+                              {/* RIGHT (first): match ID + category + predicted score */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
+                                <span style={{ fontWeight: 600, fontSize: 13 }}>
+                                  <Flag emoji={FLAGS[match.teamA]??''} size={18} /> {match.teamA}
+                                  {' '}<span style={{ fontWeight: 800, fontSize: 14 }}>{p.scoreA ?? '?'}–{p.scoreB ?? '?'}</span>{' '}
+                                  <Flag emoji={FLAGS[match.teamB]??''} size={18} /> {match.teamB}
+                                </span>
+                                <span className="match-num">#{match.id}</span>
+                              </div>
+                              {/* LEFT (second): pts badge + 1X2 prediction + red card */}
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 {played && <PtsBadge pts={pts} played={true} />}
                                 {predTeamLabel && (
@@ -878,40 +888,35 @@ ${userRows}
                                 )}
                                 {p.redCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10, fontWeight: 700 }}>🟥</span>}
                               </div>
-                              {/* Right: ID + category + predicted score */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                                <span style={{ fontWeight: 600, fontSize: 13 }}>
-                                  <Flag emoji={FLAGS[match.teamA]??''} size={18} /> {match.teamA}
-                                  {' '}<span style={{ fontWeight: 800, fontSize: 14 }}>{p.scoreA ?? '?'}–{p.scoreB ?? '?'}</span>{' '}
-                                  <Flag emoji={FLAGS[match.teamB]??''} size={18} /> {match.teamB}
-                                </span>
-                                <span className="match-num">#{match.id}</span>
-                              </div>
                             </div>
 
-                            {/* בפועל row */}
+                            {/* בפועל + chips — right-aligned below header */}
                             {played && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 10px', fontSize: 12, color: '#555', background: '#fff', borderTop: '1px solid #eee' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  {tag && <ResultTag label={tag.label} type={tag.type} />}
+                              <div style={{ background: '#fff', borderTop: '1px solid #eee' }}>
+                                {/* בפועל row: first child = RIGHT */}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 10px', fontSize: 12 }}>
+                                  {/* RIGHT: actual result */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#555' }}>
+                                    <span style={{ color: '#aaa', fontSize: 11 }}>בפועל:</span>
+                                    <Flag emoji={FLAGS[match.teamA]??''} size={14} />
+                                    <span style={{ fontWeight: 700 }}>{match.teamA} {result.resultA ?? 0}:{result.resultB ?? 0} {match.teamB}</span>
+                                    <Flag emoji={FLAGS[match.teamB]??''} size={14} />
+                                    {result.hadRedCard && <span>🟥</span>}
+                                  </div>
+                                  {/* LEFT: tag */}
+                                  <div>{tag && <ResultTag label={tag.label} type={tag.type} />}</div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                  <span style={{ color: '#aaa', fontSize: 11 }}>בפועל:</span>
-                                  <Flag emoji={FLAGS[match.teamA]??''} size={14} />
-                                  <span style={{ fontWeight: 700 }}>{match.teamA} {result.resultA ?? 0}:{result.resultB ?? 0} {match.teamB}</span>
-                                  <Flag emoji={FLAGS[match.teamB]??''} size={14} />
-                                  {result.hadRedCard && <span>🟥</span>}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Breakdown chips */}
-                            {breakdown.length > 0 && (
-                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', padding: '4px 8px 6px', background: '#fff', borderTop: '1px solid #f5f5f5' }}>
-                                {breakdown.map((b, i) => (
-                                  <span key={i} style={{ fontSize: 11, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#EAF3DE', color: '#3B6D11' }}>{b}</span>
-                                ))}
+                                {/* Inline breakdown — same style as knockout cards */}
+                                {breakdown.length > 0 && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', padding: '0 10px 6px', fontSize: 11 }}>
+                                    {breakdown.map((b, i) => (
+                                      <>
+                                        {i > 0 && <span key={`sep-${i}`} style={{ color: '#ddd' }}>|</span>}
+                                        <span key={i} style={{ color: '#1a7a44', fontWeight: 600 }}>✓ {b}</span>
+                                      </>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
