@@ -716,9 +716,9 @@ export default function Predict({ lang }: { lang: Lang }) {
               <div style={{ position: 'sticky', bottom: 12, zIndex: 50, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
                 <button
                   onClick={() => {
-                    const el = document.getElementById(`match-${firstUnfilled!.id}`)
-                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-                    setTimeout(() => document.getElementById(`score-a-${firstUnfilled!.id}`)?.focus(), 400)
+                    // Must be synchronous within user gesture for mobile keyboard to open
+                    // Browser also auto-scrolls focused element into view
+                    document.getElementById(`score-a-${firstUnfilled!.id}`)?.focus()
                   }}
                   style={{
                     pointerEvents: 'all', padding: '9px 20px', borderRadius: 24,
