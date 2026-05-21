@@ -33,6 +33,7 @@ export default function Admin() {
     isOpen: true, deadline: '',
     knockoutOpen: false, knockoutDeadline: '',
     r16Deadline: '', qfDeadline: '', sfDeadline: '', p3Deadline: '', finalDeadline: '',
+    mockNow: '',
   })
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -83,6 +84,7 @@ export default function Admin() {
           sfDeadline:    d.sfDeadline    ? new Date(d.sfDeadline).toISOString().slice(0, 16)    : '',
           p3Deadline:    d.p3Deadline    ? new Date(d.p3Deadline).toISOString().slice(0, 16)    : '',
           finalDeadline: d.finalDeadline ? new Date(d.finalDeadline).toISOString().slice(0, 16) : '',
+          mockNow:       d.mockNow       ? new Date(d.mockNow).toISOString().slice(0, 16)       : '',
         })
       }
       if (koSnap.exists()) {
