@@ -1347,55 +1347,96 @@ ${userRows}
                     </span>}
                   </div>
                   <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
-                    {/* Grid: name | score | 1X2 | 🟥 | pts | tag */}
+                    {/* Grid: name | 1X2 | תוצאה (with flags+color) | 🟥 | pts */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: `1fr 60px 80px 30px${played ? ' 54px 100px' : ''}`,
+                      gridTemplateColumns: `1fr 80px 100px 36px${played ? ' 54px' : ''}`,
                       alignItems: 'center', gap: '0 6px',
                       marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600,
                       padding: '0 4px',
                     }}>
                       <span>{lang === 'he' ? 'משתמש' : 'User'}</span>
-                      <span style={{ textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Pred'}</span>
                       <span style={{ textAlign: 'center' }}>1X2</span>
+                      <span style={{ textAlign: 'center' }}>{lang === 'he' ? 'תוצאה' : 'Score'}</span>
                       <span style={{ textAlign: 'center' }}>🟥</span>
                       {played && <span style={{ textAlign: 'center' }}>נק׳</span>}
-                      {played && <span></span>}
                     </div>
                     {users.map(u => {
                       const p = u.matches[selectedMatchId]
                       const pts = played ? getMatchPts(selectedMatchId, p) : 0
-                      const tag = played ? getTag(selectedMatchId, p, pts) : null
+
+                      // Score result analysis
+                      const pA = p ? Number(p.scoreA ?? 0) : null
+                      const pB = p ? Number(p.scoreB ?? 0) : null
+                      const rA = result?.resultA ?? null
+                      const rB = result?.resultB ?? null
+                      const isExact = played && pA != null && rA != null && pA === rA && pB === rB
+                      const isDiff  = played && !isExact && pA != null && rA != null && (pA - pB!) === (rA - rB!)
+                      const scoreBg = !played || !p || pA == null ? 'transparent'
+                        : isExact ? '#d4edda' : isDiff ? '#fff3cd' : '#fdf0f0'
+                      const scoreColor = !played || !p || pA == null ? '#333'
+                        : isExact ? '#1a7a44' : isDiff ? '#856404' : '#A32D2D'
+
+                      // 1X2 analysis
+                      const actual1x2 = played && rA != null ? (rA > rB! ? '1' : rA < rB! ? '2' : 'X') : null
+                      const correct1x2 = played && p?.prediction1X2 && actual1x2 ? p.prediction1X2 === actual1x2 : null
+                      const label1x2 = p?.prediction1X2 === '1' ? match.teamA : p?.prediction1X2 === '2' ? match.teamB : p?.prediction1X2 === 'X' ? 'תיקו' : '—'
+
+                      // Red card
+                      const redBg = !played ? 'transparent'
+                        : p?.redCard && result?.hadRedCard ? '#d4edda'
+                        : p?.redCard && !result?.hadRedCard ? '#fdf0f0'
+                        : 'transparent'
+                      const redContent = !p?.redCard ? <span style={{ color: '#ccc', fontSize: 12 }}>—</span>
+                        : !played ? <span>🟥</span>
+                        : result?.hadRedCard
+                          ? <span style={{ color: '#1a7a44', fontSize: 11, fontWeight: 700 }}>✓ 🟥</span>
+                          : <span style={{ color: '#A32D2D', fontSize: 11, fontWeight: 700 }}>✗ 🟥</span>
+
                       return (
                         <div key={u.userId} style={{
                           display: 'grid',
-                          gridTemplateColumns: `1fr 60px 80px 30px${played ? ' 54px 100px' : ''}`,
+                          gridTemplateColumns: `1fr 80px 100px 36px${played ? ' 54px' : ''}`,
                           alignItems: 'center', gap: '0 6px',
-                          padding: '7px 4px',
-                          borderBottom: '1px solid #f5f5f5',
+                          padding: '5px 4px', borderBottom: '1px solid #f5f5f5',
                           background: u.userId === user?.uid ? '#f8f9ff' : 'transparent',
                         }}>
+                          {/* Name */}
                           <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
                           </span>
                           {p ? <>
-                            <span style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr' }}>{p.scoreA??'?'}–{p.scoreB??'?'}</span>
+                            {/* 1X2 */}
                             <span style={{ textAlign: 'center' }}>
                               <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10,
-                                background: played ? (p.prediction1X2 === (result.resultA > result.resultB ? '1' : result.resultA < result.resultB ? '2' : 'X') ? '#EAF3DE' : '#FCEBEB') : '#f0f0f0',
-                                color: played ? (p.prediction1X2 === (result.resultA > result.resultB ? '1' : result.resultA < result.resultB ? '2' : 'X') ? '#1a7a44' : '#A32D2D') : '#333' }}>
-                                {p.prediction1X2==='1' ? match.teamA : p.prediction1X2==='2' ? match.teamB : 'תיקו'}
+                                background: correct1x2 === true ? '#EAF3DE' : correct1x2 === false ? '#FCEBEB' : '#f0f0f0',
+                                color: correct1x2 === true ? '#1a7a44' : correct1x2 === false ? '#A32D2D' : '#333' }}>
+                                {label1x2}
                               </span>
                             </span>
-                            <span style={{ textAlign: 'center', fontSize: 12 }}>{p.redCard ? '🟥' : '—'}</span>
+                            {/* Score — flags + score with color bg */}
+                            <span style={{
+                              textAlign: 'center', borderRadius: 6, padding: '2px 4px',
+                              background: scoreBg, color: scoreColor,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2,
+                              fontSize: 12, fontWeight: 700,
+                            }}>
+                              <Flag emoji={FLAGS[match.teamA]??''} size={13}/>
+                              <span>{pA ?? '?'}</span>
+                              <span style={{ color: '#aaa', fontWeight: 400 }}>:</span>
+                              <span>{pB ?? '?'}</span>
+                              <Flag emoji={FLAGS[match.teamB]??''} size={13}/>
+                            </span>
+                            {/* 🟥 */}
+                            <span style={{ textAlign: 'center', borderRadius: 6, padding: '2px 2px', background: redBg }}>{redContent}</span>
                           </> : <>
                             <span style={{ fontSize: 12, color: '#ccc', gridColumn: 'span 3', textAlign: 'center' }}>לא מולא</span>
                           </>}
                           {played && <PtsBadge pts={pts} played={true} />}
-                          {played && tag && <ResultTag label={tag.label} type={tag.type} />}
                         </div>
                       )
                     })}
+                  </div>
                   </div>
                 </div>
                 <ScoreGroupTable matchId={selectedMatchId} users={users} teamA={match.teamA} teamB={match.teamB} adminResult={result} />
