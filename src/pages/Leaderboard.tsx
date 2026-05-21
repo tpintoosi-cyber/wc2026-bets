@@ -21,6 +21,13 @@ export default function Leaderboard() {
     catch { return new Set() }
   })
   const [showColSettings, setShowColSettings] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filters, setFilters] = useState({
+    champion: '', runnerUp: '', third: '', scorer: '', assists: '', topN: 0,
+  })
+  const setFilter = (k: keyof typeof filters, v: string | number) =>
+    setFilters(f => ({ ...f, [k]: v }))
+  const clearFilters = () => setFilters({ champion: '', runnerUp: '', third: '', scorer: '', assists: '', topN: 0 })
 
   const toggleCol = (key: string) => {
     setHiddenCols(prev => {
@@ -94,6 +101,29 @@ export default function Leaderboard() {
   }
 
   const visibleCols = COLS.filter(c => !hiddenCols.has(c.key))
+
+  // Build unique option lists from bonus predictions
+  const uniq = (key: string) => [...new Set(
+    Object.values(bonusPreds).map(b => b[key]).filter(Boolean)
+  )].sort()
+  const champOptions   = uniq('q105')
+  const runnerOptions  = uniq('q106')
+  const thirdOptions   = uniq('q107')
+  const scorerOptions  = uniq('q108')
+  const assistsOptions = uniq('q110')
+
+  // Apply filters (topN applied after sort so it takes top N of full list)
+  const filteredScores = scores.filter((s, i) => {
+    if (filters.topN > 0 && i >= filters.topN) return false
+    const b = bonusPreds[s.userId] ?? {}
+    if (filters.champion && b.q105 !== filters.champion) return false
+    if (filters.runnerUp && b.q106 !== filters.runnerUp) return false
+    if (filters.third    && b.q107 !== filters.third)    return false
+    if (filters.scorer   && b.q108 !== filters.scorer)   return false
+    if (filters.assists  && b.q110 !== filters.assists)  return false
+    return true
+  })
+  const activeFilterCount = Object.entries(filters).filter(([k, v]) => k === 'topN' ? v > 0 : !!v).length
 
   return (
     <div className="page" style={{ paddingBottom: 40 }}>
@@ -183,7 +213,88 @@ export default function Leaderboard() {
         </div>
       )}
 
-      {/* ── Column settings ── */}
+      {/* ── Filters ── */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: showFilters ? 8 : 0 }}>
+          <button onClick={() => setShowFilters(v => !v)}
+            style={{ fontSize: 12, padding: '4px 12px', borderRadius: 16, border: `1px solid ${showFilters || activeFilterCount > 0 ? '#1a7a44' : '#ddd'}`,
+              background: showFilters ? '#1a7a44' : activeFilterCount > 0 ? '#EAF3DE' : '#fff',
+              color: showFilters ? '#fff' : activeFilterCount > 0 ? '#1a7a44' : '#555',
+              cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+            🔍 פילטרים{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </button>
+          {activeFilterCount > 0 && (
+            <button onClick={clearFilters}
+              style={{ fontSize: 11, padding: '3px 10px', borderRadius: 16, border: '1px solid #ddd',
+                background: '#fff', color: '#888', cursor: 'pointer', fontFamily: 'inherit' }}>
+              ✕ נקה הכל
+            </button>
+          )}
+          {activeFilterCount > 0 && (
+            <span style={{ fontSize: 12, color: '#1a7a44', fontWeight: 600 }}>
+              מציג {filteredScores.length} מתוך {scores.length}
+            </span>
+          )}
+        </div>
+        {showFilters && (
+          <div style={{ background: '#f8f9fc', border: '1px solid #e8e8f0', borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* Row 1: Team picks */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#888', minWidth: 60 }}>ניחושי קבוצות:</span>
+              {[
+                { key: 'champion', label: '🏆 זוכה', options: champOptions },
+                { key: 'runnerUp', label: '🥈 סגנית', options: runnerOptions },
+                { key: 'third',    label: '🥉 שלישית', options: thirdOptions },
+              ].map(({ key, label, options }) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                  <span style={{ color: '#555' }}>{label}</span>
+                  <select value={filters[key as keyof typeof filters] as string}
+                    onChange={e => setFilter(key as keyof typeof filters, e.target.value)}
+                    style={{ fontSize: 11, border: `1px solid ${filters[key as keyof typeof filters] ? '#1a7a44' : '#ddd'}`,
+                      borderRadius: 8, padding: '2px 6px', background: filters[key as keyof typeof filters] ? '#EAF3DE' : '#fff',
+                      color: filters[key as keyof typeof filters] ? '#1a7a44' : '#333', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <option value="">הכל</option>
+                    {options.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+            {/* Row 2: Player picks */}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#888', minWidth: 60 }}>שחקנים:</span>
+              {[
+                { key: 'scorer',  label: '⚽ מלך שערים', options: scorerOptions },
+                { key: 'assists', label: '👟 מלך בישולים', options: assistsOptions },
+              ].map(({ key, label, options }) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                  <span style={{ color: '#555' }}>{label}</span>
+                  <select value={filters[key as keyof typeof filters] as string}
+                    onChange={e => setFilter(key as keyof typeof filters, e.target.value)}
+                    style={{ fontSize: 11, border: `1px solid ${filters[key as keyof typeof filters] ? '#1a7a44' : '#ddd'}`,
+                      borderRadius: 8, padding: '2px 6px', background: filters[key as keyof typeof filters] ? '#EAF3DE' : '#fff',
+                      color: filters[key as keyof typeof filters] ? '#1a7a44' : '#333', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <option value="">הכל</option>
+                    {options.map(o => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+            {/* Row 3: Top N */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#888' }}>הצג:</span>
+              {[0, 3, 5, 10, 20].map(n => (
+                <button key={n} onClick={() => setFilter('topN', n)}
+                  style={{ fontSize: 11, padding: '3px 10px', borderRadius: 16, cursor: 'pointer', fontFamily: 'inherit',
+                    border: `1px solid ${filters.topN === n ? '#1a1a2e' : '#ddd'}`,
+                    background: filters.topN === n ? '#1a1a2e' : '#fff',
+                    color: filters.topN === n ? '#fff' : '#555', fontWeight: filters.topN === n ? 700 : 400 }}>
+                  {n === 0 ? 'הכל' : `Top ${n}`}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <button onClick={() => setShowColSettings(v => !v)}
           style={{ fontSize: 12, padding: '4px 12px', borderRadius: 16, border: '1px solid #ddd', flexShrink: 0,
@@ -220,7 +331,7 @@ export default function Leaderboard() {
           <span className="lb-total">סה"כ</span>
         </div>
 
-        {scores.map((s, i) => {
+        {filteredScores.map((s, i) => {
           const isMe  = s.userId === user?.uid
           const pct   = maxTotal > 0 ? (s.total / maxTotal) * 100 : 0
           const sExt  = s as UserScore & { prevTotal?: number; prevRank?: number }
