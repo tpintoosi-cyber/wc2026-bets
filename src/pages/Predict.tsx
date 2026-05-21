@@ -307,7 +307,6 @@ export default function Predict({ lang }: { lang: Lang }) {
     setMatchPreds(prev => {
       const base = prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0, redCard: false }
       const entry = { ...base, [field]: value } as MatchPrediction
-      // When changing a score, ensure the other score defaults to 0
       if (field === 'scoreA' && (entry.scoreB === null || entry.scoreB === undefined)) entry.scoreB = 0
       if (field === 'scoreB' && (entry.scoreA === null || entry.scoreA === undefined)) entry.scoreA = 0
       const updated = { ...prev, [id]: entry }
@@ -628,13 +627,21 @@ export default function Predict({ lang }: { lang: Lang }) {
                               {tn(match.teamA)}
                             </span>
                             <div className="score-inputs">
-                              <input className="score-input" type="number" min="0" max="20"
+                              <input
+                                id={`score-a-${match.id}`}
+                                className="score-input" type="number" min="0" max="20"
                                 value={p.scoreA ?? 0} placeholder="0" disabled={!isOpen}
                                 onFocus={e => e.target.select()}
                                 onChange={e => updateMatch(match.id, 'scoreA', e.target.value === '' ? 0 : parseInt(e.target.value))}
+                                onKeyDown={e => {
+                                  if (/^[0-9]$/.test(e.key))
+                                    setTimeout(() => document.getElementById(`score-b-${match.id}`)?.focus(), 30)
+                                }}
                               />
                               <span className="score-sep">–</span>
-                              <input className="score-input" type="number" min="0" max="20"
+                              <input
+                                id={`score-b-${match.id}`}
+                                className="score-input" type="number" min="0" max="20"
                                 value={p.scoreB ?? 0} placeholder="0" disabled={!isOpen}
                                 onFocus={e => e.target.select()}
                                 onChange={e => updateMatch(match.id, 'scoreB', e.target.value === '' ? 0 : parseInt(e.target.value))}
@@ -708,7 +715,11 @@ export default function Predict({ lang }: { lang: Lang }) {
             return (
               <div style={{ position: 'sticky', bottom: 12, zIndex: 50, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
                 <button
-                  onClick={() => document.getElementById(`match-${firstUnfilled!.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                  onClick={() => {
+                    const el = document.getElementById(`match-${firstUnfilled!.id}`)
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                    setTimeout(() => document.getElementById(`score-a-${firstUnfilled!.id}`)?.focus(), 400)
+                  }}
                   style={{
                     pointerEvents: 'all', padding: '9px 20px', borderRadius: 24,
                     border: 'none', background: '#1a1a2e', color: '#fff',
