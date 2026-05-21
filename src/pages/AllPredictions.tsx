@@ -862,11 +862,17 @@ ${userRows}
                           </div>
                         )
 
+                        const rA = result?.resultA ?? null, rB = result?.resultB ?? null
+                        const p1x2pts = (played && p?.prediction1X2)
+                          ? calc1X2Points(p.prediction1X2, rA!, rB!, match.fifaPointsA ?? 1500, match.fifaPointsB ?? 1500, match.category)
+                          : 0
+                        const pRedPts = (played && p?.redCard && result?.hadRedCard) ? 2 : 0
+
                         return (
                           <div key={match.id} style={{ border: `1px solid ${played ? (pts > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
                             {/* Header */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: played ? (pts > 0 ? '#f5fbf2' : '#fdf5f5') : '#f8f8fc' }}>
-                              {/* Match info — 5 separate children so scoreA always adjacent to teamA */}
+                              {/* Match info */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
                                 <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}>{match.teamA}<Flag emoji={FLAGS[match.teamA]??''} size={18}/></span>
@@ -876,47 +882,65 @@ ${userRows}
                                 <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}><Flag emoji={FLAGS[match.teamB]??''} size={18}/>{match.teamB}</span>
                                 <span className="match-num">#{match.id}</span>
                               </div>
-                              {/* Pts + 1X2 badge */}
+                              {/* Pts + prediction badges with color feedback */}
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 {played && <PtsBadge pts={pts} played={true} />}
                                 {predTeamLabel && (
-                                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                                    background: '#1a1a2e', color: '#fff', display: 'flex', alignItems: 'center', gap: 3 }}>
+                                  <span style={{
+                                    fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                                    display: 'flex', alignItems: 'center', gap: 3,
+                                    ...(played
+                                      ? p1x2pts > 0
+                                        ? { background: '#d4edda', color: '#1a7a44', border: '1px solid #a8d5b7' }
+                                        : { background: '#fdf0f0', color: '#A32D2D', border: '1px solid #f5c2c2' }
+                                      : { background: '#1a1a2e', color: '#fff' }
+                                    )
+                                  }}>
                                     {p.prediction1X2 !== 'X' && <Flag emoji={FLAGS[predTeamLabel]??''} size={13} />}
                                     {predTeamLabel}
+                                    {played && <span style={{ fontSize: 10, marginRight: 1 }}>{p1x2pts > 0 ? '✓' : '✗'}</span>}
                                   </span>
                                 )}
-                                {p.redCard && <span style={{ fontSize: 11, background: '#FCEBEB', color: '#A32D2D', padding: '1px 6px', borderRadius: 10, fontWeight: 700 }}>🟥</span>}
+                                {p.redCard && (
+                                  <span style={{
+                                    fontSize: 11, padding: '1px 7px', borderRadius: 10, fontWeight: 700,
+                                    ...(played
+                                      ? pRedPts > 0
+                                        ? { background: '#d4edda', color: '#1a7a44', border: '1px solid #a8d5b7' }
+                                        : { background: '#fdf0f0', color: '#A32D2D', border: '1px solid #f5c2c2' }
+                                      : { background: '#FCEBEB', color: '#A32D2D' }
+                                    )
+                                  }}>
+                                    {played ? (pRedPts > 0 ? '✓' : '✗') : ''} 🟥
+                                  </span>
+                                )}
                               </div>
                             </div>
 
                             {/* בפועל + breakdown */}
                             {played && (() => {
-                              const rA = result.resultA ?? 0, rB = result.resultB ?? 0
+                              const rAv = rA ?? 0, rBv = rB ?? 0
                               const pA = Number(p.scoreA ?? 0), pB = Number(p.scoreB ?? 0)
-                              const ptA = match.fifaPointsA ?? 1500, ptB = match.fifaPointsB ?? 1500
-                              const p1x2 = p.prediction1X2 ? calc1X2Points(p.prediction1X2, rA, rB, ptA, ptB, match.category) : 0
-                              const isExact = pA === rA && pB === rB
-                              const isDiff  = !isExact && (pA - pB) === (rA - rB)
+                              const isExact = pA === rAv && pB === rBv
+                              const isDiff  = !isExact && (pA - pB) === (rAv - rBv)
                               const isAB    = match.category === 'A' || match.category === 'B'
                               const ouOf    = (t: number) => isAB ? (t < 2 ? 'אנדר' : t > 3 ? 'אובר' : null) : (t < 3 ? 'אנדר' : t > 4 ? 'אובר' : null)
-                              const predOU  = ouOf(pA + pB), actOU = ouOf(rA + rB)
+                              const predOU  = ouOf(pA + pB), actOU = ouOf(rAv + rBv)
                               const ouBonus = predOU && predOU === actOU ? 1 : 0
-                              const pRed    = p.redCard && result.hadRedCard ? 2 : 0
                               return (<>
                                 {/* בפועל — same 5-child approach */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', fontSize: 12, color: '#555', background: '#fff', borderTop: '1px solid #eee' }}>
                                   <span style={{ color: '#aaa', fontSize: 11 }}>בפועל:</span>
                                   <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>{match.teamA}<Flag emoji={FLAGS[match.teamA]??''} size={14}/></span>
-                                  <span style={{ fontWeight: 700 }}>{rA}</span>
+                                  <span style={{ fontWeight: 700 }}>{rAv}</span>
                                   <span style={{ color: '#aaa' }}>:</span>
-                                  <span style={{ fontWeight: 700 }}>{rB}</span>
+                                  <span style={{ fontWeight: 700 }}>{rBv}</span>
                                   <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}><Flag emoji={FLAGS[match.teamB]??''} size={14}/>{match.teamB}</span>
                                   {result.hadRedCard && <span>🟥</span>}
                                 </div>
                                 {/* Breakdown — identical to knockout */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderTop: '1px solid #eee', fontSize: 11, flexWrap: 'wrap', background: '#fff' }}>
-                                  <span style={{ color: p1x2>0?'#1a7a44':'#cc3333', fontWeight: 600 }}>{p1x2>0?'✓':'✗'} 1X2{p1x2>0?` +${p1x2}`:''}</span>
+                                  <span style={{ color: p1x2pts>0?'#1a7a44':'#cc3333', fontWeight: 600 }}>{p1x2pts>0?'✓':'✗'} 1X2{p1x2pts>0?` +${p1x2pts}`:''}</span>
                                   <span style={{ color: '#ddd' }}>|</span>
                                   <span style={{ color: (isExact||isDiff)?'#1a7a44':'#cc3333', fontWeight: 600 }}>
                                     {isExact ? `✓ תוצאה +2` : isDiff ? `✓ הפרש +1` : '✗ תוצאה'}
@@ -924,7 +948,7 @@ ${userRows}
                                   {ouBonus > 0 && <><span style={{ color: '#ddd' }}>|</span>
                                     <span style={{ color: '#1a7a44', fontWeight: 600 }}>✓ {predOU} +1</span></>}
                                   {p.redCard && <><span style={{ color: '#ddd' }}>|</span>
-                                    <span style={{ color: pRed>0?'#A32D2D':'#cc3333', fontWeight: 600 }}>{pRed>0?'✓':'✗'} 🟥{pRed>0?' +2':''}</span></>}
+                                    <span style={{ color: pRedPts>0?'#A32D2D':'#cc3333', fontWeight: 600 }}>{pRedPts>0?'✓':'✗'} 🟥{pRedPts>0?' +2':''}</span></>}
                                 </div>
                               </>)
                             })()}
