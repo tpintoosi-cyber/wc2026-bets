@@ -1,5 +1,5 @@
 import Flag from '../components/Flag'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -429,6 +429,14 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
     const dl = koDeadlines[round]
     return dl != null && now > dl
   }
+
+  // FIFA rank map (sorted by points descending)
+  const fifaRankMap = useMemo(() => {
+    const sorted = Object.entries(TEAM_FIFA_POINTS).sort((a, b) => b[1] - a[1])
+    const map: Record<string, number> = {}
+    sorted.forEach(([team], i) => { map[team] = i + 1 })
+    return map
+  }, [])
 
   const toggleKoRound = (round: string) =>
     setOpenKoRounds(prev => { const s = new Set(prev); s.has(round) ? s.delete(round) : s.add(round); return s })
@@ -889,15 +897,22 @@ ${userRows}
                           <div key={match.id} id={`user-match-${match.id}`} style={{ border: `1px solid ${played ? (pts > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
                             {/* Header */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: played ? (pts > 0 ? '#f5fbf2' : '#fdf5f5') : '#f8f8fc' }}>
-                              {/* Match info */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                                <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                                <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}>{match.teamA}<Flag emoji={FLAGS[match.teamA]??''} size={18}/></span>
-                                <span style={{ fontWeight: 800, fontSize: 14 }}>{p.scoreA ?? '?'}</span>
-                                <span style={{ color: '#aaa' }}>–</span>
+                              {/* Match info with date */}
+                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
+                                  <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}>{match.teamA}<Flag emoji={FLAGS[match.teamA]??''} size={18}/></span>
+                                  <span style={{ fontWeight: 800, fontSize: 14 }}>{p.scoreA ?? '?'}</span>
+                                  <span style={{ color: '#aaa' }}>–</span>
                                 <span style={{ fontWeight: 800, fontSize: 14 }}>{p.scoreB ?? '?'}</span>
                                 <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}><Flag emoji={FLAGS[match.teamB]??''} size={18}/>{match.teamB}</span>
                                 <span className="match-num">#{match.id}</span>
+                              </div>
+                              {(adminSchedule[match.id] || MATCH_SCHEDULE[match.id]) && (
+                                <span style={{ fontSize: 10, color: '#aaa', marginTop: 1 }}>
+                                  📅 {adminSchedule[match.id] || MATCH_SCHEDULE[match.id]}
+                                </span>
+                              )}
                               </div>
                               {/* Pts + prediction badges with color feedback */}
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -1153,9 +1168,9 @@ ${userRows}
                                 <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', gap: 6, flexWrap: 'wrap', background: '#fafbff' }}>
                                   <span style={{ fontSize: 10, color: '#bbb' }}>#{km.id}</span>
                                   <span className={`cat-badge cat-${cat?.toLowerCase?.() ?? 'a'}`}>{cat}</span>
-                                  <span style={{ fontWeight: 600, fontSize: 12 }}>{actualTeamA ? <><Flag emoji={FLAGS[actualTeamA]??''} size={18} /> {actualTeamA}</> : '?'}</span>
+                                  <span style={{ fontWeight: 600, fontSize: 12 }}>{actualTeamA ? <><Flag emoji={FLAGS[actualTeamA]??''} size={18} /> {actualTeamA}{fifaRankMap[actualTeamA] ? <span style={{ fontSize: 10, color: '#aaa', marginRight: 2 }}>#{fifaRankMap[actualTeamA]}</span> : ''}</> : '?'}</span>
                                   <span style={{ fontSize: 12, fontWeight: 700, color: '#555' }}>{pred.scoreA ?? '?'}–{pred.scoreB ?? '?'}</span>
-                                  <span style={{ fontWeight: 600, fontSize: 12 }}>{actualTeamB ? <>{actualTeamB} <Flag emoji={FLAGS[actualTeamB]??''} size={18} /></> : '?'}</span>
+                                  <span style={{ fontWeight: 600, fontSize: 12 }}>{actualTeamB ? <>{actualTeamB}{fifaRankMap[actualTeamB] ? <span style={{ fontSize: 10, color: '#aaa', marginLeft: 2 }}>#{fifaRankMap[actualTeamB]}</span> : ''} <Flag emoji={FLAGS[actualTeamB]??''} size={18} /></> : '?'}</span>
                                   <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, marginRight: 'auto', background: correct1x2 ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f0f0f0', color: correct1x2 ? '#1a7a44' : isPlayed ? '#A32D2D' : '#666', fontWeight: 600 }}>
                                     {pred1x2Flag && <Flag emoji={pred1x2Flag} size={14} />} {pred1x2Label}
                                   </span>
