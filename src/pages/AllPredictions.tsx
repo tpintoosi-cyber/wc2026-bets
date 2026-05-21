@@ -1408,7 +1408,7 @@ ${userRows}
                           {p ? <>
                             {/* 1X2 */}
                             <span style={{ textAlign: 'center' }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10,
+                              <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 10,
                                 background: correct1x2 === true ? '#EAF3DE' : correct1x2 === false ? '#FCEBEB' : '#f0f0f0',
                                 color: correct1x2 === true ? '#1a7a44' : correct1x2 === false ? '#A32D2D' : '#333' }}>
                                 {label1x2}

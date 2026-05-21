@@ -262,9 +262,9 @@ export default function Leaderboard() {
                           <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
                             {teams.map((item, idx) => (
                               <span key={idx} title={item.title}
-                                style={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: 13 }}>
-                                {item.flag ? <Flag emoji={item.flag} size={15} /> : '—'}
-                                <span style={{ fontSize: 10 }}>{item.icon}</span>
+                                style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 13 }}>
+                                {item.flag ? <Flag emoji={item.flag} size={18} /> : '—'}
+                                <span style={{ fontSize: 11 }}>{item.icon}</span>
                               </span>
                             ))}
                           </div>
