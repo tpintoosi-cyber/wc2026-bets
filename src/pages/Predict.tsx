@@ -515,22 +515,24 @@ export default function Predict({ lang }: { lang: Lang }) {
         </div>
       </div>
 
-      <div className="tabs">
-        <button className={tab === 'matches' ? 'tab active' : 'tab'} onClick={() => setTab('matches')}>
+      <div className="tabs" style={{ padding: 0 }}>
+        <div style={{ display: 'flex', overflowX: 'auto', gap: 0, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
+        <button className={tab === 'matches' ? 'tab active' : 'tab'} style={{ flexShrink: 0 }} onClick={() => setTab('matches')}>
           {t.tabMatches} <span className="badge">{matchProgress}/72</span>
         </button>
-        <button className={tab === 'groups' ? 'tab active' : 'tab'} onClick={() => setTab('groups')}>
+        <button className={tab === 'groups' ? 'tab active' : 'tab'} style={{ flexShrink: 0 }} onClick={() => setTab('groups')}>
           {t.tabGroups}
         </button>
-        <button className={tab === 'bonus' ? 'tab active' : 'tab'} onClick={() => setTab('bonus')}>
+        <button className={tab === 'bonus' ? 'tab active' : 'tab'} style={{ flexShrink: 0 }} onClick={() => setTab('bonus')}>
           {t.tabBonus}
         </button>
         {(isKoOpen || Object.keys(knockoutPreds).length > 0) && (
-          <button className={tab === 'knockout' ? 'tab active' : 'tab'} onClick={() => setTab('knockout')}>
+          <button className={tab === 'knockout' ? 'tab active' : 'tab'} style={{ flexShrink: 0 }} onClick={() => setTab('knockout')}>
             {t.tabKnockout}
             {knockoutOpen && !(knockoutDeadline && Date.now() > knockoutDeadline) && <span className="badge" style={{ background: '#EAF3DE', color: '#3B6D11' }}>{t.deadlineOpen}</span>}
           </button>
         )}
+        </div>
       </div>
 
       {tab === 'matches' && (
