@@ -116,7 +116,19 @@ export default function Predict({ lang }: { lang: Lang }) {
   const [tab, setTab] = useState<Tab>('matches')
   // Auto-switch to knockout tab on first load once knockout window opens
   const tabInitializedRef = useRef(false)
+  const [tabsVisible, setTabsVisible] = useState(true)
   const [showGroupSummary, setShowGroupSummary] = useState(false)
+  useEffect(() => {
+    let lastY = window.scrollY
+    const handleScroll = () => {
+      const y = window.scrollY
+      if (y > lastY + 5 && y > 80) setTabsVisible(false)   // scrolling down
+      else if (y < lastY - 5) setTabsVisible(true)          // scrolling up
+      lastY = y
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
   const [bonusStandingsOpen, setBonusStandingsOpen] = useState(false)
   const [isOpen, setIsOpen] = useState(true)
   const [groupDeadline, setGroupDeadline] = useState<number | null>(null)
@@ -515,7 +527,12 @@ export default function Predict({ lang }: { lang: Lang }) {
         </div>
       </div>
 
-      <div className="tabs" style={{ padding: 0 }}>
+      <div className="tabs" style={{
+        padding: 0,
+        transform: tabsVisible ? 'translateY(0)' : 'translateY(-110%)',
+        transition: 'transform 0.25s ease',
+        position: 'sticky', top: 0, zIndex: 100,
+      }}>
         <div style={{ display: 'flex', overflowX: 'auto', gap: 0, WebkitOverflowScrolling: 'touch' } as React.CSSProperties}>
         <button className={tab === 'matches' ? 'tab active' : 'tab'} style={{ flexShrink: 0 }} onClick={() => setTab('matches')}>
           {t.tabMatches} <span className="badge">{matchProgress}/72</span>
