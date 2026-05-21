@@ -184,22 +184,26 @@ export default function Leaderboard() {
       )}
 
       {/* ── Column settings ── */}
-      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8, gap: 8, alignItems: 'center' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <button onClick={() => setShowColSettings(v => !v)}
-          style={{ fontSize: 12, padding: '4px 12px', borderRadius: 16, border: '1px solid #ddd',
+          style={{ fontSize: 12, padding: '4px 12px', borderRadius: 16, border: '1px solid #ddd', flexShrink: 0,
             background: showColSettings ? '#1a1a2e' : '#fff', color: showColSettings ? '#fff' : '#555',
             cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
           ⚙️ עמודות
         </button>
-        {showColSettings && COLS.map(c => (
-          <button key={c.key} onClick={() => toggleCol(c.key)}
-            style={{ fontSize: 11, padding: '3px 10px', borderRadius: 16, cursor: 'pointer', fontFamily: 'inherit',
-              border: `1px solid ${hiddenCols.has(c.key) ? '#ddd' : '#1a7a44'}`,
-              background: hiddenCols.has(c.key) ? '#f5f5f5' : '#EAF3DE',
-              color: hiddenCols.has(c.key) ? '#aaa' : '#1a7a44', fontWeight: 600 }}>
-            {hiddenCols.has(c.key) ? '○' : '✓'} {c.label}
-          </button>
-        ))}
+        {showColSettings && (
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2, flex: 1 }}>
+            {COLS.map(c => (
+              <button key={c.key} onClick={() => toggleCol(c.key)}
+                style={{ fontSize: 11, padding: '3px 10px', borderRadius: 16, cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
+                  border: `1px solid ${hiddenCols.has(c.key) ? '#ddd' : '#1a7a44'}`,
+                  background: hiddenCols.has(c.key) ? '#f5f5f5' : '#EAF3DE',
+                  color: hiddenCols.has(c.key) ? '#aaa' : '#1a7a44', fontWeight: 600 }}>
+                {hiddenCols.has(c.key) ? '○' : '✓'} {c.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Table ── */}
@@ -322,26 +326,71 @@ export default function Leaderboard() {
                 {tournamentStarted && (
                   <div className="lb-row-bar" style={{ width: `${pct}%` }} />
                 )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontWeight: 800, fontSize: 16, minWidth: 28 }}>{rank}</span>
-                  <span style={{ flex: 1, fontWeight: isMe ? 700 : 500, fontSize: 14 }}>
-                    {displayName(s)}
-                    {isMe && <span style={{ fontSize: 11, color: '#185FA5', marginRight: 4 }}>(אני)</span>}
-                  </span>
-                  <span style={{ fontWeight: 800, fontSize: 20, minWidth: 44, textAlign: 'left' }}>
-                    {s.total}
-                  </span>
-                  {ptsDelta != null && ptsDelta !== 0 && (
-                    <span className="delta-badge" style={{
-                      fontSize: 11, fontWeight: 800, padding: '1px 6px', borderRadius: 20,
-                      background: ptsDelta > 0 ? '#EAF3DE' : '#FCEBEB',
-                      color:      ptsDelta > 0 ? '#1a7a44' : '#c0392b',
-                    }}>
-                      {ptsDelta > 0 ? `+${ptsDelta}` : ptsDelta}
-                    </span>
-                  )}
+                {/* Top row: rank | name + bonus | total */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <div style={{ minWidth: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 2 }}>
+                    <span style={{ fontWeight: 800, fontSize: 16 }}>{rank}</span>
+                    {rankDelta != null && rankDelta !== 0 && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: rankDelta > 0 ? '#1a7a44' : '#c0392b' }}>
+                        {rankDelta > 0 ? `▲${rankDelta}` : `▼${Math.abs(rankDelta)}`}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: isMe ? 700 : 500, fontSize: 14 }}>
+                      {displayName(s)}
+                      {isMe && <span style={{ fontSize: 11, color: '#185FA5', marginRight: 4 }}>(אני)</span>}
+                    </div>
+                    {/* Bonus flags on mobile */}
+                    {bonusPreds[s.userId] && (() => {
+                      const b = bonusPreds[s.userId]
+                      const teams = [
+                        b.q105 && { icon: '🏆', flag: FLAGS[b.q105] ?? '', title: b.q105 },
+                        b.q106 && { icon: '🥈', flag: FLAGS[b.q106] ?? '', title: b.q106 },
+                        b.q107 && { icon: '🥉', flag: FLAGS[b.q107] ?? '', title: b.q107 },
+                      ].filter(Boolean) as { icon: string; flag: string; title: string }[]
+                      const players = [
+                        b.q108 && { icon: '⚽', name: b.q108 },
+                        b.q110 && { icon: '👟', name: b.q110 },
+                      ].filter(Boolean) as { icon: string; name: string }[]
+                      return (
+                        <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          {teams.length > 0 && (
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              {teams.map((item, idx) => (
+                                <span key={idx} title={item.title} style={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  {item.flag ? <Flag emoji={item.flag} size={16} /> : '—'}
+                                  <span style={{ fontSize: 10 }}>{item.icon}</span>
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          {players.length > 0 && (
+                            <div style={{ display: 'flex', gap: 6, fontSize: 10, color: '#999' }}>
+                              {players.map((item, idx) => (
+                                <span key={idx}>{item.icon} {item.name}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                    <span style={{ fontWeight: 800, fontSize: 22 }}>{s.total}</span>
+                    {ptsDelta != null && ptsDelta !== 0 && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 800, padding: '1px 6px', borderRadius: 20,
+                        background: ptsDelta > 0 ? '#EAF3DE' : '#FCEBEB',
+                        color: ptsDelta > 0 ? '#1a7a44' : '#c0392b',
+                      }}>
+                        {ptsDelta > 0 ? `+${ptsDelta}` : ptsDelta}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 5, paddingRight: 36, flexWrap: 'wrap' }}>
+                {/* Breakdown row */}
+                <div style={{ display: 'flex', gap: 10, marginTop: 6, paddingRight: 36, flexWrap: 'wrap' }}>
                   {[
                     { label: 'בתים',    val: colVal(s, 'match') },
                     { label: 'עולות',   val: colVal(s, 'group') },
