@@ -1009,7 +1009,7 @@ ${userRows}
                           )
                         })}
                         {hasResult && (
-                          <div style={{ marginTop: 8, borderTop: '1px solid #f0f0f0', paddingTop: 6 }}>
+                          <div style={{ marginTop: 8, borderTop: '1px solid var(--color-border-tertiary, #f0f0f0)', paddingTop: 6 }}>
                             <div style={{ fontSize: 11, color: '#888', marginBottom: 3 }}>{t.actual}:</div>
                             {[0,1,2].map(idx => <div key={idx} style={{ fontSize: 12, color: '#555' }}>{idx+1}. <><Flag emoji={FLAGS[actual[idx]]??''} size={22} /> {actual[idx]}</></div>)}
                           </div>
@@ -1271,7 +1271,7 @@ ${userRows}
                         {t.actual}: <Flag emoji={FLAGS[tA]??''} size={16} /> {tA} {actual.resultA}–{actual.resultB} <Flag emoji={FLAGS[tB]??''} size={16} /> {tB} → <Flag emoji={FLAGS[actual.advanceTeam]??''} size={16} /> {actual.advanceTeam}
                       </span>}
                     </div>
-                    <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                    <div style={{ borderTop: '1px solid var(--color-border-tertiary, #f0f0f0)', paddingTop: 8 }}>
                       <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} />
                       {/* Per-user grid: name | score | 1X2 | advance | pts */}
                       <div style={{
@@ -1279,7 +1279,7 @@ ${userRows}
                         gridTemplateColumns: `1fr 60px 84px 84px${played ? ' 54px' : ''}`,
                         alignItems: 'center', gap: '0 6px',
                         marginTop: 12, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600,
-                        borderTop: '1px solid #f0f0f0', paddingTop: 8, paddingRight: 4, paddingLeft: 4,
+                        borderTop: '1px solid var(--color-border-tertiary, #f0f0f0)', paddingTop: 8, paddingRight: 4, paddingLeft: 4,
                       }}>
                         <span>{lang === 'he' ? 'משתמש' : 'User'}</span>
                         <span style={{ textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Pred'}</span>
@@ -1299,8 +1299,8 @@ ${userRows}
                             display: 'grid',
                             gridTemplateColumns: `1fr 60px 84px 84px${played ? ' 54px' : ''}`,
                             alignItems: 'center', gap: '0 6px',
-                            padding: '7px 4px', borderBottom: '1px solid #f5f5f5',
-                            background: u.userId === user?.uid ? '#f8f9ff' : 'transparent',
+                            padding: '7px 4px', borderBottom: '1px solid var(--color-border-tertiary, #f5f5f5)',
+                            background: u.userId === user?.uid ? 'var(--color-background-secondary, #f0f4ff)' : 'transparent',
                           }}>
                             <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
@@ -1364,11 +1364,11 @@ ${userRows}
                     <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
                     <span style={{ fontSize: 15, fontWeight: 600 }}><><Flag emoji={FLAGS[match.teamA]??''} size={22} /> {match.teamA}</> נגד <Flag emoji={FLAGS[match.teamB]??''} size={22} /> {match.teamB}</span>
                     <span style={{ fontSize: 12, color: '#888' }}>{MATCH_SCHEDULE[match.id]}</span>
-                    {played && <span style={{ marginRight: 'auto', fontSize: 13, background: '#f5f5f5', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
+                    {played && <span style={{ marginRight: 'auto', fontSize: 13, background: 'var(--color-background-secondary, #f5f5f5)', color: 'var(--color-text-primary)', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
                       בפועל: {match.teamA} {result.resultA??0}–{result.resultB??0} {match.teamB}{result.hadRedCard?' 🟥':''}
                     </span>}
                   </div>
-                  <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 8 }}>
+                  <div style={{ borderTop: '1px solid var(--color-border-tertiary, #f0f0f0)', paddingTop: 8 }}>
                     {/* Grid: name | 1X2 | תוצאה (with flags+color) | 🟥 | pts */}
                     <div style={{
                       display: 'grid',
@@ -1420,8 +1420,8 @@ ${userRows}
                           display: 'grid',
                           gridTemplateColumns: `1fr 80px 100px 36px${played ? ' 54px' : ''}`,
                           alignItems: 'center', gap: '0 6px',
-                          padding: '5px 4px', borderBottom: '1px solid #f5f5f5',
-                          background: u.userId === user?.uid ? '#f8f9ff' : 'transparent',
+                          padding: '5px 4px', borderBottom: '1px solid var(--color-border-tertiary, #f5f5f5)',
+                          background: u.userId === user?.uid ? 'var(--color-background-secondary, #f0f4ff)' : 'transparent',
                         }}>
                           {/* Name + rank */}
                           <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
