@@ -16,6 +16,20 @@ export default function Leaderboard() {
   const [nicknames, setNicknames] = useState<Record<string, string>>({})
   const [bonusPreds, setBonusPreds] = useState<Record<string, Record<string, string>>>({})
   const [loading,   setLoading]   = useState(true)
+  const [hiddenCols, setHiddenCols] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('lb_hidden_cols') || '[]')) }
+    catch { return new Set() }
+  })
+  const [showColSettings, setShowColSettings] = useState(false)
+
+  const toggleCol = (key: string) => {
+    setHiddenCols(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      localStorage.setItem('lb_hidden_cols', JSON.stringify([...next]))
+      return next
+    })
+  }
 
   useEffect(() => {
     getDocs(collection(db, 'predictions')).then(snap => {
@@ -78,6 +92,8 @@ export default function Leaderboard() {
     if (key === 'bonus')    return s.bonusPoints ?? 0
     return 0
   }
+
+  const visibleCols = COLS.filter(c => !hiddenCols.has(c.key))
 
   return (
     <div className="page" style={{ paddingBottom: 40 }}>
@@ -167,12 +183,31 @@ export default function Leaderboard() {
         </div>
       )}
 
+      {/* ── Column settings ── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-start', marginBottom: 8, gap: 8, alignItems: 'center' }}>
+        <button onClick={() => setShowColSettings(v => !v)}
+          style={{ fontSize: 12, padding: '4px 12px', borderRadius: 16, border: '1px solid #ddd',
+            background: showColSettings ? '#1a1a2e' : '#fff', color: showColSettings ? '#fff' : '#555',
+            cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+          ⚙️ עמודות
+        </button>
+        {showColSettings && COLS.map(c => (
+          <button key={c.key} onClick={() => toggleCol(c.key)}
+            style={{ fontSize: 11, padding: '3px 10px', borderRadius: 16, cursor: 'pointer', fontFamily: 'inherit',
+              border: `1px solid ${hiddenCols.has(c.key) ? '#ddd' : '#1a7a44'}`,
+              background: hiddenCols.has(c.key) ? '#f5f5f5' : '#EAF3DE',
+              color: hiddenCols.has(c.key) ? '#aaa' : '#1a7a44', fontWeight: 600 }}>
+            {hiddenCols.has(c.key) ? '○' : '✓'} {c.label}
+          </button>
+        ))}
+      </div>
+
       {/* ── Table ── */}
       <div className="leaderboard" style={{ overflowX: 'auto' }}>
         <div className="lb-header">
           <span className="lb-rank">#</span>
           <span className="lb-name">שחקן</span>
-          {COLS.map(c => (
+          {visibleCols.map(c => (
             <span key={c.key} className="lb-pts" title={c.hint}
               style={c.sub ? { color: '#93A8CC', fontSize: 11 } : undefined}>
               {c.label}
@@ -210,29 +245,49 @@ export default function Leaderboard() {
                   </div>
                   {bonusPreds[s.userId] && (() => {
                     const b = bonusPreds[s.userId]
-                    const items = [
-                      b.q105 && { icon: '🏆', val: b.q105, isTeam: true },
-                      b.q106 && { icon: '🥈', val: b.q106, isTeam: true },
-                      b.q107 && { icon: '🥉', val: b.q107, isTeam: true },
-                      b.q108 && { icon: '⚽', val: b.q108, isTeam: false },
-                      b.q110 && { icon: '🍳', val: b.q110, isTeam: false },
-                    ].filter(Boolean) as { icon: string; val: string; isTeam: boolean }[]
-                    if (!items.length) return null
+                    const teams = [
+                      b.q105 && { icon: '🏆', flag: FLAGS[b.q105] ?? '', title: b.q105 },
+                      b.q106 && { icon: '🥈', flag: FLAGS[b.q106] ?? '', title: b.q106 },
+                      b.q107 && { icon: '🥉', flag: FLAGS[b.q107] ?? '', title: b.q107 },
+                    ].filter(Boolean) as { icon: string; flag: string; title: string }[]
+                    const players = [
+                      b.q108 && { icon: '⚽', name: b.q108 },
+                      b.q110 && { icon: '👟', name: b.q110 },
+                    ].filter(Boolean) as { icon: string; name: string }[]
+                    if (!teams.length && !players.length) return null
                     return (
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {items.map((item, i) => (
-                          <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 11, color: '#888' }}>
-                            <span>{item.icon}</span>
-                            {item.isTeam && <Flag emoji={FLAGS[item.val] ?? ''} size={12} />}
-                            <span style={{ maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.val}</span>
-                          </span>
-                        ))}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginTop: 2 }}>
+                        {/* Row 1: 3 medals with flags only, all in one line */}
+                        {teams.length > 0 && (
+                          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                            {teams.map((item, idx) => (
+                              <span key={idx} title={item.title}
+                                style={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: 13 }}>
+                                {item.flag ? <Flag emoji={item.flag} size={15} /> : '—'}
+                                <span style={{ fontSize: 10 }}>{item.icon}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {/* Row 2: scorer + assists */}
+                        {players.length > 0 && (
+                          <div style={{ display: 'flex', gap: 6, fontSize: 10, color: '#999' }}>
+                            {players.map((item, idx) => (
+                              <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <span>{item.icon}</span>
+                                <span style={{ maxWidth: 65, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {item.name}
+                                </span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )
                   })()}
                 </div>
               </span>
-              {COLS.map(c => (
+              {visibleCols.map(c => (
                 <span key={c.key} className="lb-pts"
                   style={{ color: colVal(s, c.key) === 0 && tournamentStarted ? '#ccc' : undefined }}>
                   {colVal(s, c.key)}
