@@ -864,22 +864,19 @@ ${userRows}
 
                         return (
                           <div key={match.id} style={{ border: `1px solid ${played ? (pts > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
-                            {/* Header — separate flex children to avoid RTL bidi reversal */}
+                            {/* Header */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', background: played ? (pts > 0 ? '#f5fbf2' : '#fdf5f5') : '#f8f8fc' }}>
-                              {/* RIGHT (first in RTL): match info */}
+                              {/* Match info — 5 separate children so scoreA always adjacent to teamA */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                                 <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
-                                {/* teamA is shown RIGHT (first child), scoreA is teamB-side score */}
-                                <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                  {match.teamA} <Flag emoji={FLAGS[match.teamA]??''} size={18} />
-                                </span>
-                                <span style={{ fontWeight: 800, fontSize: 14 }}>{p.scoreB ?? '?'}–{p.scoreA ?? '?'}</span>
-                                <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                  <Flag emoji={FLAGS[match.teamB]??''} size={18} /> {match.teamB}
-                                </span>
+                                <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}>{match.teamA}<Flag emoji={FLAGS[match.teamA]??''} size={18}/></span>
+                                <span style={{ fontWeight: 800, fontSize: 14 }}>{p.scoreA ?? '?'}</span>
+                                <span style={{ color: '#aaa' }}>–</span>
+                                <span style={{ fontWeight: 800, fontSize: 14 }}>{p.scoreB ?? '?'}</span>
+                                <span style={{ fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 3 }}><Flag emoji={FLAGS[match.teamB]??''} size={18}/>{match.teamB}</span>
                                 <span className="match-num">#{match.id}</span>
                               </div>
-                              {/* LEFT (second in RTL): pts + 1X2 badge */}
+                              {/* Pts + 1X2 badge */}
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 {played && <PtsBadge pts={pts} played={true} />}
                                 {predTeamLabel && (
@@ -893,7 +890,7 @@ ${userRows}
                               </div>
                             </div>
 
-                            {/* בפועל + breakdown — identical to knockout */}
+                            {/* בפועל + breakdown */}
                             {played && (() => {
                               const rA = result.resultA ?? 0, rB = result.resultB ?? 0
                               const pA = Number(p.scoreA ?? 0), pB = Number(p.scoreB ?? 0)
@@ -904,25 +901,20 @@ ${userRows}
                               const isAB    = match.category === 'A' || match.category === 'B'
                               const ouOf    = (t: number) => isAB ? (t < 2 ? 'אנדר' : t > 3 ? 'אובר' : null) : (t < 3 ? 'אנדר' : t > 4 ? 'אובר' : null)
                               const predOU  = ouOf(pA + pB), actOU = ouOf(rA + rB)
-                              // Show OU even for exact (like knockout shows score+OU separately)
                               const ouBonus = predOU && predOU === actOU ? 1 : 0
                               const pRed    = p.redCard && result.hadRedCard ? 2 : 0
                               return (<>
-                                {/* בפועל row — separate flex children for score */}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 10px', fontSize: 12, background: '#fff', borderTop: '1px solid #eee' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#555' }}>
-                                    <span style={{ color: '#aaa', fontSize: 11 }}>בפועל:</span>
-                                    <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                      {match.teamA} <Flag emoji={FLAGS[match.teamA]??''} size={14} />
-                                    </span>
-                                    <span style={{ fontWeight: 700 }}>{rB}–{rA}</span>
-                                    <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>
-                                      <Flag emoji={FLAGS[match.teamB]??''} size={14} /> {match.teamB}
-                                    </span>
-                                    {result.hadRedCard && <span>🟥</span>}
-                                  </div>
+                                {/* בפועל — same 5-child approach */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', fontSize: 12, color: '#555', background: '#fff', borderTop: '1px solid #eee' }}>
+                                  <span style={{ color: '#aaa', fontSize: 11 }}>בפועל:</span>
+                                  <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}>{match.teamA}<Flag emoji={FLAGS[match.teamA]??''} size={14}/></span>
+                                  <span style={{ fontWeight: 700 }}>{rA}</span>
+                                  <span style={{ color: '#aaa' }}>:</span>
+                                  <span style={{ fontWeight: 700 }}>{rB}</span>
+                                  <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 3 }}><Flag emoji={FLAGS[match.teamB]??''} size={14}/>{match.teamB}</span>
+                                  {result.hadRedCard && <span>🟥</span>}
                                 </div>
-                                {/* Breakdown — identical JSX to knockout */}
+                                {/* Breakdown — identical to knockout */}
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderTop: '1px solid #eee', fontSize: 11, flexWrap: 'wrap', background: '#fff' }}>
                                   <span style={{ color: p1x2>0?'#1a7a44':'#cc3333', fontWeight: 600 }}>{p1x2>0?'✓':'✗'} 1X2{p1x2>0?` +${p1x2}`:''}</span>
                                   <span style={{ color: '#ddd' }}>|</span>
