@@ -242,11 +242,13 @@ export default function Admin() {
               scoresFix++
             }
 
-            // Red cards from events
-            const events = await fetchFixtureEvents(fixture.fixture.id)
-            const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
-            updatedMatches[match.id].hadRedCard = hasRed
-            if (hasRed) redCards++
+            // Red cards from events — only fetch if not already determined
+            if (updatedMatches[match.id].hadRedCard === undefined) {
+              const events = await fetchFixtureEvents(fixture.fixture.id)
+              const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
+              updatedMatches[match.id].hadRedCard = hasRed
+              if (hasRed) redCards++
+            }
           }
 
           // ── Knockout: 90-min scores + advanceTeam + red cards ───────
@@ -274,8 +276,8 @@ export default function Admin() {
               advanceFix++
             }
 
-            // Red cards (R32 + R16 only)
-            if (km.round === 'R32' || km.round === 'R16') {
+            // Red cards (R32 + R16 only) — only fetch if not already determined
+            if ((km.round === 'R32' || km.round === 'R16') && kd.hadRedCard === undefined) {
               const events = await fetchFixtureEvents(fixture.fixture.id)
               const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
               kd.hadRedCard = hasRed
