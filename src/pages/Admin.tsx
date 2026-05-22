@@ -632,6 +632,8 @@ export default function Admin() {
             </div>
           </label>
         </div>
+        <div className="admin-row">
+          <label>דדליין שלב בתים:&nbsp;
             <input type="datetime-local" value={settings.deadline}
               onChange={e => setSettings(s => ({ ...s, deadline: e.target.value }))} />
           </label>
