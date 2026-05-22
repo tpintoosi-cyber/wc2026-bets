@@ -2018,6 +2018,15 @@ export default function Predict({ lang }: { lang: Lang }) {
                           )}
                         </div>
 
+                        {/* Match header with date */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 14px 0', fontSize: 12, color: '#888' }}>
+                          <span style={{ fontWeight: 600 }}>
+                            {tn(teamA ?? '?')} {lang === 'he' ? 'נגד' : 'vs'} {tn(teamB ?? '?')}
+                          </span>
+                          {MATCH_SCHEDULE[km.id] && (
+                            <span style={{ fontSize: 11, color: '#aaa' }}>📅 {MATCH_SCHEDULE[km.id]}</span>
+                          )}
+                        </div>
                         {teamsReady && (
                           <div style={{ padding: '12px 14px' }}>
                             {/* FIFA rank lookup */}
