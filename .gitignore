@@ -5,3 +5,7 @@ sim_users_data.json
 step*.js
 dist/
 node_modules/
+service-account.json
+service-account.json
+.env
+.env

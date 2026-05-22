@@ -30,6 +30,9 @@ jobs:
       - run: npm install
       - run: npm run test
       - run: npm run build
+        env:
+          VITE_WC_API_KEY: ${{ secrets.VITE_WC_API_KEY }}
+          VITE_API_FOOTBALL_KEY: ${{ secrets.VITE_API_FOOTBALL_KEY }}
 
       - uses: actions/configure-pages@v4
       - uses: actions/upload-pages-artifact@v3
