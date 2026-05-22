@@ -1092,6 +1092,22 @@ ${userRows}
                     </span>
                   )}
                 </div>
+                {/* Sticky jump to current knockout match */}
+                {(() => {
+                  const fullSched = { ...MATCH_SCHEDULE, ...adminSchedule }
+                  const bestId = getBestMatchId(fullSched, mockNow)
+                  const isKoMatch = KNOCKOUT_MATCHES.some(km => km.id === bestId)
+                  if (!isKoMatch) return null
+                  return (
+                    <div style={{ position: 'sticky', top: 0, zIndex: 20, display: 'flex', justifyContent: 'center', padding: '4px 0 8px', background: 'var(--color-background-primary,#fff)' }}>
+                      <button onClick={() => {
+                        document.getElementById(`ko-user-match-${bestId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                      }} style={{ fontSize: 12, fontWeight: 600, padding: '5px 16px', borderRadius: 20, border: '1px solid #1a1a2e', background: '#1a1a2e', color: '#fff', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        ↓ {lang === 'he' ? `קפוץ למשחק הנוכחי #${bestId}` : `Jump to current match #${bestId}`}
+                      </button>
+                    </div>
+                  )
+                })()}
                 {(['R32', 'R16', 'QF', 'SF', '3P', 'F'] as const).map(round => {
                   if (!isRoundVisible(round)) return null
                   const roundMatches = KNOCKOUT_MATCHES.filter(m => m.round === round)
@@ -1164,7 +1180,7 @@ ${userRows}
                             const pred1x2Label = pred.prediction1X2 === '1' ? (actualTeamA ?? '1') : pred.prediction1X2 === '2' ? (actualTeamB ?? '2') : 'תיקו'
                             const pred1x2Flag = pred.prediction1X2 === '1' ? (FLAGS[actualTeamA ?? ''] ?? '') : pred.prediction1X2 === '2' ? (FLAGS[actualTeamB ?? ''] ?? '') : null
                             return (
-                              <div key={km.id} style={{ border: `1px solid ${isPlayed ? (total > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
+                              <div key={km.id} id={`ko-user-match-${km.id}`} style={{ border: `1px solid ${isPlayed ? (total > 0 ? '#c0e0cc' : '#e8d0d0') : '#e0e0e8'}`, borderRadius: 8, marginBottom: 6, overflow: 'hidden' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', padding: '6px 8px', gap: 6, flexWrap: 'wrap', background: '#fafbff' }}>
                                   <span style={{ fontSize: 10, color: '#bbb' }}>#{km.id}</span>
                                   <span className={`cat-badge cat-${cat?.toLowerCase?.() ?? 'a'}`}>{cat}</span>
@@ -1174,6 +1190,7 @@ ${userRows}
                                   <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 8, marginRight: 'auto', background: correct1x2 ? '#EAF3DE' : isPlayed ? '#FCEBEB' : '#f0f0f0', color: correct1x2 ? '#1a7a44' : isPlayed ? '#A32D2D' : '#666', fontWeight: 600 }}>
                                     {pred1x2Flag && <Flag emoji={pred1x2Flag} size={14} />} {pred1x2Label}
                                   </span>
+                                  {adminSchedule[km.id] && <span style={{ fontSize: 10, color: '#aaa' }}>📅 {adminSchedule[km.id]}</span>}
                                   {isPlayed && <span style={{ fontSize: 12, fontWeight: 700, color: total > 0 ? '#1a7a44' : '#999', background: total > 0 ? '#EAF3DE' : '#f5f5f5', padding: '1px 6px', borderRadius: 8 }}>{total > 0 ? `+${total}` : '0'} נק׳</span>}
                                 </div>
                                 {isPlayed && rA != null && (
@@ -1384,10 +1401,10 @@ ${userRows}
                     </span>}
                   </div>
                   <div style={{ borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 8 }}>
-                    {/* Grid: name | 1X2 | תוצאה (with flags+color) | 🟥 | pts */}
+                    {/* Grid: name | 1X2 | תוצאה | א/ע | 🟥 | pts */}
                     <div style={{
                       display: 'grid',
-                      gridTemplateColumns: `1fr 80px 100px 36px${played ? ' 54px' : ''}`,
+                      gridTemplateColumns: `1fr 80px 100px 46px 36px${played ? ' 54px' : ''}`,
                       alignItems: 'center', gap: '0 6px',
                       marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600,
                       padding: '0 4px',
@@ -1395,6 +1412,7 @@ ${userRows}
                       <span>{lang === 'he' ? 'משתמש' : 'User'}</span>
                       <span style={{ textAlign: 'center' }}>1X2</span>
                       <span style={{ textAlign: 'center' }}>{lang === 'he' ? 'תוצאה' : 'Score'}</span>
+                      <span style={{ textAlign: 'center' }}>א/ע</span>
                       <span style={{ textAlign: 'center' }}>🟥</span>
                       {played && <span style={{ textAlign: 'center' }}>נק׳</span>}
                     </div>
@@ -1433,7 +1451,7 @@ ${userRows}
                       return (
                         <div key={u.userId} style={{
                           display: 'grid',
-                          gridTemplateColumns: `1fr 80px 100px 36px${played ? ' 54px' : ''}`,
+                          gridTemplateColumns: `1fr 80px 100px 46px 36px${played ? ' 54px' : ''}`,
                           alignItems: 'center', gap: '0 6px',
                           padding: '5px 4px', borderBottom: '1px solid rgba(128,128,128,0.15)',
                           background: u.userId === user?.uid ? 'rgba(26,122,68,0.12)' : 'transparent',
@@ -1462,7 +1480,7 @@ ${userRows}
                                 {label1x2}
                               </span>
                             </span>
-                            {/* Score — flags + score with color bg */}
+                            {/* Score with flags+color */}
                             <span style={{
                               textAlign: 'center', borderRadius: 6, padding: '2px 4px',
                               background: scoreBg, color: scoreColor,
@@ -1475,10 +1493,29 @@ ${userRows}
                               <span>{pB ?? '?'}</span>
                               <Flag emoji={FLAGS[match.teamB]??''} size={13}/>
                             </span>
+                            {/* OU cell */}
+                            {(() => {
+                              const isAB = match.category === 'A' || match.category === 'B'
+                              const ouOf = (t: number) => isAB ? (t < 2 ? 'אנדר' : t > 3 ? 'אובר' : null) : (t < 3 ? 'אנדר' : t > 4 ? 'אובר' : null)
+                              const predOU = pA != null ? ouOf(pA + pB!) : null
+                              const actOU  = (played && rA != null) ? ouOf(rA + rB!) : null
+                              if (!predOU) return <span style={{ textAlign: 'center', fontSize: 11, color: '#ccc' }}>—</span>
+                              const hit = played && predOU === actOU
+                              const miss = played && predOU !== actOU
+                              return (
+                                <span style={{ textAlign: 'center' }}>
+                                  <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 5px', borderRadius: 8,
+                                    background: hit ? '#EAF3DE' : miss ? '#FCEBEB' : '#f0f0f5',
+                                    color: hit ? '#1a7a44' : miss ? '#A32D2D' : '#666' }}>
+                                    {hit ? '✓ ' : miss ? '✗ ' : ''}{predOU}
+                                  </span>
+                                </span>
+                              )
+                            })()}
                             {/* 🟥 */}
                             <span style={{ textAlign: 'center', borderRadius: 6, padding: '2px 2px', background: redBg }}>{redContent}</span>
                           </> : <>
-                            <span style={{ fontSize: 12, color: '#ccc', gridColumn: 'span 3', textAlign: 'center' }}>לא מולא</span>
+                            <span style={{ fontSize: 12, color: '#ccc', gridColumn: 'span 4', textAlign: 'center' }}>לא מולא</span>
                           </>}
                           {played && <PtsBadge pts={pts} played={true} />}
                         </div>
