@@ -400,6 +400,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [selectedMatchId, setSelectedMatchId] = useState<number>(() => getNextMatchId())
   const [isOpen, setIsOpen] = useState(true)
+  const [liveMode, setLiveMode] = useState(false)
   const [loading, setLoading] = useState(true)
   const [koDeadlines, setKoDeadlines] = useState<Record<string, number | null>>({})
   const now = Date.now()
@@ -425,7 +426,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   // A knockout round is visible only when its deadline has passed (betting closed)
   // Admins can always see everything
   const isRoundVisible = (round: string) => {
-    if (isAdmin) return true
+    if (isAdmin && !liveMode) return true
     const dl = koDeadlines[round]
     return dl != null && now > dl
   }
@@ -448,7 +449,9 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
       const open = settings.exists() ? (settings.data().isOpen ?? true) : true
       const deadline = settings.exists() ? settings.data().deadline : null
       const isClosed = !open || (deadline && Date.now() > deadline)
+      const live = settings.exists() ? (settings.data().liveMode ?? false) : false
       setIsOpen(!isClosed)
+      setLiveMode(live)
 
       // Load knockout round deadlines for visibility filtering
       if (settings.exists()) {
@@ -464,10 +467,12 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
         if (d.mockNow) setMockNow(d.mockNow)
       }
 
+      // When liveMode is ON, even admins can't see predictions until closed
+      const canSeePreds = isClosed || (isAdmin && !live)
       const [resultsSnap, predsSnap, scoresSnap, koSnap, schedSnap] = await Promise.all([
         getDoc(doc(db, 'admin', 'results')),
-        (isClosed || isAdmin) ? getDocs(collection(db, 'predictions')) : Promise.resolve(null),
-        (isClosed || isAdmin) ? getDocs(collection(db, 'scores')) : Promise.resolve(null),
+        canSeePreds ? getDocs(collection(db, 'predictions')) : Promise.resolve(null),
+        canSeePreds ? getDocs(collection(db, 'scores')) : Promise.resolve(null),
         getDoc(doc(db, 'admin', 'knockout')),
         getDoc(doc(db, 'admin', 'schedule')),
       ])
@@ -781,7 +786,7 @@ ${userRows}
   return (
     <div className="page">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <h1 style={{ margin: 0 }}>הימורי כולם {isAdmin && isOpen && <span className="badge badge-red">{t.adminMode}</span>}</h1>
+        <h1 style={{ margin: 0 }}>הימורי כולם {isAdmin && isOpen && !liveMode && <span className="badge badge-red">{t.adminMode}</span>}{isAdmin && liveMode && <span className="badge" style={{ background: '#2d6a2d', color: '#fff' }}>🟢 ריצה על אמת</span>}</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={downloadReport} style={{
             padding: '6px 12px', borderRadius: 8, border: '1px solid #1a7a44',

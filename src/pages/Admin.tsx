@@ -34,6 +34,7 @@ export default function Admin() {
     knockoutOpen: false, knockoutDeadline: '',
     r16Deadline: '', qfDeadline: '', sfDeadline: '', p3Deadline: '', finalDeadline: '',
     mockNow: '',
+    liveMode: false,
   })
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -85,6 +86,7 @@ export default function Admin() {
           p3Deadline:    d.p3Deadline    ? new Date(d.p3Deadline).toISOString().slice(0, 16)    : '',
           finalDeadline: d.finalDeadline ? new Date(d.finalDeadline).toISOString().slice(0, 16) : '',
           mockNow:       d.mockNow       ? new Date(d.mockNow).toISOString().slice(0, 16)       : '',
+          liveMode:      d.liveMode ?? false,
         })
       }
       if (koSnap.exists()) {
@@ -132,10 +134,14 @@ export default function Admin() {
         const isReversed = ourMatch.teamA === awayHe
         if (apiMatch.kickoff_utc) { (current as any).scheduleIL = toIsraelTime(apiMatch.kickoff_utc); updatedSchedule++ }
         if (apiMatch.status === 'completed' && apiMatch.home_score !== null && apiMatch.away_score !== null) {
-          current.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
-          current.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
-          current.isPlayed = true
-          updatedResults++
+          if ((matches[ourMatch.id] as any)?.manualScore) {
+            log.push(`🔒 #${ourMatch.id} — נשמר ידנית, לא הוחלף`)
+          } else {
+            current.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
+            current.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
+            current.isPlayed = true
+            updatedResults++
+          }
         }
         updatedMatches[ourMatch.id] = current as Match
       }
@@ -438,7 +444,14 @@ export default function Admin() {
   }
 
   const saveResults = async () => {
-    await setDoc(doc(db, 'admin', 'results'), { matches, groups: actualGroups, bonus: actualBonus })
+    // Mark any match that has isPlayed=true as manualScore so sync won't overwrite it
+    const markedMatches: Record<number, any> = {}
+    for (const [id, m] of Object.entries(matches)) {
+      markedMatches[Number(id)] = (m as any).isPlayed
+        ? { ...m, manualScore: true }
+        : m
+    }
+    await setDoc(doc(db, 'admin', 'results'), { matches: markedMatches, groups: actualGroups, bonus: actualBonus })
     setMsg('✓ תוצאות נשמרו')
     setTimeout(() => setMsg(''), 3000)
   }
@@ -488,6 +501,7 @@ export default function Admin() {
       p3Deadline:    settings.p3Deadline    ? new Date(settings.p3Deadline).getTime()    : null,
       finalDeadline: settings.finalDeadline ? new Date(settings.finalDeadline).getTime() : null,
       mockNow:       settings.mockNow       ? new Date(settings.mockNow).getTime()       : null,
+      liveMode:      settings.liveMode ?? false,
     }, { merge: true })
     setMsg('✓ הגדרות נשמרו')
     setTimeout(() => setMsg(''), 3000)
@@ -593,7 +607,31 @@ export default function Admin() {
           </label>
         </div>
         <div className="admin-row">
-          <label>דדליין שלב בתים:&nbsp;
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <input type="checkbox" checked={settings.liveMode}
+                onChange={e => setSettings(s => ({ ...s, liveMode: e.target.checked }))}
+                style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} id="liveMode-toggle" />
+              <label htmlFor="liveMode-toggle" style={{
+                display: 'block', width: 48, height: 26, borderRadius: 13, cursor: 'pointer',
+                background: settings.liveMode ? '#2d6a2d' : '#ccc', transition: 'background 0.2s', position: 'relative',
+              }}>
+                <span style={{
+                  position: 'absolute', top: 3, left: settings.liveMode ? 25 : 3, width: 20, height: 20,
+                  background: '#fff', borderRadius: '50%', transition: 'left 0.2s',
+                }} />
+              </label>
+            </div>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: 14, color: settings.liveMode ? '#2d6a2d' : '#333' }}>
+                {settings.liveMode ? '🟢 ריצה על אמת — פעיל' : '⚪ ריצה על אמת — כבוי'}
+              </span>
+              <p style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                כשפעיל — גם אדמין לא יראה הימורי משתמשים עד שהדדליין עובר
+              </p>
+            </div>
+          </label>
+        </div>
             <input type="datetime-local" value={settings.deadline}
               onChange={e => setSettings(s => ({ ...s, deadline: e.target.value }))} />
           </label>
