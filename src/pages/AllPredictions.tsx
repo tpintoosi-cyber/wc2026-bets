@@ -1330,21 +1330,23 @@ ${userRows}
 
                     {/* Table — columns: name | 1X2 | תוצאה | א/ע | עולה | [🟥] | pts */}
                     <div style={{ borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 8 }}>
-                      {/* Header row */}
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: `1fr 80px 100px 46px 80px${hasRed ? ' 36px' : ''}${played ? ' 54px' : ''}`,
-                        alignItems: 'center', gap: '0 6px',
-                        marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600, padding: '0 4px',
-                      }}>
-                        <span>{lang==='he'?'משתמש':'User'}</span>
-                        <span style={{ textAlign: 'center' }}>1X2</span>
-                        <span style={{ textAlign: 'center' }}>{lang==='he'?'תוצאה':'Score'}</span>
-                        <span style={{ textAlign: 'center' }}>א/ע</span>
-                        <span style={{ textAlign: 'center' }}>{t.koAdvance}</span>
-                        {hasRed && <span style={{ textAlign: 'center' }}>🟥</span>}
-                        {played && <span style={{ textAlign: 'center' }}>נק׳</span>}
-                      </div>
+                      {/* Grid header — desktop only */}
+                      {!isMobile && (
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: `1fr 80px 100px 46px 80px${hasRed ? ' 36px' : ''}${played ? ' 54px' : ''}`,
+                          alignItems: 'center', gap: '0 6px',
+                          marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600, padding: '0 4px',
+                        }}>
+                          <span>{lang==='he'?'משתמש':'User'}</span>
+                          <span style={{ textAlign: 'center' }}>1X2</span>
+                          <span style={{ textAlign: 'center' }}>{lang==='he'?'תוצאה':'Score'}</span>
+                          <span style={{ textAlign: 'center' }}>א/ע</span>
+                          <span style={{ textAlign: 'center' }}>{t.koAdvance}</span>
+                          {hasRed && <span style={{ textAlign: 'center' }}>🟥</span>}
+                          {played && <span style={{ textAlign: 'center' }}>נק׳</span>}
+                        </div>
+                      )}
 
                       {users.map(u => {
                         const p = u.knockout?.[selectedMatchId]
@@ -1531,21 +1533,23 @@ ${userRows}
                     </span>}
                   </div>
                   <div style={{ borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 8 }}>
-                    {/* Grid: name | 1X2 | תוצאה | א/ע | 🟥 | pts */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: `1fr 80px 100px 46px 36px${played ? ' 54px' : ''}`,
-                      alignItems: 'center', gap: '0 6px',
-                      marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600,
-                      padding: '0 4px',
-                    }}>
-                      <span>{lang === 'he' ? 'משתמש' : 'User'}</span>
-                      <span style={{ textAlign: 'center' }}>1X2</span>
-                      <span style={{ textAlign: 'center' }}>{lang === 'he' ? 'תוצאה' : 'Score'}</span>
-                      <span style={{ textAlign: 'center' }}>א/ע</span>
-                      <span style={{ textAlign: 'center' }}>🟥</span>
-                      {played && <span style={{ textAlign: 'center' }}>נק׳</span>}
-                    </div>
+                    {/* Grid header — desktop only */}
+                    {!isMobile && (
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: `1fr 80px 100px 46px 36px${played ? ' 54px' : ''}`,
+                        alignItems: 'center', gap: '0 6px',
+                        marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600,
+                        padding: '0 4px',
+                      }}>
+                        <span>{lang === 'he' ? 'משתמש' : 'User'}</span>
+                        <span style={{ textAlign: 'center' }}>1X2</span>
+                        <span style={{ textAlign: 'center' }}>{lang === 'he' ? 'תוצאה' : 'Score'}</span>
+                        <span style={{ textAlign: 'center' }}>א/ע</span>
+                        <span style={{ textAlign: 'center' }}>🟥</span>
+                        {played && <span style={{ textAlign: 'center' }}>נק׳</span>}
+                      </div>
+                    )}
                     {users.map(u => {
                       const p = u.matches[selectedMatchId]
                       const pts = played ? getMatchPts(selectedMatchId, p) : 0

@@ -1643,10 +1643,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                   {ids.map((row, i) => (
                     <div key={i}>
                       {i > 0 && <div style={{ height: 6 }} />}
-                      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', flexWrap: 'nowrap', gap: 0, textAlign: 'initial' }}>
-                          {row.map(id => <MatchCard key={id} id={id} compact={row.length > 4} />)}
-                        </div>
+                      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap', gap: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+                        {row.map(id => <MatchCard key={id} id={id} compact={row.length > 4} />)}
                       </div>
                     </div>
                   ))}
