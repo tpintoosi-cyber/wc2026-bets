@@ -425,7 +425,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [openKoRounds, setOpenKoRounds] = useState<Set<string>>(new Set(['R32', 'R16', 'QF', 'SF', '3P', 'F']))
   // A knockout round is visible only when its deadline has passed (betting closed)
   // Admins can always see everything
-  const isRoundVisible = (round: string) => {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 520
     if (isAdmin && !liveMode) return true
     const dl = koDeadlines[round]
     return dl != null && now > dl
@@ -1542,76 +1542,112 @@ ${userRows}
                           ? <span style={{ color: '#1a7a44', fontSize: 11, fontWeight: 700 }}>✓ 🟥</span>
                           : <span style={{ color: '#A32D2D', fontSize: 11, fontWeight: 700 }}>✗ 🟥</span>
 
+                      const isABcat = match.category === 'A' || match.category === 'B'
+                      const ouOf = (s: number) => isABcat ? (s < 2 ? 'אנדר' : s > 3 ? 'אובר' : null) : (s < 3 ? 'אנדר' : s > 4 ? 'אובר' : null)
+                      const predOU = pA != null ? ouOf(pA + (pB ?? 0)) : null
+                      const actOU  = (played && rA != null) ? ouOf(rA + (rB ?? 0)) : null
+                      const ouHit  = !!(predOU && predOU === actOU)
+
                       return (
                         <div key={u.userId} style={{
-                          display: 'grid',
-                          gridTemplateColumns: `1fr 80px 100px 46px 36px${played ? ' 54px' : ''}`,
-                          alignItems: 'center', gap: '0 6px',
-                          padding: '5px 4px', borderBottom: '1px solid rgba(128,128,128,0.15)',
                           background: u.userId === user?.uid ? 'rgba(26,122,68,0.12)' : 'transparent',
                         }}>
-                          {/* Name + rank */}
-                          <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
-                            {rankMap[u.userId] != null && (
-                              <span style={{ fontSize: 11, fontWeight: 600, minWidth: 20, color:
-                                rankMap[u.userId] === 1 ? '#B8860B' :
-                                rankMap[u.userId] === 2 ? '#888' :
-                                rankMap[u.userId] === 3 ? '#CD7F32' : '#999'
-                              }}>
-                                {rankMap[u.userId] <= 3
-                                  ? ['🥇','🥈','🥉'][rankMap[u.userId]-1]
-                                  : `#${rankMap[u.userId]}`}
-                              </span>
-                            )}
-                            {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
-                          </span>
-                          {p ? <>
-                            {/* 1X2 */}
-                            <span style={{ textAlign: 'center' }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 10,
-                                background: correct1x2 === true ? '#EAF3DE' : correct1x2 === false ? '#FCEBEB' : '#f0f0f0',
-                                color: correct1x2 === true ? '#1a7a44' : correct1x2 === false ? '#A32D2D' : '#333' }}>
-                                {label1x2}
-                              </span>
-                            </span>
-                            {/* Score with flags+color */}
-                            <span style={{
-                              textAlign: 'center', borderRadius: 6, padding: '2px 4px',
-                              background: scoreBg, color: scoreColor,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2,
-                              fontSize: 12, fontWeight: 700,
+                          {isMobile ? (
+                            /* ── Mobile: 2 rows ── */
+                            <>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                                <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, display: 'flex', alignItems: 'center', gap: 5 }}>
+                                  {rankMap[u.userId] != null && (
+                                    <span style={{ fontSize: 11, fontWeight: 600, minWidth: 20, color:
+                                      rankMap[u.userId] === 1 ? '#B8860B' : rankMap[u.userId] === 2 ? '#888' : rankMap[u.userId] === 3 ? '#CD7F32' : '#999' }}>
+                                      {rankMap[u.userId] <= 3 ? ['🥇','🥈','🥉'][rankMap[u.userId]-1] : `#${rankMap[u.userId]}`}
+                                    </span>
+                                  )}
+                                  {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
+                                </span>
+                                {played && <PtsBadge pts={pts} played={true} />}
+                              </div>
+                              {p ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                  <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 10,
+                                    background: correct1x2 === true ? '#EAF3DE' : correct1x2 === false ? '#FCEBEB' : '#f0f0f0',
+                                    color: correct1x2 === true ? '#1a7a44' : correct1x2 === false ? '#A32D2D' : '#333' }}>
+                                    {label1x2}
+                                  </span>
+                                  <span style={{ borderRadius: 6, padding: '2px 6px', background: scoreBg, color: scoreColor,
+                                    display: 'flex', alignItems: 'center', gap: 2, fontSize: 12, fontWeight: 700 }}>
+                                    <Flag emoji={FLAGS[match.teamA]??''} size={13}/>
+                                    <span>{pA ?? '?'}</span>
+                                    <span style={{ color: '#aaa', fontWeight: 400 }}>:</span>
+                                    <span>{pB ?? '?'}</span>
+                                    <Flag emoji={FLAGS[match.teamB]??''} size={13}/>
+                                  </span>
+                                  {predOU && (
+                                    <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 5px', borderRadius: 8,
+                                      background: ouHit ? '#EAF3DE' : played ? '#fdf0f0' : '#f0f0f5',
+                                      color: ouHit ? '#1a7a44' : played ? '#A32D2D' : '#666' }}>
+                                      {played ? (ouHit ? '✓ ' : '✗ ') : ''}{predOU}
+                                    </span>
+                                  )}
+                                  {p.redCard && (
+                                    <span style={{ borderRadius: 6, padding: '2px 4px', background: redBg }}>{redContent}</span>
+                                  )}
+                                </div>
+                              ) : (
+                                <span style={{ fontSize: 11, color: '#ccc' }}>לא מולא</span>
+                              )}
+                            </>
+                          ) : (
+                            /* ── Desktop: grid ── */
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: `1fr 80px 100px 46px 36px${played ? ' 54px' : ''}`,
+                              alignItems: 'center', gap: '0 6px',
                             }}>
-                              <Flag emoji={FLAGS[match.teamA]??''} size={13}/>
-                              <span>{pA ?? '?'}</span>
-                              <span style={{ color: '#aaa', fontWeight: 400 }}>:</span>
-                              <span>{pB ?? '?'}</span>
-                              <Flag emoji={FLAGS[match.teamB]??''} size={13}/>
-                            </span>
-                            {/* OU cell */}
-                            {(() => {
-                              const isAB = match.category === 'A' || match.category === 'B'
-                              const ouOf = (t: number) => isAB ? (t < 2 ? 'אנדר' : t > 3 ? 'אובר' : null) : (t < 3 ? 'אנדר' : t > 4 ? 'אובר' : null)
-                              const predOU = pA != null ? ouOf(pA + pB!) : null
-                              const actOU  = (played && rA != null) ? ouOf(rA + rB!) : null
-                              if (!predOU) return <span style={{ textAlign: 'center', fontSize: 11, color: '#ccc' }}>—</span>
-                              const hit = played && predOU === actOU
-                              const miss = played && predOU !== actOU
-                              return (
+                              <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                {rankMap[u.userId] != null && (
+                                  <span style={{ fontSize: 11, fontWeight: 600, minWidth: 20, color:
+                                    rankMap[u.userId] === 1 ? '#B8860B' : rankMap[u.userId] === 2 ? '#888' : rankMap[u.userId] === 3 ? '#CD7F32' : '#999' }}>
+                                    {rankMap[u.userId] <= 3 ? ['🥇','🥈','🥉'][rankMap[u.userId]-1] : `#${rankMap[u.userId]}`}
+                                  </span>
+                                )}
+                                {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
+                              </span>
+                              {p ? <>
                                 <span style={{ textAlign: 'center' }}>
-                                  <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 5px', borderRadius: 8,
-                                    background: hit ? '#EAF3DE' : miss ? '#FCEBEB' : '#f0f0f5',
-                                    color: hit ? '#1a7a44' : miss ? '#A32D2D' : '#666' }}>
-                                    {hit ? '✓ ' : miss ? '✗ ' : ''}{predOU}
+                                  <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 10px', borderRadius: 10,
+                                    background: correct1x2 === true ? '#EAF3DE' : correct1x2 === false ? '#FCEBEB' : '#f0f0f0',
+                                    color: correct1x2 === true ? '#1a7a44' : correct1x2 === false ? '#A32D2D' : '#333' }}>
+                                    {label1x2}
                                   </span>
                                 </span>
-                              )
-                            })()}
-                            {/* 🟥 */}
-                            <span style={{ textAlign: 'center', borderRadius: 6, padding: '2px 2px', background: redBg }}>{redContent}</span>
-                          </> : <>
-                            <span style={{ fontSize: 12, color: '#ccc', gridColumn: 'span 4', textAlign: 'center' }}>לא מולא</span>
-                          </>}
-                          {played && <PtsBadge pts={pts} played={true} />}
+                                <span style={{ textAlign: 'center', borderRadius: 6, padding: '2px 4px', background: scoreBg, color: scoreColor,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 12, fontWeight: 700 }}>
+                                  <Flag emoji={FLAGS[match.teamA]??''} size={13}/>
+                                  <span>{pA ?? '?'}</span>
+                                  <span style={{ color: '#aaa', fontWeight: 400 }}>:</span>
+                                  <span>{pB ?? '?'}</span>
+                                  <Flag emoji={FLAGS[match.teamB]??''} size={13}/>
+                                </span>
+                                {(() => {
+                                  if (!predOU) return <span style={{ textAlign: 'center', fontSize: 11, color: '#ccc' }}>—</span>
+                                  return (
+                                    <span style={{ textAlign: 'center' }}>
+                                      <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 5px', borderRadius: 8,
+                                        background: ouHit ? '#EAF3DE' : played ? '#fdf0f0' : '#f0f0f5',
+                                        color: ouHit ? '#1a7a44' : played ? '#A32D2D' : '#666' }}>
+                                        {played ? (ouHit ? '✓ ' : '✗ ') : ''}{predOU}
+                                      </span>
+                                    </span>
+                                  )
+                                })()}
+                                <span style={{ textAlign: 'center', borderRadius: 6, padding: '2px 2px', background: redBg }}>{redContent}</span>
+                              </> : <>
+                                <span style={{ fontSize: 12, color: '#ccc', gridColumn: 'span 4', textAlign: 'center' }}>לא מולא</span>
+                              </>}
+                              {played && <PtsBadge pts={pts} played={true} />}
+                            </div>
+                          )}
                         </div>
                       )
                     })}
