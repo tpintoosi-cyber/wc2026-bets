@@ -533,6 +533,65 @@ export default function Predict({ lang }: { lang: Lang }) {
         )}
       </div>
 
+      {/* ── Completion checker ── */}
+      {isOpen && (() => {
+        const allMatches = MATCHES
+        // Group stage checks
+        const missing1x2 = allMatches.filter(m => !matchPreds[m.id]?.prediction1X2).length
+        const redCardTotal = allMatches.filter(m => matchPreds[m.id]?.redCard).length
+        const missingGroups = GROUPS.filter(g => {
+          const gp = groupPreds[g]
+          return !gp || gp.advancing.filter(Boolean).length < 3
+        })
+        const bonusTotal = BONUS_QUESTIONS.length
+        const bonusFilled = BONUS_QUESTIONS.filter(q => bonusPreds[q.id]).length
+        // Knockout checks
+        const koMatchesOpen = KNOCKOUT_MATCHES.filter(km => {
+          const tA = (knockoutMatches[km.id] as any)?.teamA
+          const tB = (knockoutMatches[km.id] as any)?.teamB
+          return tA && tB
+        })
+        const koMissing1x2 = koMatchesOpen.filter(km => !knockoutPreds[km.id]?.prediction1X2).length
+        const koMissingScore = koMatchesOpen.filter(km => knockoutPreds[km.id]?.scoreA == null).length
+
+        const items = [
+          ...(tab === 'matches' || tab === 'groups' || tab === 'bonus' ? [
+            missing1x2 > 0       && { icon: '1X2', label: `${missing1x2} משחקים ללא 1X2`, action: () => setTab('matches'), sev: 'warn' as const },
+            missingGroups.length > 0 && { icon: '🏠', label: `בתים ללא עולות: ${missingGroups.join(', ')}`, action: () => setTab('groups'), sev: 'warn' as const },
+            bonusFilled < bonusTotal && { icon: '🎯', label: `${bonusTotal - bonusFilled} שאלות בונוס לא מולאו`, action: () => setTab('bonus'), sev: 'warn' as const },
+            { icon: '🟥', label: `${redCardTotal} כרטיסים אדומים מסומנים מתוך 72`, action: () => setTab('matches'), sev: 'info' as const },
+          ] : []),
+          ...(tab === 'knockout' ? [
+            koMissing1x2 > 0    && { icon: '1X2', label: `${koMissing1x2} משחקים ללא 1X2`, action: () => {}, sev: 'warn' as const },
+            koMissingScore > 0  && { icon: '🟥', label: `${koMatchesOpen.filter(km => knockoutPreds[km.id]?.redCard).length} כרטיסים אדומים מסומנים מתוך ${koMatchesOpen.length}`, action: () => {}, sev: 'info' as const },
+          ] : []),
+        ].filter(Boolean) as { icon: string; label: string; action: () => void; sev: 'warn' | 'info' }[]
+
+        if (items.length === 0) return null
+        return (
+          <div style={{ margin: '0 0 12px', border: '1px solid #f0c050', borderRadius: 10, background: '#fffbea', padding: '10px 14px' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#856404', marginBottom: 6 }}>
+              📋 {lang === 'he' ? 'מה עוד צריך למלא?' : 'Still to fill:'}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              {items.map((item, i) => (
+                <button key={i} onClick={item.action}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none',
+                    cursor: 'pointer', fontFamily: 'inherit', padding: '2px 0', textAlign: 'right' }}>
+                  <span style={{ fontSize: 11, background: item.sev === 'warn' ? '#fde8a0' : '#e8f0ff',
+                    color: item.sev === 'warn' ? '#856404' : '#3a5fa0',
+                    padding: '1px 6px', borderRadius: 6, fontWeight: 700, flexShrink: 0 }}>
+                    {item.icon}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#555' }}>{item.label}</span>
+                  <span style={{ fontSize: 11, color: '#aaa', marginRight: 'auto' }}>←</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+
       {tab === 'matches' && (
         <div className="matches-section">
           <DeadlineBanner deadline={groupDeadline} locked={!isOpen} />
@@ -764,6 +823,13 @@ export default function Predict({ lang }: { lang: Lang }) {
                 <div key={group} className="group-card">
                   <div className="group-card-title">{t.group} {group}</div>
 
+                  {/* Caption explaining the standings are based on user predictions */}
+                  {hasData && (
+                    <div style={{ fontSize: 10, color: '#888', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>📊</span>
+                      <span>{lang === 'he' ? 'על פי ניחושי המשחקים שלך:' : 'Based on your match predictions:'}</span>
+                    </div>
+                  )}
                   {/* Mini standings based on user's match predictions */}
                   {hasData && (
                     <div style={{ marginBottom: 10, borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8', fontSize: 12 }}>
