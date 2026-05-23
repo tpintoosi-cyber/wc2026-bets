@@ -1643,8 +1643,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                   {ids.map((row, i) => (
                     <div key={i}>
                       {i > 0 && <div style={{ height: 6 }} />}
-                      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap', gap: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
-                        {row.map(id => <MatchCard key={id} id={id} compact={row.length > 4} />)}
+                      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
+                        <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap', gap: 0, minWidth: 'max-content', margin: '0 auto' }}>
+                          {row.map(id => <MatchCard key={id} id={id} compact={row.length > 4} />)}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1879,7 +1881,7 @@ export default function Predict({ lang }: { lang: Lang }) {
               if (km) setOpenRounds(prev => new Set([...prev, km.round]))
               setTimeout(() => {
                 document.getElementById(`ko-match-${firstUnfilledId}`)
-                  ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
               }, 80)
             }
 
@@ -2054,7 +2056,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                                 setKnockoutView('bracket')
                                 setTimeout(() => {
                                   document.getElementById(`bracket-match-${km.id}`)
-                                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+                                    ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' })
                                 }, 150)
                               }}
                               title={lang === 'he' ? 'עבור לעץ' : 'Go to bracket'}
