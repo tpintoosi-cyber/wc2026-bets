@@ -539,6 +539,19 @@ export default function Predict({ lang }: { lang: Lang }) {
         // Group stage checks
         const missing1x2 = allMatches.filter(m => !matchPreds[m.id]?.prediction1X2).length
         const redCardTotal = allMatches.filter(m => matchPreds[m.id]?.redCard).length
+        const RED_CARD_QUOTA = 6
+        // Knockout red card quotas: R32=3, R16=2, QF=1
+        const koRedCardQuotas = { R32: 3, R16: 2, QF: 1 } as Record<string, number>
+        const koRedCardMissing = Object.entries(koRedCardQuotas).filter(([round, quota]) => {
+          const isVisible = (() => { const dl = koDeadlines[round]; return dl != null && Date.now() > dl })()
+          if (!isVisible) return false
+          const filled = (knockoutRedCards as any)?.[round]?.length ?? 0
+          return filled < quota
+        }).map(([round, quota]) => {
+          const filled = (knockoutRedCards as any)?.[round]?.length ?? 0
+          const labels: Record<string, string> = { R32: 'שלב 32', R16: 'שמינית גמר', QF: 'רבע גמר' }
+          return `${labels[round]}: ${filled}/${quota}`
+        })
         const missingGroups = GROUPS.filter(g => {
           const gp = groupPreds[g]
           return !gp || gp.advancing.filter(Boolean).length < 3
@@ -559,11 +572,11 @@ export default function Predict({ lang }: { lang: Lang }) {
             missing1x2 > 0       && { icon: '1X2', label: `${missing1x2} משחקים ללא 1X2`, action: () => setTab('matches'), sev: 'warn' as const },
             missingGroups.length > 0 && { icon: '🏠', label: `בתים ללא עולות: ${missingGroups.join(', ')}`, action: () => setTab('groups'), sev: 'warn' as const },
             bonusFilled < bonusTotal && { icon: '🎯', label: `${bonusTotal - bonusFilled} שאלות בונוס לא מולאו`, action: () => setTab('bonus'), sev: 'warn' as const },
-            { icon: '🟥', label: `${redCardTotal} כרטיסים אדומים מסומנים מתוך 72`, action: () => setTab('matches'), sev: 'info' as const },
+            redCardTotal < RED_CARD_QUOTA && { icon: '🟥', label: `${redCardTotal}/${RED_CARD_QUOTA} כרטיסים אדומים סומנו`, action: () => setTab('matches'), sev: 'warn' as const },
           ] : []),
           ...(tab === 'knockout' ? [
             koMissing1x2 > 0    && { icon: '1X2', label: `${koMissing1x2} משחקים ללא 1X2`, action: () => {}, sev: 'warn' as const },
-            koMissingScore > 0  && { icon: '🟥', label: `${koMatchesOpen.filter(km => knockoutPreds[km.id]?.redCard).length} כרטיסים אדומים מסומנים מתוך ${koMatchesOpen.length}`, action: () => {}, sev: 'info' as const },
+            koRedCardMissing.length > 0 && { icon: '🟥', label: `כרטיסים אדומים: ${koRedCardMissing.join(' | ')}`, action: () => {}, sev: 'warn' as const },
           ] : []),
         ].filter(Boolean) as { icon: string; label: string; action: () => void; sev: 'warn' | 'info' }[]
 
