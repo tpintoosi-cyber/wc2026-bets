@@ -1437,14 +1437,16 @@ ${userRows}
                                     </span>
                                   : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
                               </span>
-                              {/* Advance */}
-                              <span style={{ textAlign: 'center' }}>
+                              {/* Advance — truncate long names */}
+                              <span style={{ textAlign: 'center', overflow: 'hidden' }}>
                                 {p.advance
-                                  ? <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 5px', borderRadius: 10,
+                                  ? <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 4px', borderRadius: 10,
                                       background: correctAdv?'#EAF3DE':played?'#FCEBEB':'#f0f0fb',
                                       color: correctAdv?'#1a7a44':played?'#A32D2D':'#333',
-                                      display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center' }}>
-                                      <Flag emoji={FLAGS[p.advance]??''} size={14}/>{p.advance}
+                                      display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center',
+                                      whiteSpace: 'nowrap', overflow: 'hidden' }}>
+                                      <Flag emoji={FLAGS[p.advance]??''} size={13}/>
+                                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 55 }}>{p.advance}</span>
                                     </span>
                                   : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
                               </span>
@@ -1459,7 +1461,7 @@ ${userRows}
                                 </span>
                               )}
                             </> : (
-                              <span style={{ fontSize: 12, color: '#ccc', gridColumn: `span ${3 + (hasRed?1:0)}`, textAlign: 'center' }}>לא מולא</span>
+                              <span style={{ fontSize: 12, color: '#ccc', gridColumn: `span ${4 + (hasRed?1:0)}`, textAlign: 'center' }}>לא מולא</span>
                             )}
                             {played && <PtsBadge pts={pts} played={true} />}
                           </div>
