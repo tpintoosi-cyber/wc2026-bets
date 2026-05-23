@@ -534,73 +534,45 @@ export default function Predict({ lang }: { lang: Lang }) {
       </div>
 
       {/* ── Completion checker ── */}
-      {isOpen && (() => {
-        const allMatches = MATCHES
-        // Group stage checks
-        const missing1x2 = allMatches.filter(m => !matchPreds[m.id]?.prediction1X2).length
-        const redCardTotal = allMatches.filter(m => matchPreds[m.id]?.redCard).length
+      {user && (() => {
         const RED_CARD_QUOTA = 6
-        // Knockout red card quotas: R32=3, R16=2, QF=1
-        const koRedCardQuotas = { R32: 3, R16: 2, QF: 1 } as Record<string, number>
-        const koRedCardMissing = Object.entries(koRedCardQuotas).filter(([round, quota]) => {
-          const isVisible = (() => { const dl = koDeadlines[round]; return dl != null && Date.now() > dl })()
-          if (!isVisible) return false
-          const filled = (knockoutRedCards as any)?.[round]?.length ?? 0
-          return filled < quota
-        }).map(([round, quota]) => {
-          const filled = (knockoutRedCards as any)?.[round]?.length ?? 0
-          const labels: Record<string, string> = { R32: 'שלב 32', R16: 'שמינית גמר', QF: 'רבע גמר' }
-          return `${labels[round]}: ${filled}/${quota}`
-        })
-        const missingGroups = GROUPS.filter(g => {
-          const gp = groupPreds[g]
-          return !gp || gp.advancing.filter(Boolean).length < 3
-        })
+        const missing1x2 = MATCHES.filter(m => !matchPreds[m.id]?.prediction1X2).length
+        const redCardTotal = MATCHES.filter(m => matchPreds[m.id]?.redCard).length
+        const missingGroups = GROUPS.filter(g => !groupPreds[g] || groupPreds[g].advancing.filter(Boolean).length < 3)
         const bonusTotal = BONUS_QUESTIONS.length
         const bonusFilled = BONUS_QUESTIONS.filter(q => bonusPreds[q.id]).length
-        // Knockout checks
-        const koMatchesOpen = KNOCKOUT_MATCHES.filter(km => {
-          const tA = (knockoutMatches[km.id] as any)?.teamA
-          const tB = (knockoutMatches[km.id] as any)?.teamB
-          return tA && tB
-        })
-        const koMissing1x2 = koMatchesOpen.filter(km => !knockoutPreds[km.id]?.prediction1X2).length
-        const koMissingScore = koMatchesOpen.filter(km => knockoutPreds[km.id]?.scoreA == null).length
+        const koOpen = KNOCKOUT_MATCHES.filter(km => (knockoutMatches[km.id] as any)?.teamA && (knockoutMatches[km.id] as any)?.teamB)
+        const koMissing1x2 = koOpen.filter(km => !knockoutPreds[km.id]?.prediction1X2).length
+        const koRoundDls: Record<string, number | null> = { R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline }
+        const koRedCardMissing = (Object.entries({ R32: 3, R16: 2, QF: 1 }) as [string, number][])
+          .filter(([round, quota]) => { const dl = koRoundDls[round]; return dl && Date.now() > dl && (knockoutRedCards[round as 'R32'|'R16'|'QF']?.length ?? 0) < quota })
+          .map(([round, quota]) => { const f = knockoutRedCards[round as 'R32'|'R16'|'QF']?.length ?? 0; return ({ R32:'שלב 32', R16:'שמינית', QF:'רבע' })[round]+` ${f}/${quota}` })
 
-        const items = [
-          ...(tab === 'matches' || tab === 'groups' || tab === 'bonus' ? [
-            missing1x2 > 0       && { icon: '1X2', label: `${missing1x2} משחקים ללא 1X2`, action: () => setTab('matches'), sev: 'warn' as const },
-            missingGroups.length > 0 && { icon: '🏠', label: `בתים ללא עולות: ${missingGroups.join(', ')}`, action: () => setTab('groups'), sev: 'warn' as const },
-            bonusFilled < bonusTotal && { icon: '🎯', label: `${bonusTotal - bonusFilled} שאלות בונוס לא מולאו`, action: () => setTab('bonus'), sev: 'warn' as const },
-            redCardTotal < RED_CARD_QUOTA && { icon: '🟥', label: `${redCardTotal}/${RED_CARD_QUOTA} כרטיסים אדומים סומנו`, action: () => setTab('matches'), sev: 'warn' as const },
-          ] : []),
-          ...(tab === 'knockout' ? [
-            koMissing1x2 > 0    && { icon: '1X2', label: `${koMissing1x2} משחקים ללא 1X2`, action: () => {}, sev: 'warn' as const },
-            koRedCardMissing.length > 0 && { icon: '🟥', label: `כרטיסים אדומים: ${koRedCardMissing.join(' | ')}`, action: () => {}, sev: 'warn' as const },
-          ] : []),
-        ].filter(Boolean) as { icon: string; label: string; action: () => void; sev: 'warn' | 'info' }[]
-
-        if (items.length === 0) return null
+        const groupItems = tab !== 'knockout' ? [
+          isOpen && missing1x2 > 0 && { icon: '1X2', label: `${missing1x2} משחקים ללא 1X2`, go: () => setTab('matches') },
+          isOpen && missingGroups.length > 0 && { icon: '🏠', label: `בתים ללא עולות: ${missingGroups.join(', ')}`, go: () => setTab('groups') },
+          isOpen && bonusFilled < bonusTotal && { icon: '🎯', label: `${bonusTotal - bonusFilled} שאלות בונוס לא מולאו`, go: () => setTab('bonus') },
+          isOpen && redCardTotal < RED_CARD_QUOTA && { icon: '🟥', label: `${redCardTotal}/${RED_CARD_QUOTA} כרטיסים אדומים`, go: () => setTab('matches') },
+        ].filter(Boolean) as {icon:string;label:string;go:()=>void}[] : []
+        const koItems = tab === 'knockout' ? [
+          koMissing1x2 > 0 && { icon: '1X2', label: `${koMissing1x2} משחקים ללא 1X2`, go: null },
+          koRedCardMissing.length > 0 && { icon: '🟥', label: `כרטיסים: ${koRedCardMissing.join(' | ')}`, go: null },
+        ].filter(Boolean) as {icon:string;label:string;go:null|(()=>void)}[] : []
+        const items = [...groupItems, ...koItems]
+        if (!items.length) return null
         return (
-          <div style={{ margin: '0 0 12px', border: '1px solid #f0c050', borderRadius: 10, background: '#fffbea', padding: '10px 14px' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#856404', marginBottom: 6 }}>
-              📋 {lang === 'he' ? 'מה עוד צריך למלא?' : 'Still to fill:'}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {items.map((item, i) => (
-                <button key={i} onClick={item.action}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none',
-                    cursor: 'pointer', fontFamily: 'inherit', padding: '2px 0', textAlign: 'right' }}>
-                  <span style={{ fontSize: 11, background: item.sev === 'warn' ? '#fde8a0' : '#e8f0ff',
-                    color: item.sev === 'warn' ? '#856404' : '#3a5fa0',
-                    padding: '1px 6px', borderRadius: 6, fontWeight: 700, flexShrink: 0 }}>
-                    {item.icon}
-                  </span>
-                  <span style={{ fontSize: 12, color: '#555' }}>{item.label}</span>
-                  <span style={{ fontSize: 11, color: '#aaa', marginRight: 'auto' }}>←</span>
-                </button>
-              ))}
-            </div>
+          <div style={{ margin: '0 0 10px', border: '1px solid #f0c050', borderRadius: 10, background: '#fffbea', padding: '10px 14px' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#856404', marginBottom: 6 }}>📋 מה עוד צריך למלא?</div>
+            {items.map((item, i) => (
+              <button key={i} onClick={item.go ?? undefined}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none',
+                  width: '100%', cursor: item.go ? 'pointer' : 'default', fontFamily: 'inherit', padding: '4px 0',
+                  borderTop: i > 0 ? '1px solid rgba(0,0,0,0.05)' : 'none' }}>
+                <span style={{ fontSize: 11, background: '#fde8a0', color: '#856404', padding: '1px 7px', borderRadius: 6, fontWeight: 700, flexShrink: 0 }}>{item.icon}</span>
+                <span style={{ fontSize: 12, color: '#555', flex: 1, textAlign: 'right' }}>{item.label}</span>
+                {item.go && <span style={{ fontSize: 11, color: '#aaa' }}>←</span>}
+              </button>
+            ))}
           </div>
         )
       })()}
