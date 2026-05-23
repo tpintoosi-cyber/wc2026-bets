@@ -1297,92 +1297,179 @@ ${userRows}
               const tA = actual?.teamA ?? km?.teamA ?? '?'
               const tB = actual?.teamB ?? km?.teamB ?? '?'
               const played = actual?.isPlayed ?? false
+              const hasRed = km && ['R32','R16','QF'].includes(km.round)
+
+              // Rank map from scores
+              const koRankMap: Record<string, number> = {}
+              ;[...users].sort((a, b) => (scores[b.userId] ?? 0) - (scores[a.userId] ?? 0))
+                .forEach((u, i) => { koRankMap[u.userId] = i + 1 })
+
               return (
                 <>
                   <div className="match-row-view">
+                    {/* Header — same style as group stage */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
                       <span style={{ fontSize: 12, padding: '2px 7px', borderRadius: 10, background: '#E6F1FB', color: '#0C447C', fontWeight: 700 }}>{km?.round}</span>
-                      <span style={{ fontSize: 15, fontWeight: 600 }}><><Flag emoji={FLAGS[tA]??''} size={22} /> {tA}</> נגד <><Flag emoji={FLAGS[tB]??''} size={22} /> {tB}</></span>
-                      {adminSchedule[selectedMatchId] && <span style={{ fontSize: 12, color: '#888' }}>{adminSchedule[selectedMatchId]}</span>}
-                      {played && <span style={{ marginRight: 'auto', fontSize: 13, background: '#f5f5f5', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
-                        {t.actual}: <Flag emoji={FLAGS[tA]??''} size={16} /> {tA} {actual.resultA}–{actual.resultB} <Flag emoji={FLAGS[tB]??''} size={16} /> {tB} → <Flag emoji={FLAGS[actual.advanceTeam]??''} size={16} /> {actual.advanceTeam}
-                      </span>}
+                      <span style={{ fontSize: 15, fontWeight: 600 }}>
+                        <Flag emoji={FLAGS[tA]??''} size={20}/> {tA} {lang==='he'?'נגד':'vs'} {tB} <Flag emoji={FLAGS[tB]??''} size={20}/>
+                      </span>
+                      {adminSchedule[selectedMatchId] && (
+                        <span style={{ fontSize: 12, color: '#888' }}>📅 {adminSchedule[selectedMatchId]}</span>
+                      )}
+                      {played && (
+                        <span style={{ marginRight: 'auto', fontSize: 13, border: '1px solid rgba(128,128,128,0.25)', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
+                          בפועל: <Flag emoji={FLAGS[tA]??''} size={14}/> {tA} {actual.resultA}–{actual.resultB} <Flag emoji={FLAGS[tB]??''} size={14}/> {tB}
+                          {actual.advanceTeam && <> → <Flag emoji={FLAGS[actual.advanceTeam]??''} size={14}/> {actual.advanceTeam}</>}
+                          {actual.hadRedCard && ' 🟥'}
+                        </span>
+                      )}
                     </div>
+
+                    {/* Table — columns: name | 1X2 | תוצאה | א/ע | עולה | [🟥] | pts */}
                     <div style={{ borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 8 }}>
-                      <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} />
-                      {/* Per-user grid: name | score | 1X2 | advance | pts */}
+                      {/* Header row */}
                       <div style={{
                         display: 'grid',
-                        gridTemplateColumns: `1fr 60px 84px 84px${played ? ' 54px' : ''}`,
+                        gridTemplateColumns: `1fr 80px 100px 46px 80px${hasRed ? ' 36px' : ''}${played ? ' 54px' : ''}`,
                         alignItems: 'center', gap: '0 6px',
-                        marginTop: 12, marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600,
-                        borderTop: '1px solid rgba(128,128,128,0.15)', paddingTop: 8, paddingRight: 4, paddingLeft: 4,
+                        marginBottom: 6, fontSize: 11, color: '#aaa', fontWeight: 600, padding: '0 4px',
                       }}>
-                        <span>{lang === 'he' ? 'משתמש' : 'User'}</span>
-                        <span style={{ textAlign: 'center' }}>{lang === 'he' ? 'ניחוש' : 'Pred'}</span>
+                        <span>{lang==='he'?'משתמש':'User'}</span>
                         <span style={{ textAlign: 'center' }}>1X2</span>
+                        <span style={{ textAlign: 'center' }}>{lang==='he'?'תוצאה':'Score'}</span>
+                        <span style={{ textAlign: 'center' }}>א/ע</span>
                         <span style={{ textAlign: 'center' }}>{t.koAdvance}</span>
+                        {hasRed && <span style={{ textAlign: 'center' }}>🟥</span>}
                         {played && <span style={{ textAlign: 'center' }}>נק׳</span>}
                       </div>
+
                       {users.map(u => {
                         const p = u.knockout?.[selectedMatchId]
+                        const rA = actual?.resultA ?? null
+                        const rB = actual?.resultB ?? null
+                        const pA = p?.scoreA != null ? Number(p.scoreA) : null
+                        const pB = p?.scoreB != null ? Number(p.scoreB) : null
+
+                        // 1X2
                         const label1x2 = p?.prediction1X2 === '1' ? tA : p?.prediction1X2 === '2' ? tB : p?.prediction1X2 === 'X' ? 'תיקו' : '—'
-                        const correct1x2 = played && p?.prediction1X2 && actual?.resultA != null
-                          ? p.prediction1X2 === (actual.resultA > actual.resultB ? '1' : actual.resultA < actual.resultB ? '2' : 'X')
-                          : null
+                        const actual1x2 = rA != null ? (rA > rB! ? '1' : rA < rB! ? '2' : 'X') : null
+                        const correct1x2 = played && p?.prediction1X2 && actual1x2 ? p.prediction1X2 === actual1x2 : null
+
+                        // Score color
+                        const isExact = played && pA != null && rA != null && pA === rA && pB === rB
+                        const isDiff  = played && !isExact && pA != null && rA != null && (pA - pB!) === (rA - rB!)
+                        const scoreBg = !played || pA == null ? 'transparent' : isExact ? '#d4edda' : isDiff ? '#fff3cd' : '#fdf0f0'
+                        const scoreColor = !played || pA == null ? 'inherit' : isExact ? '#1a7a44' : isDiff ? '#856404' : '#A32D2D'
+
+                        // OU
+                        const cat = km ? calcCategoryByRound(TEAM_FIFA_POINTS[tA]??1500, TEAM_FIFA_POINTS[tB]??1500, km.round) : 'C'
+                        const ouOf = (s: number) => {
+                          const c = cat as string
+                          return (c==='A'||c==='B') ? (s<2?'אנדר':s>3?'אובר':null) : (s<3?'אנדר':s>4?'אובר':null)
+                        }
+                        const predOU = pA != null ? ouOf(pA + pB!) : null
+                        const actOU = (played && rA != null) ? ouOf(rA + rB!) : null
+                        const ouHit = played && predOU === actOU && predOU != null
+
+                        // Advance
                         const correctAdv = played && p?.advance && p.advance === actual?.advanceTeam
+
+                        // Red card
+                        const redKey = km?.round as 'R32'|'R16'|'QF'
+                        const userReds = (u.knockoutRedCards?.[redKey] ?? []) as number[]
+                        const userPredRed = hasRed && userReds.includes(km!.id)
+                        const redCorrect = userPredRed && actual?.hadRedCard
+                        const redBg = !played ? 'transparent' : redCorrect ? '#d4edda' : userPredRed ? '#fdf0f0' : 'transparent'
+
+                        // Pts
+                        const ptA = TEAM_FIFA_POINTS[tA] ?? 1500
+                        const ptB = TEAM_FIFA_POINTS[tB] ?? 1500
+                        const pts = played && p ? (() => {
+                          const p1x2 = p.prediction1X2 ? calc1X2KnockoutPoints(p.prediction1X2, Number(rA), Number(rB), ptA, ptB, cat as any, km!.round) : 0
+                          const pSc = pA != null ? calcScoreKnockoutPoints(pA, pB??0, Number(rA), Number(rB), cat as any, km!.round) + calcOUPoints(pA, pB??0, Number(rA), Number(rB), cat as any, km!.round) : 0
+                          const pAdv = p.advance ? calcAdvancePoints(p.advance, actual.advanceTeam, km!.round, cat as any, ptA, ptB, tA, tB) : 0
+                          const pRed = redCorrect ? 2 : 0
+                          return p1x2 + pSc + pAdv + pRed
+                        })() : 0
+
+                        const rank = koRankMap[u.userId]
+
                         return (
                           <div key={u.userId} style={{
                             display: 'grid',
-                            gridTemplateColumns: `1fr 60px 84px 84px${played ? ' 54px' : ''}`,
+                            gridTemplateColumns: `1fr 80px 100px 46px 80px${hasRed ? ' 36px' : ''}${played ? ' 54px' : ''}`,
                             alignItems: 'center', gap: '0 6px',
-                            padding: '7px 4px', borderBottom: '1px solid rgba(128,128,128,0.15)',
+                            padding: '5px 4px', borderBottom: '1px solid rgba(128,128,128,0.15)',
                             background: u.userId === user?.uid ? 'rgba(26,122,68,0.12)' : 'transparent',
                           }}>
-                            <span style={{ fontSize: 13, fontWeight: u.userId === user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {adminDisplayName(u)}{u.userId === user?.uid ? ` ${t.itsMe}` : ''}
+                            {/* Name + rank */}
+                            <span style={{ fontSize: 13, fontWeight: u.userId===user?.uid ? 700 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              {rank && <span style={{ fontSize: 11, fontWeight: 600, minWidth: 20, color: rank===1?'#B8860B':rank===2?'#888':rank===3?'#CD7F32':'#999' }}>
+                                {rank<=3 ? ['🥇','🥈','🥉'][rank-1] : `#${rank}`}
+                              </span>}
+                              {adminDisplayName(u)}{u.userId===user?.uid ? ` ${t.itsMe}` : ''}
                             </span>
-                            <span style={{ textAlign: 'center', fontSize: 13, fontWeight: 600, direction: 'ltr' }}>
-                              {p?.scoreA ?? '?'}–{p?.scoreB ?? '?'}
-                            </span>
-                            <span style={{ textAlign: 'center' }}>
-                              <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 10,
-                                background: correct1x2 === true ? '#EAF3DE' : correct1x2 === false ? '#FCEBEB' : '#f0f0f0',
-                                color: correct1x2 === true ? '#1a7a44' : correct1x2 === false ? '#A32D2D' : '#333' }}>
-                                {label1x2}
-                              </span>
-                            </span>
-                            <span style={{ textAlign: 'center' }}>
-                              {p?.advance ? (
-                                <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 4px', borderRadius: 10,
-                                  background: correctAdv ? '#EAF3DE' : played ? '#FCEBEB' : '#f0f0fb',
-                                  color: correctAdv ? '#1a7a44' : played ? '#A32D2D' : '#333',
-                                  display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center' }}>
-                                  <Flag emoji={FLAGS[p.advance]??''} size={16} /> {p.advance}
+                            {p ? <>
+                              {/* 1X2 */}
+                              <span style={{ textAlign: 'center' }}>
+                                <span style={{ fontSize: 11, fontWeight: 600, padding: '4px 8px', borderRadius: 10,
+                                  background: correct1x2===true?'#EAF3DE':correct1x2===false?'#FCEBEB':'#f0f0f0',
+                                  color: correct1x2===true?'#1a7a44':correct1x2===false?'#A32D2D':'#333' }}>
+                                  {label1x2}
                                 </span>
-                              ) : <span style={{ fontSize: 12, color: '#ccc' }}>—</span>}
-                            </span>
-                            {played && (() => {
-                              if (!p) return <span style={{ fontSize: 12, color: '#ccc' }}>0</span>
-                              const ptA = TEAM_FIFA_POINTS[tA] ?? 1500
-                              const ptB = TEAM_FIFA_POINTS[tB] ?? 1500
-                              const cat = calcCategoryByRound(ptA, ptB, km!.round) as any
-                              const p1x2 = p.prediction1X2 ? calc1X2KnockoutPoints(p.prediction1X2, Number(actual.resultA), Number(actual.resultB), ptA, ptB, cat, km!.round) : 0
-                              const pScore = p.scoreA != null
-                                      ? calcScoreKnockoutPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB), cat, km!.round)
-                                        + calcOUPoints(Number(p.scoreA), Number(p.scoreB ?? 0), Number(actual.resultA), Number(actual.resultB), cat, km!.round)
-                                      : 0
-                              const pAdv = p.advance ? calcAdvancePoints(p.advance, actual.advanceTeam, km!.round, cat, ptA, ptB, tA, tB) : 0
-                              const redKey = km!.round as 'R32'|'R16'|'QF'
-                              const userReds = (u.knockoutRedCards?.[redKey] ?? []) as number[]
-                              const pRed = ['R32','R16','QF'].includes(km!.round) && userReds.includes(km!.id) && actual.hadRedCard ? 2 : 0
-                              return <PtsBadge pts={p1x2 + pScore + pAdv + pRed} played={true} />
-                            })()}
+                              </span>
+                              {/* Score with flags + color */}
+                              <span style={{ textAlign: 'center', borderRadius: 6, padding: '2px 4px', background: scoreBg, color: scoreColor,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 2, fontSize: 12, fontWeight: 700 }}>
+                                <Flag emoji={FLAGS[tA]??''} size={13}/>
+                                <span>{pA??'?'}</span>
+                                <span style={{ color: '#aaa', fontWeight: 400 }}>:</span>
+                                <span>{pB??'?'}</span>
+                                <Flag emoji={FLAGS[tB]??''} size={13}/>
+                              </span>
+                              {/* OU */}
+                              <span style={{ textAlign: 'center' }}>
+                                {predOU
+                                  ? <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 5px', borderRadius: 8,
+                                      background: ouHit?'#EAF3DE':played?'#fdf0f0':'#f0f0f5',
+                                      color: ouHit?'#1a7a44':played?'#A32D2D':'#666' }}>
+                                      {played?(ouHit?'✓ ':'✗ '):''}{predOU}
+                                    </span>
+                                  : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
+                              </span>
+                              {/* Advance */}
+                              <span style={{ textAlign: 'center' }}>
+                                {p.advance
+                                  ? <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 5px', borderRadius: 10,
+                                      background: correctAdv?'#EAF3DE':played?'#FCEBEB':'#f0f0fb',
+                                      color: correctAdv?'#1a7a44':played?'#A32D2D':'#333',
+                                      display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'center' }}>
+                                      <Flag emoji={FLAGS[p.advance]??''} size={14}/>{p.advance}
+                                    </span>
+                                  : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
+                              </span>
+                              {/* Red card */}
+                              {hasRed && (
+                                <span style={{ textAlign: 'center', borderRadius: 6, padding: '2px 2px', background: redBg }}>
+                                  {!userPredRed ? <span style={{ color: '#ccc', fontSize: 12 }}>—</span>
+                                    : !played ? <span>🟥</span>
+                                    : actual?.hadRedCard
+                                      ? <span style={{ color: '#1a7a44', fontSize: 11, fontWeight: 700 }}>✓ 🟥</span>
+                                      : <span style={{ color: '#A32D2D', fontSize: 11, fontWeight: 700 }}>✗ 🟥</span>}
+                                </span>
+                              )}
+                            </> : (
+                              <span style={{ fontSize: 12, color: '#ccc', gridColumn: `span ${3 + (hasRed?1:0)}`, textAlign: 'center' }}>לא מולא</span>
+                            )}
+                            {played && <PtsBadge pts={pts} played={true} />}
                           </div>
                         )
                       })}
                     </div>
                   </div>
+
+                  {/* Distribution stats — below the table */}
+                  <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} />
                 </>
               )
             }
