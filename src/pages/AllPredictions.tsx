@@ -423,9 +423,12 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [userSubTab, setUserSubTab] = useState<'matches' | 'groups' | 'bonus' | 'knockout'>('matches')
   const [refreshKey, setRefreshKey] = useState(0)
   const [openKoRounds, setOpenKoRounds] = useState<Set<string>>(new Set(['R32', 'R16', 'QF', 'SF', '3P', 'F']))
+
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 520
+
   // A knockout round is visible only when its deadline has passed (betting closed)
   // Admins can always see everything
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 520
+  const isRoundVisible = (round: string) => {
     if (isAdmin && !liveMode) return true
     const dl = koDeadlines[round]
     return dl != null && now > dl
