@@ -154,16 +154,6 @@ export default function Predict({ lang }: { lang: Lang }) {
 
   // Accordion state: which rounds are open in form view
   const [openRounds, setOpenRounds] = useState<Set<string>>(new Set(['R32']))
-
-  // Center bracket rows horizontally after render
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      document.querySelectorAll<HTMLElement>('.bracket-row-scroll').forEach(el => {
-        el.scrollLeft = Math.max(0, (el.scrollWidth - el.clientWidth) / 2)
-      })
-    }, 50)
-    return () => clearTimeout(timer)
-  }, [openRounds, knockoutView])
   const toggleRound = (round: string) =>
     setOpenRounds(prev => { const s = new Set(prev); s.has(round) ? s.delete(round) : s.add(round); return s })
 
@@ -1653,9 +1643,8 @@ export default function Predict({ lang }: { lang: Lang }) {
                   {ids.map((row, i) => (
                     <div key={i}>
                       {i > 0 && <div style={{ height: 6 }} />}
-                      <div className="bracket-row-scroll"
-                        style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, direction: 'ltr' }}>
-                        <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'nowrap', gap: 0, minWidth: 'max-content', direction: 'rtl' }}>
+                      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any, textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', flexWrap: 'nowrap', gap: 0, textAlign: 'initial' }}>
                           {row.map(id => <MatchCard key={id} id={id} compact={row.length > 4} />)}
                         </div>
                       </div>
