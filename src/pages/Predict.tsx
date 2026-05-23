@@ -540,7 +540,7 @@ export default function Predict({ lang }: { lang: Lang }) {
         const redCardTotal = MATCHES.filter(m => matchPreds[m.id]?.redCard).length
         const missingGroups = GROUPS.filter(g => !groupPreds[g] || groupPreds[g].advancing.filter(Boolean).length < 3)
         const bonusTotal = BONUS_QUESTIONS.length
-        const bonusFilled = BONUS_QUESTIONS.filter(q => bonusPreds[q.id]).length
+        const bonusFilled = BONUS_QUESTIONS.filter(q => bonus[q.id as keyof BonusPredictions]).length
         const koOpen = KNOCKOUT_MATCHES.filter(km => (knockoutMatches[km.id] as any)?.teamA && (knockoutMatches[km.id] as any)?.teamB)
         const koMissing1x2 = koOpen.filter(km => !knockoutPreds[km.id]?.prediction1X2).length
         const koRoundDls: Record<string, number | null> = { R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline }
