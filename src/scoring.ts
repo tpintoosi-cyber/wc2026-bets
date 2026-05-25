@@ -96,7 +96,18 @@ export function calcOverUnderKnockout(
   return { qualifies, points }
 }
 
-// ── STANDALONE OU POINTS (used in per-match breakdowns) ──────────────────────
+// ── GET OU TYPE (helper for UI labels) ───────────────────────────────────────
+export function getOUType(total: number, category: Category, round?: KnockoutRound): 'under' | 'over' | null {
+  if (round === '3P' || category === 'A' || category === 'B') {
+    return total <= 1 ? 'under' : total >= 4 ? 'over' : null
+  }
+  if (round === 'F') {
+    return total === 0 ? 'under' : total >= 4 ? 'over' : null
+  }
+  return total <= 2 ? 'under' : total >= 5 ? 'over' : null
+}
+
+
 // Returns 0 if exact score (already rewarded by calcScorePoints),
 // otherwise 1pt (group/R32/R16/3P) or 2pt (QF/SF/F) if pred OU matches actual OU.
 export function calcOUPoints(
