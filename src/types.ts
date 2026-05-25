@@ -77,6 +77,7 @@ export interface BonusPredictions {
   q115: string  // Best defense group stage
   q116: string  // How many penalty shootouts in knockout
   q117: string  // Total red cards in tournament
+  q118: string  // Best attack group stage
 }
 
 export interface UserPredictions {

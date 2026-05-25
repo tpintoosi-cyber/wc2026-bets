@@ -1,8 +1,4 @@
-import {
-  Category, Match, MatchPrediction, GroupPrediction, BonusPredictions,
-  UserScore, MatchScore, KnockoutMatch, KnockoutMatchPrediction,
-  KnockoutRound, KnockoutRedCardPicks,
-} from './types'
+import { Category, Match, MatchPrediction, GroupPrediction, BonusPredictions, UserScore, MatchScore, KnockoutMatch, KnockoutMatchPrediction, KnockoutRound, KnockoutRedCardPicks } from './types'
 import { KNOCKOUT_BRACKET } from './data/matches'
 
 // ── GROUP STAGE 1X2 ───────────────────────────────────────────────────────────
@@ -69,104 +65,67 @@ export function calc1X2KnockoutPoints(
   return base + catBonus
 }
 
-// ── OVER/UNDER TYPE ──────────────────────────────────────────────────────────
-// A/B: under < 2 goals (0–1), over > 3 goals (4+), 2–3 = neither
-// C/D: under < 3 goals (0–2), over > 4 goals (5+), 3–4 = neither
-// F (Final):  under ≤ 1 goal, over ≥ 4 goals  — ignores category
-// 3P:         under ≤ 1 goal, over ≥ 5 goals  — ignores category
-export type OUType = 'under' | 'over' | null
-
-export function getOUType(total: number, category: Category, round?: KnockoutRound): OUType {
-  if (round === 'F') {
-    if (total <= 1) return 'under'
-    if (total >= 4) return 'over'
-    return null
-  }
-  if (round === '3P') {
-    if (total <= 1) return 'under'
-    if (total >= 5) return 'over'
-    return null
-  }
-  if (category === 'A' || category === 'B') {
-    if (total < 2) return 'under'
-    if (total > 3) return 'over'
-    return null
-  } else {
-    if (total < 3) return 'under'
-    if (total > 4) return 'over'
-    return null
-  }
-}
-
-// OU bonus points: earned when both predicted total AND actual total share the same OU type.
-// For EXACT scores, OU is already bundled in calcScorePoints/calcScoreKnockoutPoints.
-// This function adds OU ONLY for NON-EXACT predictions (right diff or wrong).
-// Group stage: 1pt | R32/R16/3P: 1pt | QF/SF/F: 2pts
-export function calcOUPoints(
-  predA: number, predB: number,
-  resultA: number, resultB: number,
-  category: Category,
-  round?: KnockoutRound
-): number {
-  if (predA === resultA && predB === resultB) return 0
-  const predType  = getOUType(predA + predB, category, round)
-  const actType   = getOUType(resultA + resultB, category, round)
-  if (!predType || predType !== actType) return 0
-  if (!round) return 1
-  return ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round] ?? 1
-}
-
-// Keep old calcOverUnder as alias (used in displays)
+// ── GROUP STAGE OVER/UNDER ───────────────────────────────────────────────────
 export function calcOverUnder(total: number, category: Category): boolean {
-  return getOUType(total, category) !== null
+  if (category === 'A' || category === 'B') return total <= 1 || total >= 4
+  return total <= 2 || total >= 5
 }
 
-// ── KNOCKOUT OVER/UNDER (legacy — kept for display) ──────────────────────────
+// ── KNOCKOUT OVER/UNDER ───────────────────────────────────────────────────────
+// Points: R32/R16/3P=1, QF/SF/F=2
+// Thresholds:
+//   R32/R16/QF/SF: same as group stage by category
+//   3P: ≤2 or ≥5 (C/D thresholds for all)
+//   Final: under=0-0 only, over=≥4
 export function calcOverUnderKnockout(
   total: number,
   category: Category,
   round: KnockoutRound
 ): { qualifies: boolean; points: number } {
   const points = ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round]
-  return { qualifies: getOUType(total, category, round) !== null, points }
+
+  let qualifies: boolean
+  if (round === 'F') {
+    qualifies = total === 0 || total >= 4
+  } else if (round === '3P') {
+    qualifies = total <= 2 || total >= 5
+  } else {
+    qualifies = calcOverUnder(total, category)
+  }
+
+  return { qualifies, points }
 }
 
 // ── GROUP STAGE SCORE ─────────────────────────────────────────────────────────
-// Returns 3 for exact score + OU, 2 for exact score alone,
-// 1 for right goal difference, 0 otherwise.
-// OU for non-exact scores is handled separately by calcOUPoints.
 export function calcScorePoints(
   predA: number,
   predB: number,
   resultA: number,
   resultB: number,
-  category?: Category
+  category: Category
 ): number {
   if (predA === resultA && predB === resultB) {
     const total = resultA + resultB
-    const ouBonus = category && getOUType(total, category) !== null ? 1 : 0
-    return 2 + ouBonus
+    const overUnder = calcOverUnder(total, category) ? 1 : 0
+    return 2 + overUnder
   }
   if ((predA - predB) === (resultA - resultB)) return 1
   return 0
 }
 
 // ── KNOCKOUT SCORE ────────────────────────────────────────────────────────────
-// Returns 2+OU for exact, 1 for right diff. OU for non-exact via calcOUPoints.
 export function calcScoreKnockoutPoints(
   predA: number,
   predB: number,
   resultA: number,
   resultB: number,
-  category?: Category,
-  round?: KnockoutRound
+  category: Category,
+  round: KnockoutRound
 ): number {
   if (predA === resultA && predB === resultB) {
     const total = resultA + resultB
-    const ouPts = (category && round && getOUType(total, category, round) !== null)
-      ? (({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<KnockoutRound, number>)[round] ?? 0)
-      : 0
-    return 2 + ouPts
+    const { qualifies, points } = calcOverUnderKnockout(total, category, round)
+    return 2 + (qualifies ? points : 0)
   }
   if ((predA - predB) === (resultA - resultB)) return 1
   return 0
@@ -215,11 +174,13 @@ export function calcGroupPoints(
 
 // ── BONUS ─────────────────────────────────────────────────────────────────────
 const BONUS_POINTS: Record<string, number> = {
-  q105: 20, q106: 6, q107: 5, q108: 8, q109: 4,
+  q105: 30, q106: 8, q107: 4, q108: 8, q109: 4,
   q110: 6, q111: 5, q112: 5, q113: 5, q114: 5,
-  q115: 5, q116: 3, q117: 3,
+  q115: 5, q116: 4, q117: 3, q118: 5,
 }
-const REDUCED_CHAMPION = ['צרפת', 'ספרד', 'אנגליה']
+const REDUCED_CHAMPION = ['צרפת', 'ספרד', 'אנגליה']            // 20 pts
+const MEDIUM_CHAMPION  = ['ארגנטינה', 'ברזיל', 'פורטוגל', 'גרמניה'] // 24 pts
+const REDUCED_RUNNER   = ['צרפת', 'ספרד', 'אנגליה']            // 6 pts
 
 export function calcBonusPoints(
   predictions: Partial<BonusPredictions>,
@@ -232,7 +193,11 @@ export function calcBonusPoints(
     if (!pred || !actual) continue
     if (pred.trim().toLowerCase() !== actual.trim().toLowerCase()) continue
     let base = BONUS_POINTS[key]
-    if (key === 'q105' && REDUCED_CHAMPION.includes(pred)) base = 17
+    if (key === 'q105') {
+      if (REDUCED_CHAMPION.includes(pred)) base = 20
+      else if (MEDIUM_CHAMPION.includes(pred)) base = 24
+    }
+    if (key === 'q106' && REDUCED_RUNNER.includes(pred)) base = 6
     pts += base
   }
   return pts
@@ -262,45 +227,6 @@ export function calcAdvancePoints(
     (predicted === teamA && !aIsFavorite) ||
     (predicted === teamB && aIsFavorite)
   return base + (pickedUnderdog ? catBonus : 0)
-}
-
-// ── BRACKET PATH VALIDATION ───────────────────────────────────────────────────
-// For QF+: advance pick must be one of the teams the user predicted to be in this match
-// (i.e., must arrive via user's own bracket picks).
-//
-// For 3P: feeder IDs are negative (losers). We compute the predicted loser of each SF.
-// For QF/SF/F: feeder IDs are positive advance picks from previous round.
-function getBracketValidTeams(
-  matchId: number,
-  preds: Record<number, KnockoutMatchPrediction>
-): [string | undefined, string | undefined] {
-  const b = KNOCKOUT_BRACKET[matchId]
-  if (!b) return [undefined, undefined]
-
-  const getTeam = (feederId: number | null): string | undefined => {
-    if (feederId === null) return undefined
-    if (feederId > 0) {
-      // Winner of feeder match = that match's advance pick
-      return preds[feederId]?.advance
-    }
-    // feederId < 0: loser of Math.abs(feederId)
-    const sfId = Math.abs(feederId)
-    const sfBracket = KNOCKOUT_BRACKET[sfId]
-    if (!sfBracket) return undefined
-    // Find the two teams in the SF match (winners of QF feeders)
-    const sfTeamA = sfBracket.feederA !== null && sfBracket.feederA > 0
-      ? preds[sfBracket.feederA]?.advance : undefined
-    const sfTeamB = sfBracket.feederB !== null && sfBracket.feederB > 0
-      ? preds[sfBracket.feederB]?.advance : undefined
-    const sfWinner = preds[sfId]?.advance
-    if (!sfWinner) return sfTeamA ?? sfTeamB  // fallback: return whatever we have
-    // Loser = the SF team that is NOT the winner
-    if (sfWinner === sfTeamA) return sfTeamB
-    if (sfWinner === sfTeamB) return sfTeamA
-    return undefined
-  }
-
-  return [getTeam(b.feederA), getTeam(b.feederB)]
 }
 
 // ── FULL USER SCORE ───────────────────────────────────────────────────────────
@@ -333,11 +259,10 @@ export function computeUserScore(
       match.category
     )
     const pScore = calcScorePoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB, match.category)
-    const pOU   = calcOUPoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB, match.category)
-    const pRed  = calcRedCardPoints(pred.redCard, match.hadRedCard ?? false)
+    const pRed = calcRedCardPoints(pred.redCard, match.hadRedCard ?? false)
 
-    matchDetails[match.id] = { matchId: match.id, points1X2: p1x2, pointsScore: pScore + pOU, pointsRedCard: pRed, total: p1x2 + pScore + pOU + pRed }
-    matchPoints += p1x2 + pScore + pOU
+    matchDetails[match.id] = { matchId: match.id, points1X2: p1x2, pointsScore: pScore, pointsRedCard: pRed, total: p1x2 + pScore + pRed }
+    matchPoints += p1x2 + pScore
     redCardPoints += pRed
   }
 
@@ -353,7 +278,6 @@ export function computeUserScore(
   // ── Knockout scoring ──────────────────────────────────────────────────────
   let knockoutPoints = 0
   const koByRound: Record<string, number> = { R32: 0, R16: 0, QF: 0, SF: 0, '3P': 0, F: 0 }
-
   if (knockoutPredictions && playedKnockout) {
     for (const km of playedKnockout) {
       if (!km.isPlayed || km.resultA === undefined || km.resultB === undefined) continue
@@ -361,55 +285,39 @@ export function computeUserScore(
       if (!pred) continue
       let matchPts = 0
 
-      // 1X2 points
       if (pred.prediction1X2) {
         matchPts += calc1X2KnockoutPoints(
           pred.prediction1X2, km.resultA, km.resultB,
           km.fifaPointsA, km.fifaPointsB, km.category, km.round
         )
       }
-
-      // calcScoreKnockoutPoints includes OU for exact (returns 2+OU when category+round passed)
-      // calcOUPoints adds OU for non-exact only (returns 0 for exact to avoid double count)
       if (pred.scoreA !== null && pred.scoreA !== undefined &&
           pred.scoreB !== null && pred.scoreB !== undefined) {
         matchPts += calcScoreKnockoutPoints(
           Number(pred.scoreA), Number(pred.scoreB),
-          km.resultA, km.resultB,
-          km.category, km.round
-        )
-        matchPts += calcOUPoints(
-          Number(pred.scoreA), Number(pred.scoreB),
-          km.resultA, km.resultB,
-          km.category, km.round
+          km.resultA, km.resultB, km.category, km.round
         )
       }
-
-      // Advance points — with bracket path validation for QF+
       if (km.advanceTeam && pred.advance) {
+        // For QF/SF/F: advance pick must be bracket-valid (user must have predicted this team to reach this stage)
+        // For R32/R16: advance pick is always valid (user picks directly)
         let advanceValid = true
-
         if (km.round !== 'R32' && km.round !== 'R16') {
-          // QF/SF/3P/F: advance pick must arrive via user's own bracket
-          const [bracketA, bracketB] = getBracketValidTeams(km.id, knockoutPredictions)
-          advanceValid = pred.advance === bracketA || pred.advance === bracketB
+          const b = KNOCKOUT_BRACKET[km.id]
+          if (b) {
+            const bracketA = b.feederA !== null && b.feederA > 0 ? knockoutPredictions[b.feederA]?.advance : undefined
+            const bracketB = b.feederB !== null && b.feederB > 0 ? knockoutPredictions[b.feederB]?.advance : undefined
+            advanceValid = pred.advance === bracketA || pred.advance === bracketB
+          }
         }
-
         if (advanceValid) {
-          matchPts += calcAdvancePoints(
-            pred.advance, km.advanceTeam,
-            km.round, km.category,
-            km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500,
-            km.teamA ?? '', km.teamB ?? ''
-          )
+          matchPts += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
         }
       }
-
       koByRound[km.round] = (koByRound[km.round] ?? 0) + matchPts
       knockoutPoints += matchPts
     }
 
-    // Red card bonus
     if (knockoutRedCards) {
       knockoutPoints += calcKnockoutRedCardPoints(knockoutRedCards, playedKnockout)
     }
@@ -434,3 +342,15 @@ export function computeUserScore(
     lastUpdated: Date.now(),
   }
 }
+
+function findAdvancePrediction(
+  teamA: string,
+  teamB: string,
+  knockoutPreds: Record<number, KnockoutMatchPrediction>
+): string | null {
+  for (const pred of Object.values(knockoutPreds)) {
+    if (pred.advance === teamA || pred.advance === teamB) return pred.advance
+  }
+  return null
+}
+

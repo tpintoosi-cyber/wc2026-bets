@@ -165,9 +165,9 @@ export const GROUPS_TEAMS: Record<string, string[]> = {
 export const ALL_TEAMS = Object.values(GROUPS_TEAMS).flat().sort()
 
 export const BONUS_QUESTIONS = [
-  { id: 'q105', label: 'אלוף העולם 2026', type: 'team', points: '17–20', note: 'צרפת/ספרד/אנגליה = 17 נק׳' },
-  { id: 'q106', label: 'גמר — סגן האלוף', type: 'team', points: '6' },
-  { id: 'q107', label: 'מקום שלישי', type: 'team', points: '5' },
+  { id: 'q105', label: 'אלוף העולם 2026', type: 'team', points: '20–30', note: 'צרפת/ספרד/אנגליה = 20 | ארגנטינה/ברזיל/פורטוגל/גרמניה = 24 | אחרות = 30 נק׳' },
+  { id: 'q106', label: 'גמר — סגן האלוף', type: 'team', points: '6–8', note: 'צרפת/ספרד/אנגליה = 6 | אחרות = 8 נק׳' },
+  { id: 'q107', label: 'מקום שלישי', type: 'team', points: '4' },
   { id: 'q108', label: 'מלך השערים (שם שחקן)', type: 'text', points: '8' },
   { id: 'q109', label: 'כמה שערים יכבוש מלך השערים?', type: 'number', points: '4' },
   { id: 'q110', label: 'מלך הבישולים (שם שחקן)', type: 'text', points: '6' },
@@ -176,7 +176,8 @@ export const BONUS_QUESTIONS = [
   { id: 'q113', label: 'הבית עם הכי הרבה שערים', type: 'group', points: '5' },
   { id: 'q114', label: 'הבית עם הכי מעט שערים', type: 'group', points: '5' },
   { id: 'q115', label: 'ההגנה הטובה ביותר בשלב הבתים', type: 'team', points: '5' },
-  { id: 'q116', label: 'כמה משחקי נוקאאוט יוכרעו בפנדלים? (מתוך 32)', type: 'number', points: '3' },
+  { id: 'q118', label: 'ההתקפה הטובה ביותר בשלב הבתים', type: 'team', points: '5' },
+  { id: 'q116', label: 'כמה משחקי נוקאאוט יוכרעו בפנדלים? (מתוך 32)', type: 'number', points: '4' },
   { id: 'q117', label: 'כמה כרטיסים אדומים בכל הטורניר?', type: 'number', points: '3' },
 ]
 
