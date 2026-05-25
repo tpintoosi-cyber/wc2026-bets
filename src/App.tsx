@@ -104,7 +104,7 @@ export default function App() {
         <Route path="/leaderboard" element={<RequireAuth lang={lang}><Leaderboard /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="/sim" element={<RequireAdmin><Simulator /></RequireAdmin>} />
-        <Route path="/rules" element={<RequireAuth lang={lang}><Rules lang={lang} /></RequireAuth>} />
+        <Route path="/rules" element={<RequireAuth lang={lang}><Rules /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/predict" replace />} />
       </Routes>
     </HashRouter>
