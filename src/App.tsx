@@ -7,6 +7,7 @@ import Leaderboard from './pages/Leaderboard'
 import Admin from './pages/Admin'
 import AllPredictions from './pages/AllPredictions'
 import Simulator from './pages/Simulator'
+import Rules from './pages/Rules'
 import { Lang, T } from './i18n'
 import './styles/global.css'
 
@@ -32,6 +33,7 @@ function Nav({ dark, toggleDark, lang, toggleLang }: {
         </Link>
         {isAdmin && <Link className={loc.pathname === '/admin' ? 'active' : ''} to="/admin">⚙️</Link>}
         {isAdmin && <Link className={loc.pathname === '/sim' ? 'active' : ''} to="/sim">🧪</Link>}
+        <Link className={loc.pathname === '/rules' ? 'active' : ''} to="/rules" title={lang === 'he' ? 'תקנון' : 'Rules'}>📖</Link>
       </div>
       <div className="nav-controls">
         <button className="nav-btn" onClick={toggleLang} title="Change language">
@@ -102,6 +104,7 @@ export default function App() {
         <Route path="/leaderboard" element={<RequireAuth lang={lang}><Leaderboard /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="/sim" element={<RequireAdmin><Simulator /></RequireAdmin>} />
+        <Route path="/rules" element={<RequireAuth lang={lang}><Rules lang={lang} /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/predict" replace />} />
       </Routes>
     </HashRouter>
