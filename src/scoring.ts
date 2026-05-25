@@ -96,7 +96,30 @@ export function calcOverUnderKnockout(
   return { qualifies, points }
 }
 
-// ── GROUP STAGE SCORE ─────────────────────────────────────────────────────────
+// ── STANDALONE OU POINTS (used in per-match breakdowns) ──────────────────────
+// Returns 0 if exact score (already rewarded by calcScorePoints),
+// otherwise 1pt (group/R32/R16/3P) or 2pt (QF/SF/F) if pred OU matches actual OU.
+export function calcOUPoints(
+  predA: number, predB: number,
+  actualA: number, actualB: number,
+  category: Category,
+  round?: KnockoutRound
+): number {
+  if (predA === actualA && predB === actualB) return 0  // exact → handled by score
+  const predTotal = predA + predB
+  const actTotal  = actualA + actualB
+  const ouType = (t: number) => {
+    if (category === 'A' || category === 'B') {
+      return t <= 1 ? 'under' : t >= 4 ? 'over' : null
+    }
+    return t <= 2 ? 'under' : t >= 5 ? 'over' : null
+  }
+  if (!ouType(predTotal) || ouType(predTotal) !== ouType(actTotal)) return 0
+  const pts = round && ['QF', 'SF', 'F'].includes(round) ? 2 : 1
+  return pts
+}
+
+
 export function calcScorePoints(
   predA: number,
   predB: number,

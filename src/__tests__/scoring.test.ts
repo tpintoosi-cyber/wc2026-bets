@@ -164,20 +164,23 @@ describe('calcGroupPoints', () => {
 // calcBonusPoints
 // ─────────────────────────────────────────────────────────────────────────────
 describe('calcBonusPoints', () => {
-  it('world champion France → 17pt (reduced)', () => {
-    expect(calcBonusPoints({ q105: 'צרפת' }, { q105: 'צרפת' })).toBe(17)
+  it('world champion France → 20pt (reduced)', () => {
+    expect(calcBonusPoints({ q105: 'צרפת' }, { q105: 'צרפת' })).toBe(20)
   })
-  it('world champion Spain → 17pt (reduced)', () => {
-    expect(calcBonusPoints({ q105: 'ספרד' }, { q105: 'ספרד' })).toBe(17)
+  it('world champion Spain → 20pt (reduced)', () => {
+    expect(calcBonusPoints({ q105: 'ספרד' }, { q105: 'ספרד' })).toBe(20)
   })
-  it('world champion England → 17pt (reduced)', () => {
-    expect(calcBonusPoints({ q105: 'אנגליה' }, { q105: 'אנגליה' })).toBe(17)
+  it('world champion England → 20pt (reduced)', () => {
+    expect(calcBonusPoints({ q105: 'אנגליה' }, { q105: 'אנגליה' })).toBe(20)
   })
-  it('world champion Brazil → 20pt (full)', () => {
-    expect(calcBonusPoints({ q105: 'ברזיל' }, { q105: 'ברזיל' })).toBe(20)
+  it('world champion Brazil → 24pt (medium)', () => {
+    expect(calcBonusPoints({ q105: 'ברזיל' }, { q105: 'ברזיל' })).toBe(24)
   })
-  it('runner-up correct → 6pt', () => {
-    expect(calcBonusPoints({ q106: 'ארגנטינה' }, { q106: 'ארגנטינה' })).toBe(6)
+  it('runner-up Argentina (non-reduced) → 8pt', () => {
+    expect(calcBonusPoints({ q106: 'ארגנטינה' }, { q106: 'ארגנטינה' })).toBe(8)
+  })
+  it('runner-up France (reduced) → 6pt', () => {
+    expect(calcBonusPoints({ q106: 'צרפת' }, { q106: 'צרפת' })).toBe(6)
   })
   it('top scorer correct → 8pt', () => {
     expect(calcBonusPoints({ q108: 'מבאפה' }, { q108: 'מבאפה' })).toBe(8)
@@ -195,7 +198,7 @@ describe('calcBonusPoints', () => {
     expect(calcBonusPoints(
       { q105: 'ברזיל', q106: 'ארגנטינה', q108: 'מבאפה' },
       { q105: 'ברזיל', q106: 'ארגנטינה', q108: 'מבאפה' }
-    )).toBe(20 + 6 + 8)  // 34
+    )).toBe(24 + 8 + 8)  // 40
   })
 })
 
