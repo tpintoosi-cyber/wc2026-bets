@@ -109,7 +109,8 @@ export function calcOUPoints(
   const predTotal = predA + predB
   const actTotal  = actualA + actualB
   const ouType = (t: number) => {
-    if (category === 'A' || category === 'B') {
+    // 3P uses A/B thresholds regardless of category
+    if (round === '3P' || category === 'A' || category === 'B') {
       return t <= 1 ? 'under' : t >= 4 ? 'over' : null
     }
     return t <= 2 ? 'under' : t >= 5 ? 'over' : null
@@ -282,10 +283,11 @@ export function computeUserScore(
       match.category
     )
     const pScore = calcScorePoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB, match.category)
+    const pOU = calcOUPoints(pred.scoreA, pred.scoreB, match.resultA, match.resultB, match.category)
     const pRed = calcRedCardPoints(pred.redCard, match.hadRedCard ?? false)
 
-    matchDetails[match.id] = { matchId: match.id, points1X2: p1x2, pointsScore: pScore, pointsRedCard: pRed, total: p1x2 + pScore + pRed }
-    matchPoints += p1x2 + pScore
+    matchDetails[match.id] = { matchId: match.id, points1X2: p1x2, pointsScore: pScore, pointsRedCard: pRed, total: p1x2 + pScore + pOU + pRed }
+    matchPoints += p1x2 + pScore + pOU
     redCardPoints += pRed
   }
 

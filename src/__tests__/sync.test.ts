@@ -176,9 +176,9 @@ describe('Full sync flow — group stage to final', () => {
 
     expect(score.matchPoints).toBe(3)     // 1X2(1) + exact(2)
     expect(score.groupPoints).toBe(6)     // all 3 exact positions
-    expect(score.bonusPoints).toBe(26)    // Brazil champion(20) + runner-up(6)
+    expect(score.bonusPoints).toBe(32)    // Brazil champion(20) + runner-up(6)
     expect(score.redCardPoints).toBe(0)
-    expect(score.total).toBe(35)
+    expect(score.total).toBe(41)
   })
 })
 
