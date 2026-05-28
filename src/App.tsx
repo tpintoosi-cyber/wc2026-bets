@@ -107,7 +107,7 @@ export default function App() {
   const [maintenance, setMaintenance] = useState(false)
 
   useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'admin', 'settings'), snap => {
+    const unsub = onSnapshot(doc(db, 'settings', 'app'), snap => {
       setMaintenance(snap.exists() ? (snap.data().maintenanceMode ?? false) : false)
     })
     return unsub
