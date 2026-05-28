@@ -574,8 +574,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
     if (pA !== null && pB !== null) {
       // Use scoring.ts getOUType for consistency (group stage has no round override)
       const ouTypeOf = (t: number) => {
-        const isAB = match.category === 'A' || match.category === 'B'
-        return isAB ? (t < 2 ? 'under' : t > 3 ? 'over' : null) : (t < 3 ? 'under' : t > 4 ? 'over' : null)
+        return t <= 1 ? 'under' : t >= 4 ? 'over' : null
       }
       if (pA === rA && pB === rB) {
         const total = rA + rB
@@ -963,8 +962,7 @@ ${userRows}
                               const pA = Number(p.scoreA ?? 0), pB = Number(p.scoreB ?? 0)
                               const isExact = pA === rAv && pB === rBv
                               const isDiff  = !isExact && (pA - pB) === (rAv - rBv)
-                              const isAB    = match.category === 'A' || match.category === 'B'
-                              const ouOf    = (t: number) => isAB ? (t < 2 ? 'אנדר' : t > 3 ? 'אובר' : null) : (t < 3 ? 'אנדר' : t > 4 ? 'אובר' : null)
+                              const ouOf    = (t: number) => t <= 1 ? 'אנדר' : t >= 4 ? 'אובר' : null
                               const predOU  = ouOf(pA + pB), actOU = ouOf(rAv + rBv)
                               const ouBonus = predOU && predOU === actOU ? 1 : 0
                               return (<>
@@ -1219,8 +1217,7 @@ ${userRows}
                                       const pA = Number(pred.scoreA), pB = Number(pred.scoreB ?? 0)
                                       const isExact = pA === rA && pB === rB
                                       const isDiff = !isExact && (pA - pB) === (rA! - rB!)
-                                      const isAB = cat === 'A' || cat === 'B'
-                                      const ouType = (t: number) => isAB ? (t < 2 ? 'אנדר' : t > 3 ? 'אובר' : null) : (t < 3 ? 'אנדר' : t > 4 ? 'אובר' : null)
+                                      const ouType = (t: number) => t <= 1 ? 'אנדר' : t >= 4 ? 'אובר' : null
                                       const predOuType = pred.scoreA != null ? ouType(pA + pB) : null
                                       const actOuType  = ouType((rA ?? 0) + (rB ?? 0))
                                       const ouBonus = predOuType && predOuType === actOuType
@@ -1368,10 +1365,7 @@ ${userRows}
 
                         // OU
                         const cat = km ? calcCategoryByRound(TEAM_FIFA_POINTS[tA]??1500, TEAM_FIFA_POINTS[tB]??1500, km.round) : 'C'
-                        const ouOf = (s: number) => {
-                          const c = cat as string
-                          return (c==='A'||c==='B') ? (s<2?'אנדר':s>3?'אובר':null) : (s<3?'אנדר':s>4?'אובר':null)
-                        }
+                        const ouOf = (s: number) => s <= 1 ? 'אנדר' : s >= 4 ? 'אובר' : null
                         const predOU = pA != null ? ouOf(pA + pB!) : null
                         const actOU = (played && rA != null) ? ouOf(rA + rB!) : null
                         const ouHit = played && predOU === actOU && predOU != null
@@ -1582,8 +1576,7 @@ ${userRows}
                           ? <span style={{ color: '#1a7a44', fontSize: 11, fontWeight: 700 }}>✓ 🟥</span>
                           : <span style={{ color: '#A32D2D', fontSize: 11, fontWeight: 700 }}>✗ 🟥</span>
 
-                      const isABcat = match.category === 'A' || match.category === 'B'
-                      const ouOf = (s: number) => isABcat ? (s < 2 ? 'אנדר' : s > 3 ? 'אובר' : null) : (s < 3 ? 'אנדר' : s > 4 ? 'אובר' : null)
+                      const ouOf = (s: number) => s <= 1 ? 'אנדר' : s >= 4 ? 'אובר' : null
                       const predOU = pA != null ? ouOf(pA + (pB ?? 0)) : null
                       const actOU  = (played && rA != null) ? ouOf(rA + (rB ?? 0)) : null
                       const ouHit  = !!(predOU && predOU === actOU)

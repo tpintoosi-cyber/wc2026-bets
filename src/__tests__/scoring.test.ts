@@ -73,17 +73,12 @@ describe('calc1X2Points', () => {
 // calcOverUnder
 // ─────────────────────────────────────────────────────────────────────────────
 describe('calcOverUnder', () => {
-  it('Cat A/B: 0 goals → under ✓', () => expect(calcOverUnder(0, 'A')).toBe(true))
-  it('Cat A/B: 1 goal → under ✓', () => expect(calcOverUnder(1, 'B')).toBe(true))
-  it('Cat A/B: 2 goals → neither ✗', () => expect(calcOverUnder(2, 'A')).toBe(false))
-  it('Cat A/B: 3 goals → neither ✗', () => expect(calcOverUnder(3, 'B')).toBe(false))
-  it('Cat A/B: 4 goals → over ✓', () => expect(calcOverUnder(4, 'A')).toBe(true))
-  it('Cat A/B: 5 goals → over ✓', () => expect(calcOverUnder(5, 'B')).toBe(true))
-
-  it('Cat C/D: 2 goals → under ✓', () => expect(calcOverUnder(2, 'C')).toBe(true))
-  it('Cat C/D: 3 goals → neither ✗', () => expect(calcOverUnder(3, 'D')).toBe(false))
-  it('Cat C/D: 4 goals → neither ✗', () => expect(calcOverUnder(4, 'C')).toBe(false))
-  it('Cat C/D: 5 goals → over ✓', () => expect(calcOverUnder(5, 'D')).toBe(true))
+  it('0 goals → under ✓', () => expect(calcOverUnder(0)).toBe(true))
+  it('1 goal → under ✓',  () => expect(calcOverUnder(1)).toBe(true))
+  it('2 goals → neither ✗', () => expect(calcOverUnder(2)).toBe(false))
+  it('3 goals → neither ✗', () => expect(calcOverUnder(3)).toBe(false))
+  it('4 goals → over ✓',  () => expect(calcOverUnder(4)).toBe(true))
+  it('5 goals → over ✓',  () => expect(calcOverUnder(5)).toBe(true))
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,7 +94,7 @@ describe('calcScorePoints', () => {
   it('exact score + over bonus (Cat A, 3-1 = 4 goals) → 3pt', () => {
     expect(calcScorePoints(3, 1, 3, 1, 'A')).toBe(3)
   })
-  it('exact score + under bonus (Cat C, 1-0) → 3pt', () => {
+  it('exact score + under bonus (Cat C, 1-0) → 3pt (universal under)', () => {
     expect(calcScorePoints(1, 0, 1, 0, 'C')).toBe(3)
   })
   it('correct margin (2-1 pred, 3-2 actual, diff=1) → 1pt', () => {
@@ -316,50 +311,40 @@ describe('calcOUPoints', () => {
     expect(calcOUPoints(0, 0, 0, 0, 'B')).toBe(0)
   })
 
-  // ── Cat A/B: under (<2 goals) ─────────────────────────────────────────────
-  it('pred 0-0 (under A), actual 1-0 (under A), non-exact → 1pt', () => {
+  // ── Under (≤1 goal) ──────────────────────────────────────────────────────
+  it('pred 0-0 (under), actual 1-0 (under), non-exact → 1pt', () => {
     expect(calcOUPoints(0, 0, 1, 0, 'A')).toBe(1)
   })
-  it('pred 0-0 (under B), actual 0-1 (under B), non-exact → 1pt', () => {
+  it('pred 0-0 (under), actual 0-1 (under), non-exact → 1pt', () => {
     expect(calcOUPoints(0, 0, 0, 1, 'B')).toBe(1)
   })
-  it('pred 1-0 (under A), actual 0-0 (under A) → 1pt', () => {
+  it('pred 1-0 (under), actual 0-0 (under) → 1pt', () => {
     expect(calcOUPoints(1, 0, 0, 0, 'A')).toBe(1)
   })
+  it('pred 0-1 (under), actual 1-0 (under), Cat D → 1pt (universal)', () => {
+    expect(calcOUPoints(0, 1, 1, 0, 'D')).toBe(1)
+  })
 
-  // ── Cat A/B: over (>3 goals) ──────────────────────────────────────────────
-  it('pred 3-1 (over A), actual 4-0 (over A), non-exact → 1pt', () => {
+  // ── Over (≥4 goals) ──────────────────────────────────────────────────────
+  it('pred 3-1 (over, 4 goals), actual 4-0 (over), non-exact → 1pt', () => {
     expect(calcOUPoints(3, 1, 4, 0, 'A')).toBe(1)
   })
-  it('pred 2-3 (over A), actual 5-0 (over A), non-exact → 1pt', () => {
+  it('pred 2-3 (over, 5 goals), actual 5-0 (over), non-exact → 1pt', () => {
     expect(calcOUPoints(2, 3, 5, 0, 'A')).toBe(1)
   })
-
-  // ── Cat C/D: under (<3 goals) ─────────────────────────────────────────────
-  it('pred 0-2 (under C), actual 1-0 (under C), non-exact → 1pt', () => {
-    expect(calcOUPoints(0, 2, 1, 0, 'C')).toBe(1)
-  })
-  it('pred 1-0 (under D), actual 0-1 (under D), non-exact → 1pt', () => {
-    expect(calcOUPoints(1, 0, 0, 1, 'D')).toBe(1)
-  })
-
-  // ── Cat C/D: over (>4 goals) ──────────────────────────────────────────────
-  it('pred 3-2 (over D, 5 goals), actual 4-2 (over D, 6 goals), non-exact → 1pt', () => {
+  it('pred 3-2 (over, 5 goals), actual 4-2 (over, 6 goals), Cat D → 1pt (universal)', () => {
     expect(calcOUPoints(3, 2, 4, 2, 'D')).toBe(1)
   })
-  it('pred 4-1 (over C), actual 5-0 (over C), non-exact → 1pt', () => {
-    expect(calcOUPoints(4, 1, 5, 0, 'C')).toBe(1)
-  })
 
-  // ── Neither (between thresholds) → 0pt ───────────────────────────────────
-  it('Cat A: pred 2-0 (neither), actual 2-1 (neither) → 0pt', () => {
-    expect(calcOUPoints(2, 0, 2, 1, 'A')).toBe(0)  // 2 and 3 goals = neither
+  // ── Neither (2 or 3 goals) → 0pt ─────────────────────────────────────────
+  it('pred 2-0 (neither, 2 goals), actual 2-1 (neither, 3 goals) → 0pt', () => {
+    expect(calcOUPoints(2, 0, 2, 1, 'A')).toBe(0)
   })
-  it('Cat A: pred 3-0 (neither), actual 3-1 (neither) → 0pt', () => {
-    expect(calcOUPoints(3, 0, 3, 1, 'A')).toBe(0)  // 3 and 4 goals = neither
+  it('pred 1-1 (neither, 2 goals), actual 2-1 (neither, 3 goals) Cat C → 0pt', () => {
+    expect(calcOUPoints(1, 1, 2, 1, 'C')).toBe(0)
   })
-  it('Cat C: pred 3-0 (neither), actual 4-0 (neither) → 0pt', () => {
-    expect(calcOUPoints(3, 0, 4, 0, 'C')).toBe(0)  // 3 and 4 goals = neither for C/D
+  it('pred 0-2 (neither, 2 goals), actual 1-0 (under, 1 goal) Cat C → 0pt (2 is no longer under)', () => {
+    expect(calcOUPoints(0, 2, 1, 0, 'C')).toBe(0)  // pred=2 is neither, actual=1 is under → mismatch
   })
 
   // ── Type mismatch → 0pt ───────────────────────────────────────────────────
