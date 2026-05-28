@@ -85,17 +85,8 @@ function PendingApproval({ logout, lang }: { logout: () => void; lang: Lang }) {
   )
 }
 
-function RequireAuth({ children, lang }: { children: React.ReactNode; lang: Lang }) {
+function RequireAuth({ children, lang, maintenance }: { children: React.ReactNode; lang: Lang; maintenance: boolean }) {
   const { user, isApproved, isAdmin, loading, logout } = useAuth()
-  const [maintenance, setMaintenance] = useState(false)
-
-  useEffect(() => {
-    const unsub = onSnapshot(doc(db, 'admin', 'settings'), snap => {
-      setMaintenance(snap.exists() ? (snap.data().maintenanceMode ?? false) : false)
-    })
-    return unsub
-  }, [])
-
   if (loading) return <div className="center-screen">{lang === 'he' ? 'טוען...' : 'Loading...'}</div>
   if (!user) return <Navigate to="/login" replace />
   if (!isApproved) return <PendingApproval logout={logout} lang={lang} />
@@ -113,6 +104,14 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 export default function App() {
   const [dark, setDark] = useState(() => localStorage.getItem('darkMode') === 'true')
   const [lang, setLang] = useState<Lang>(() => (localStorage.getItem('lang') as Lang) || 'he')
+  const [maintenance, setMaintenance] = useState(false)
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'admin', 'settings'), snap => {
+      setMaintenance(snap.exists() ? (snap.data().maintenanceMode ?? false) : false)
+    })
+    return unsub
+  }, [])
 
   useEffect(() => {
     document.body.classList.toggle('dark', dark)
@@ -130,12 +129,12 @@ export default function App() {
       <Nav dark={dark} toggleDark={() => setDark(d => !d)} lang={lang} toggleLang={toggleLang} />
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/predict" element={<RequireAuth lang={lang}><Predict lang={lang} /></RequireAuth>} />
-        <Route path="/all" element={<RequireAuth lang={lang}><AllPredictions lang={lang} /></RequireAuth>} />
-        <Route path="/leaderboard" element={<RequireAuth lang={lang}><Leaderboard /></RequireAuth>} />
+        <Route path="/predict" element={<RequireAuth lang={lang} maintenance={maintenance}><Predict lang={lang} /></RequireAuth>} />
+        <Route path="/all" element={<RequireAuth lang={lang} maintenance={maintenance}><AllPredictions lang={lang} /></RequireAuth>} />
+        <Route path="/leaderboard" element={<RequireAuth lang={lang} maintenance={maintenance}><Leaderboard /></RequireAuth>} />
         <Route path="/admin" element={<RequireAdmin><Admin /></RequireAdmin>} />
         <Route path="/sim" element={<RequireAdmin><Simulator /></RequireAdmin>} />
-        <Route path="/rules" element={<RequireAuth lang={lang}><Rules /></RequireAuth>} />
+        <Route path="/rules" element={<RequireAuth lang={lang} maintenance={maintenance}><Rules /></RequireAuth>} />
         <Route path="*" element={<Navigate to="/predict" replace />} />
       </Routes>
     </HashRouter>
