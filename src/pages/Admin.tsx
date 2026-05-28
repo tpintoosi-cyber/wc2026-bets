@@ -668,6 +668,9 @@ export default function Admin() {
           </label>
           {settings.maintenanceMode && <p style={{ fontSize: 11, color: '#c0392b', marginTop: 4, fontWeight: 600 }}>⚠️ המשתמשים חסומים כרגע!</p>}
         </div>
+        <div className="admin-row" style={{ borderTop: '1px dashed #eee', paddingTop: 10, marginTop: 6 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 13, color: '#888' }}>🧪 תאריך סימולציה (לבדיקה בלבד):</span>
             <input type="datetime-local" value={settings.mockNow ?? ''}
               onChange={e => setSettings(s => ({ ...s, mockNow: e.target.value }))} />
             {settings.mockNow && (
