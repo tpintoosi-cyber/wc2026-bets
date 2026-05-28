@@ -447,11 +447,14 @@ export default function Admin() {
 
   const saveResults = async () => {
     // Mark any match that has isPlayed=true as manualScore so sync won't overwrite it
+    // Also strip undefined values — Firebase rejects them
+    const stripUndefined = (obj: Record<string, any>) =>
+      Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
+
     const markedMatches: Record<number, any> = {}
     for (const [id, m] of Object.entries(matches)) {
-      markedMatches[Number(id)] = (m as any).isPlayed
-        ? { ...m, manualScore: true }
-        : m
+      const base = (m as any).isPlayed ? { ...m, manualScore: true } : m
+      markedMatches[Number(id)] = stripUndefined(base as Record<string, any>)
     }
     await setDoc(doc(db, 'admin', 'results'), { matches: markedMatches, groups: actualGroups, bonus: actualBonus })
     setMsg('✓ תוצאות נשמרו')
