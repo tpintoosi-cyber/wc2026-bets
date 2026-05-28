@@ -44,14 +44,13 @@ describe('Full sync flow — group stage to final', () => {
   })
 
   // ── Scenario 2: Exact score with over/under bonus ─────────────────────────
-  it('Group stage: Spain 4-0 Cape Verde (Cat D) — exact score → 3pt + over bonus', () => {
+  it('Group stage: Spain 4-0 Cape Verde (Cat D) — exact score → 3pt (4 goals = over with universal thresholds)', () => {
     const resultA = 4, resultB = 0
     const category = 'D' as const
 
     const pScore = calcScorePoints(4, 0, resultA, resultB, category)
-    // Exact: 2pt + over (4 goals Cat C/D ≥5? No, 4 is not ≥5) → 2pt
-    // Wait: Cat C/D over is ≥5, and 4+0=4 < 5, under threshold for C/D is ≤2. 4 is neither.
-    expect(pScore).toBe(2)  // exact only, no over/under bonus for Cat C/D with 4 goals
+    // Exact: 2pt + over (4 goals ≥4 universal threshold) → 3pt
+    expect(pScore).toBe(3)
   })
 
   it('Group stage: Germany 5-1 Curaçao (Cat D) — exact score + over', () => {
@@ -176,7 +175,7 @@ describe('Full sync flow — group stage to final', () => {
 
     expect(score.matchPoints).toBe(3)     // 1X2(1) + exact(2)
     expect(score.groupPoints).toBe(6)     // all 3 exact positions
-    expect(score.bonusPoints).toBe(32)    // Brazil champion(20) + runner-up(6)
+    expect(score.bonusPoints).toBe(32)    // Brazil champion(24) + runner-up Argentina(8)
     expect(score.redCardPoints).toBe(0)
     expect(score.total).toBe(41)
   })
