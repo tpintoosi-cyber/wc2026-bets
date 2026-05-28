@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { HashRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom'
+import { doc, onSnapshot } from 'firebase/firestore'
+import { db } from './firebase'
 import { useAuth } from './hooks/useAuth'
 import Login from './pages/Login'
 import Predict from './pages/Predict'
@@ -10,6 +12,25 @@ import Simulator from './pages/Simulator'
 import Rules from './pages/Rules'
 import { Lang, T } from './i18n'
 import './styles/global.css'
+
+function MaintenancePage({ logout, lang }: { logout: () => void; lang: Lang }) {
+  return (
+    <div className="center-screen" style={{ flexDirection: 'column', gap: 20, textAlign: 'center', padding: 32 }}>
+      <div style={{ fontSize: 64 }}>🔧</div>
+      <h2 style={{ margin: 0, fontSize: 22 }}>
+        {lang === 'he' ? 'האפליקציה בתחזוקה רגעית' : 'Down for maintenance'}
+      </h2>
+      <p style={{ color: 'var(--text-secondary)', maxWidth: 320, margin: 0, fontSize: 15 }}>
+        {lang === 'he'
+          ? 'אנחנו מבצעים עדכונים קצרים. נחזור בקרוב 🙏'
+          : 'We\'re making some updates. Be back shortly 🙏'}
+      </p>
+      <button className="btn-secondary" onClick={logout} style={{ marginTop: 8 }}>
+        {lang === 'he' ? 'התנתק' : 'Sign out'}
+      </button>
+    </div>
+  )
+}
 
 function Nav({ dark, toggleDark, lang, toggleLang }: {
   dark: boolean; toggleDark: () => void
@@ -65,10 +86,20 @@ function PendingApproval({ logout, lang }: { logout: () => void; lang: Lang }) {
 }
 
 function RequireAuth({ children, lang }: { children: React.ReactNode; lang: Lang }) {
-  const { user, isApproved, loading, logout } = useAuth()
+  const { user, isApproved, isAdmin, loading, logout } = useAuth()
+  const [maintenance, setMaintenance] = useState(false)
+
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'admin', 'settings'), snap => {
+      setMaintenance(snap.exists() ? (snap.data().maintenanceMode ?? false) : false)
+    })
+    return unsub
+  }, [])
+
   if (loading) return <div className="center-screen">{lang === 'he' ? 'טוען...' : 'Loading...'}</div>
   if (!user) return <Navigate to="/login" replace />
   if (!isApproved) return <PendingApproval logout={logout} lang={lang} />
+  if (maintenance && !isAdmin) return <MaintenancePage logout={logout} lang={lang} />
   return <>{children}</>
 }
 

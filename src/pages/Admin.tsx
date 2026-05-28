@@ -35,6 +35,7 @@ export default function Admin() {
     r16Deadline: '', qfDeadline: '', sfDeadline: '', p3Deadline: '', finalDeadline: '',
     mockNow: '',
     liveMode: false,
+    maintenanceMode: false,
   })
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
@@ -87,6 +88,7 @@ export default function Admin() {
           finalDeadline: d.finalDeadline ? new Date(d.finalDeadline).toISOString().slice(0, 16) : '',
           mockNow:       d.mockNow       ? new Date(d.mockNow).toISOString().slice(0, 16)       : '',
           liveMode:      d.liveMode ?? false,
+          maintenanceMode: d.maintenanceMode ?? false,
         })
       }
       if (koSnap.exists()) {
@@ -501,7 +503,8 @@ export default function Admin() {
       p3Deadline:    settings.p3Deadline    ? new Date(settings.p3Deadline).getTime()    : null,
       finalDeadline: settings.finalDeadline ? new Date(settings.finalDeadline).getTime() : null,
       mockNow:       settings.mockNow       ? new Date(settings.mockNow).getTime()       : null,
-      liveMode:      settings.liveMode ?? false,
+      liveMode:       settings.liveMode ?? false,
+      maintenanceMode: settings.maintenanceMode ?? false,
     }, { merge: true })
     setMsg('✓ הגדרות נשמרו')
     setTimeout(() => setMsg(''), 3000)
@@ -639,8 +642,32 @@ export default function Admin() {
           </label>
         </div>
         <div className="admin-row" style={{ borderTop: '1px dashed #eee', paddingTop: 10, marginTop: 6 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, color: '#888' }}>🧪 תאריך סימולציה (לבדיקה בלבד):</span>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ position: 'relative', display: 'inline-block' }}>
+              <input type="checkbox" checked={settings.maintenanceMode}
+                onChange={e => setSettings(s => ({ ...s, maintenanceMode: e.target.checked }))}
+                style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} id="maintenance-toggle" />
+              <label htmlFor="maintenance-toggle" style={{
+                display: 'block', width: 48, height: 26, borderRadius: 13, cursor: 'pointer',
+                background: settings.maintenanceMode ? '#c0392b' : '#ccc', transition: 'background 0.2s', position: 'relative',
+              }}>
+                <span style={{
+                  position: 'absolute', top: 3, left: settings.maintenanceMode ? 25 : 3, width: 20, height: 20,
+                  background: '#fff', borderRadius: '50%', transition: 'left 0.2s',
+                }} />
+              </label>
+            </div>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: 14, color: settings.maintenanceMode ? '#c0392b' : '#333' }}>
+                {settings.maintenanceMode ? '🔧 מצב תחזוקה — פעיל' : '⚪ מצב תחזוקה — כבוי'}
+              </span>
+              <p style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+                כשפעיל — משתמשים רואים דף "אפליקציה בתחזוקה". אדמין נכנס רגיל.
+              </p>
+            </div>
+          </label>
+          {settings.maintenanceMode && <p style={{ fontSize: 11, color: '#c0392b', marginTop: 4, fontWeight: 600 }}>⚠️ המשתמשים חסומים כרגע!</p>}
+        </div>
             <input type="datetime-local" value={settings.mockNow ?? ''}
               onChange={e => setSettings(s => ({ ...s, mockNow: e.target.value }))} />
             {settings.mockNow && (
