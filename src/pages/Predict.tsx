@@ -620,7 +620,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                       return { team, pts, gd: gf - ga }
                     }).sort((a, b) => b.pts - a.pts || b.gd - a.gd)
                     return (
-                      <div key={group} style={{ minWidth: 110, fontSize: 11, border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden', position: 'relative', cursor: 'pointer' }}
+                      <div key={group} style={{ minWidth: 110, fontSize: 11, position: 'relative', cursor: 'pointer' }}
                         onMouseEnter={() => setTooltipGroup(`mini-${group}`)}
                         onMouseLeave={() => setTooltipGroup(null)}
                         onClick={() => setTooltipGroup(prev => prev === `mini-${group}` ? null : `mini-${group}`)}
@@ -658,6 +658,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             })}
                           </div>
                         )}
+                        <div style={{ border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden' }}>
                         <div style={{ background: '#1a1a2e', color: '#fff', fontWeight: 700, fontSize: 11, padding: '3px 8px', textAlign: 'center' }}>
                           {t.group} {group}
                         </div>
@@ -673,6 +674,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             <span style={{ fontWeight: 700, color: '#333', fontSize: 12 }}>{s.pts}</span>
                           </div>
                         ))}
+                        </div>
                       </div>
                     )
                   })}
@@ -849,7 +851,7 @@ export default function Predict({ lang }: { lang: Lang }) {
               }).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
               const hasData = standings.some(s => s.played > 0)
               return (
-                <div key={group} className="group-card" style={{ position: 'relative' }}
+                <div key={group} className="group-card" style={{ position: 'relative', overflow: 'visible' }}
                   onMouseEnter={() => setTooltipGroup(group)}
                   onMouseLeave={() => setTooltipGroup(null)}
                   onClick={() => setTooltipGroup(prev => prev === group ? null : group)}
@@ -983,7 +985,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                     }).sort((a, b) => b.pts - a.pts || b.gd - a.gd)
                     if (standings.every(s => s.played === 0)) return null
                     return (
-                      <div key={group} style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8', fontSize: 12, position: 'relative', cursor: 'pointer' }}
+                      <div key={group} style={{ fontSize: 12, position: 'relative', cursor: 'pointer' }}
                         onMouseEnter={() => setTooltipGroup(`bonus-${group}`)}
                         onMouseLeave={() => setTooltipGroup(null)}
                         onClick={() => setTooltipGroup(prev => prev === `bonus-${group}` ? null : `bonus-${group}`)}
@@ -1021,6 +1023,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             })}
                           </div>
                         )}
+                        <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
                         <div style={{ background: '#1a1a2e', color: '#fff', padding: '4px 8px', fontWeight: 700, fontSize: 11 }}>{lang === 'he' ? 'בית' : 'Group'} {group}</div>
                         {standings.map((s, i) => (
                           <div key={s.team} style={{
@@ -1035,6 +1038,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                             <span style={{ color: '#aaa', fontSize: 10, minWidth: 24, textAlign: 'right' }}>{s.gd > 0 ? '+' : ''}{s.gd}</span>
                           </div>
                         ))}
+                        </div>
                       </div>
                     )
                   })}
