@@ -152,6 +152,12 @@ export default function Predict({ lang }: { lang: Lang }) {
     }
   }, [knockoutOpen, isOpen])
 
+  const goToMatch = (matchId: number) => {
+    setTab('matches')
+    setTooltipGroup(null)
+    setTimeout(() => document.getElementById(`match-${matchId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 120)
+  }
+
   // Accordion state: which rounds are open in form view
   const [openRounds, setOpenRounds] = useState<Set<string>>(new Set(['R32']))
   const toggleRound = (round: string) =>
@@ -181,6 +187,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     setOpenRounds(new Set([activeKoRound]))
   }, [activeKoRound])
   const [focusMatchId, setFocusMatchId] = useState<number | null>(null)
+  const [tooltipGroup, setTooltipGroup] = useState<string | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Nickname
@@ -805,7 +812,52 @@ export default function Predict({ lang }: { lang: Lang }) {
               }).sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
               const hasData = standings.some(s => s.played > 0)
               return (
-                <div key={group} className="group-card">
+                <div key={group} className="group-card" style={{ position: 'relative' }}
+                  onMouseEnter={() => setTooltipGroup(group)}
+                  onMouseLeave={() => setTooltipGroup(null)}
+                  onClick={() => setTooltipGroup(prev => prev === group ? null : group)}
+                >
+                  {/* Tooltip: all 6 group matches + user predictions */}
+                  {tooltipGroup === group && (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
+                      zIndex: 100, background: '#fff', border: '1px solid #ddd', borderRadius: 10,
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)', padding: '10px 12px',
+                      minWidth: 230, marginTop: 6,
+                    }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#666', marginBottom: 8 }}>
+                        {lang === 'he' ? `משחקי בית ${group}` : `Group ${group} matches`}
+                      </div>
+                      {groupMatches.map(m => {
+                        const pred = matchPreds[m.id]
+                        const hasScore = pred?.scoreA != null && pred?.scoreB != null
+                        return (
+                          <div key={m.id} onClick={() => goToMatch(m.id)} style={{
+                            display: 'flex', alignItems: 'center', gap: 8,
+                            padding: '5px 6px', borderRadius: 6, cursor: 'pointer',
+                            marginBottom: 2,
+                            background: 'transparent',
+                            transition: 'background 0.1s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            <Flag emoji={FLAGS[m.teamA] ?? ''} size={14} />
+                            <span style={{ fontSize: 12, color: '#333', flex: 1 }}>{tn(m.teamA)}</span>
+                            <span style={{
+                              fontSize: 12, fontWeight: 700, color: hasScore ? '#1a1a2e' : '#ccc',
+                              minWidth: 36, textAlign: 'center',
+                            }}>
+                              {hasScore ? `${pred.scoreA}–${pred.scoreB}` : '–'}
+                            </span>
+                            <span style={{ fontSize: 12, color: '#333', flex: 1, textAlign: 'right' }}>{tn(m.teamB)}</span>
+                            <Flag emoji={FLAGS[m.teamB] ?? ''} size={14} />
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+
                   <div className="group-card-title">{t.group} {group}</div>
 
                   {/* Caption explaining the standings are based on user predictions */}
