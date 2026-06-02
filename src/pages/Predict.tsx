@@ -1,5 +1,6 @@
 import Flag, { flagToIso } from '../components/Flag'
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth, isAppOpen } from '../hooks/useAuth'
@@ -188,6 +189,14 @@ export default function Predict({ lang }: { lang: Lang }) {
   }, [activeKoRound])
   const [focusMatchId, setFocusMatchId] = useState<number | null>(null)
   const [tooltipGroup, setTooltipGroup] = useState<string | null>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+
+  const showTooltip = (key: string, e: React.MouseEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setTooltipPos({ x: rect.left + rect.width / 2, y: rect.bottom + window.scrollY + 6 })
+    setTooltipGroup(key)
+  }
+  const hideTooltip = () => setTooltipGroup(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Nickname
@@ -621,43 +630,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                     }).sort((a, b) => b.pts - a.pts || b.gd - a.gd)
                     return (
                       <div key={group} style={{ minWidth: 110, fontSize: 11, position: 'relative', cursor: 'pointer' }}
-                        onMouseEnter={() => setTooltipGroup(`mini-${group}`)}
-                        onMouseLeave={() => setTooltipGroup(null)}
-                        onClick={() => setTooltipGroup(prev => prev === `mini-${group}` ? null : `mini-${group}`)}
+                        onMouseEnter={e => showTooltip(`mini-${group}`, e)}
+                        onMouseLeave={hideTooltip}
+                        onClick={e => tooltipGroup === `mini-${group}` ? hideTooltip() : showTooltip(`mini-${group}`, e)}
                       >
-                        {tooltipGroup === `mini-${group}` && (
-                          <div style={{
-                            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-                            zIndex: 100, background: '#fff', border: '1px solid #ddd', borderRadius: 10,
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.15)', padding: '10px 12px',
-                            minWidth: 230, marginTop: 6,
-                          }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', marginBottom: 8 }}>
-                              {lang === 'he' ? `משחקי בית ${group}` : `Group ${group} matches`}
-                            </div>
-                            {groupMatches.map(m => {
-                              const pred = matchPreds[m.id]
-                              const hasScore = pred?.scoreA != null && pred?.scoreB != null
-                              return (
-                                <div key={m.id} onClick={e => { e.stopPropagation(); goToMatch(m.id) }} style={{
-                                  display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px',
-                                  borderRadius: 6, cursor: 'pointer', marginBottom: 2,
-                                }}
-                                onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
-                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                                >
-                                  <Flag emoji={FLAGS[m.teamA] ?? ''} size={14} />
-                                  <span style={{ fontSize: 12, color: '#333', flex: 1 }}>{tn(m.teamA)}</span>
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: hasScore ? '#1a1a2e' : '#ccc', minWidth: 36, textAlign: 'center' }}>
-                                    {hasScore ? `${pred.scoreA}–${pred.scoreB}` : '–'}
-                                  </span>
-                                  <span style={{ fontSize: 12, color: '#333', flex: 1, textAlign: 'right' }}>{tn(m.teamB)}</span>
-                                  <Flag emoji={FLAGS[m.teamB] ?? ''} size={14} />
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
                         <div style={{ border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden' }}>
                         <div style={{ background: '#1a1a2e', color: '#fff', fontWeight: 700, fontSize: 11, padding: '3px 8px', textAlign: 'center' }}>
                           {t.group} {group}
@@ -852,51 +828,10 @@ export default function Predict({ lang }: { lang: Lang }) {
               const hasData = standings.some(s => s.played > 0)
               return (
                 <div key={group} className="group-card" style={{ position: 'relative', overflow: 'visible' }}
-                  onMouseEnter={() => setTooltipGroup(group)}
-                  onMouseLeave={() => setTooltipGroup(null)}
-                  onClick={() => setTooltipGroup(prev => prev === group ? null : group)}
+                  onMouseEnter={e => showTooltip(group, e)}
+                  onMouseLeave={hideTooltip}
+                  onClick={e => tooltipGroup === group ? hideTooltip() : showTooltip(group, e)}
                 >
-                  {/* Tooltip: all 6 group matches + user predictions */}
-                  {tooltipGroup === group && (
-                    <div style={{
-                      position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-                      zIndex: 100, background: '#fff', border: '1px solid #ddd', borderRadius: 10,
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)', padding: '10px 12px',
-                      minWidth: 230, marginTop: 6,
-                    }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: '#666', marginBottom: 8 }}>
-                        {lang === 'he' ? `משחקי בית ${group}` : `Group ${group} matches`}
-                      </div>
-                      {groupMatches.map(m => {
-                        const pred = matchPreds[m.id]
-                        const hasScore = pred?.scoreA != null && pred?.scoreB != null
-                        return (
-                          <div key={m.id} onClick={e => { e.stopPropagation(); goToMatch(m.id) }} style={{
-                            display: 'flex', alignItems: 'center', gap: 8,
-                            padding: '5px 6px', borderRadius: 6, cursor: 'pointer',
-                            marginBottom: 2,
-                            background: 'transparent',
-                            transition: 'background 0.1s',
-                          }}
-                          onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                          >
-                            <Flag emoji={FLAGS[m.teamA] ?? ''} size={14} />
-                            <span style={{ fontSize: 12, color: '#333', flex: 1 }}>{tn(m.teamA)}</span>
-                            <span style={{
-                              fontSize: 12, fontWeight: 700, color: hasScore ? '#1a1a2e' : '#ccc',
-                              minWidth: 36, textAlign: 'center',
-                            }}>
-                              {hasScore ? `${pred.scoreA}–${pred.scoreB}` : '–'}
-                            </span>
-                            <span style={{ fontSize: 12, color: '#333', flex: 1, textAlign: 'right' }}>{tn(m.teamB)}</span>
-                            <Flag emoji={FLAGS[m.teamB] ?? ''} size={14} />
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-
                   <div className="group-card-title">{t.group} {group}</div>
 
                   {/* Caption explaining the standings are based on user predictions */}
@@ -986,43 +921,10 @@ export default function Predict({ lang }: { lang: Lang }) {
                     if (standings.every(s => s.played === 0)) return null
                     return (
                       <div key={group} style={{ fontSize: 12, position: 'relative', cursor: 'pointer' }}
-                        onMouseEnter={() => setTooltipGroup(`bonus-${group}`)}
-                        onMouseLeave={() => setTooltipGroup(null)}
-                        onClick={() => setTooltipGroup(prev => prev === `bonus-${group}` ? null : `bonus-${group}`)}
+                        onMouseEnter={e => showTooltip(`bonus-${group}`, e)}
+                        onMouseLeave={hideTooltip}
+                        onClick={e => tooltipGroup === `bonus-${group}` ? hideTooltip() : showTooltip(`bonus-${group}`, e)}
                       >
-                        {tooltipGroup === `bonus-${group}` && (
-                          <div style={{
-                            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-                            zIndex: 100, background: '#fff', border: '1px solid #ddd', borderRadius: 10,
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.15)', padding: '10px 12px',
-                            minWidth: 230, marginTop: 6,
-                          }}>
-                            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', marginBottom: 8 }}>
-                              {lang === 'he' ? `משחקי בית ${group}` : `Group ${group} matches`}
-                            </div>
-                            {groupMatches.map(m => {
-                              const pred = matchPreds[m.id]
-                              const hasScore = pred?.scoreA != null && pred?.scoreB != null
-                              return (
-                                <div key={m.id} onClick={e => { e.stopPropagation(); goToMatch(m.id) }} style={{
-                                  display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px',
-                                  borderRadius: 6, cursor: 'pointer', marginBottom: 2,
-                                }}
-                                onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
-                                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                                >
-                                  <Flag emoji={FLAGS[m.teamA] ?? ''} size={14} />
-                                  <span style={{ fontSize: 12, color: '#333', flex: 1 }}>{tn(m.teamA)}</span>
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: hasScore ? '#1a1a2e' : '#ccc', minWidth: 36, textAlign: 'center' }}>
-                                    {hasScore ? `${pred.scoreA}–${pred.scoreB}` : '–'}
-                                  </span>
-                                  <span style={{ fontSize: 12, color: '#333', flex: 1, textAlign: 'right' }}>{tn(m.teamB)}</span>
-                                  <Flag emoji={FLAGS[m.teamB] ?? ''} size={14} />
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
                         <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
                         <div style={{ background: '#1a1a2e', color: '#fff', padding: '4px 8px', fontWeight: 700, fontSize: 11 }}>{lang === 'he' ? 'בית' : 'Group'} {group}</div>
                         {standings.map((s, i) => (
@@ -2435,7 +2337,54 @@ export default function Predict({ lang }: { lang: Lang }) {
             </>)
           })()}
         </div>
-      )}</div>
+      )}
+
+      {/* ── TOOLTIP PORTAL — renders outside all overflow containers ── */}
+      {tooltipGroup && (() => {
+        const key = tooltipGroup
+        const groupKey = key.replace(/^(mini-|bonus-)/, '')
+        const gMatches = MATCHES.filter(m => m.group === groupKey)
+        return createPortal(
+          <div
+            style={{
+              position: 'absolute', top: tooltipPos.y, left: tooltipPos.x,
+              transform: 'translateX(-50%)', zIndex: 9999,
+              background: '#fff', border: '1px solid #ddd', borderRadius: 10,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.18)', padding: '10px 12px',
+              minWidth: 240, pointerEvents: 'auto',
+            }}
+            onMouseEnter={() => setTooltipGroup(key)}
+            onMouseLeave={hideTooltip}
+          >
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', marginBottom: 8 }}>
+              {lang === 'he' ? `משחקי בית ${groupKey}` : `Group ${groupKey} matches`}
+            </div>
+            {gMatches.map(m => {
+              const pred = matchPreds[m.id]
+              const hasScore = pred?.scoreA != null && pred?.scoreB != null
+              return (
+                <div key={m.id} onClick={() => goToMatch(m.id)} style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px',
+                  borderRadius: 6, cursor: 'pointer', marginBottom: 2,
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = '#f5f5f5')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <Flag emoji={FLAGS[m.teamA] ?? ''} size={14} />
+                  <span style={{ fontSize: 12, color: '#333', flex: 1 }}>{tn(m.teamA)}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: hasScore ? '#1a1a2e' : '#ccc', minWidth: 36, textAlign: 'center' }}>
+                    {hasScore ? `${pred.scoreA}–${pred.scoreB}` : '–'}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#333', flex: 1, textAlign: 'right' }}>{tn(m.teamB)}</span>
+                  <Flag emoji={FLAGS[m.teamB] ?? ''} size={14} />
+                </div>
+              )
+            })}
+          </div>,
+          document.body
+        )
+      })()}
+    </div>
   )
 }
 
