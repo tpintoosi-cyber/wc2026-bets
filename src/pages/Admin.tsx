@@ -26,6 +26,15 @@ const API_ALIASES: Record<string, string> = {
 }
 
 export default function Admin() {
+  // Strip undefined values from objects before saving to Firebase
+  const stripUndefined = (obj: Record<string, any>): Record<string, any> =>
+    Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
+  const sanitizeMatches = (matches: Record<number | string, any>): Record<number, any> => {
+    const out: Record<number, any> = {}
+    for (const [id, m] of Object.entries(matches)) out[Number(id)] = stripUndefined(m as Record<string, any>)
+    return out
+  }
+
   const [matches, setMatches] = useState<Record<number, Match>>({})
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
@@ -196,7 +205,7 @@ export default function Admin() {
       log.push(`🏆 עודכנו ${koUpdated} תוצאות נוקאאוט`)
       if (koPenalties > 0) log.push(`⚠️ ${koPenalties} משחק(ים) תיקו — יש להגדיר "מי עלה" ידנית`)
 
-      await setDoc(doc(db, 'admin', 'results'), { matches: updatedMatches, groups: actualGroups, bonus: actualBonus }, { merge: true })
+      await setDoc(doc(db, 'admin', 'results'), { matches: sanitizeMatches(updatedMatches), groups: actualGroups, bonus: actualBonus }, { merge: true })
       await setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout })
       const scheduleMap: Record<number, string> = {}
       for (const [id, m] of Object.entries(updatedMatches)) {
@@ -304,7 +313,7 @@ export default function Admin() {
                 if (teams[0]) setActualGroups(prev => ({ ...prev, [g]: teams }))
               }
               await setDoc(doc(db, 'admin', 'results'), {
-                matches: updatedMatches,
+                matches: sanitizeMatches(updatedMatches),
                 groups: { ...actualGroups, ...groupQualifiers },
                 bonus: actualBonus,
               }, { merge: true })
@@ -323,7 +332,7 @@ export default function Admin() {
           // Save updated knockout
           setMatches({ ...updatedMatches })
           setKnockoutMatches({ ...updatedKnockout })
-          await setDoc(doc(db, 'admin', 'results'), { matches: updatedMatches, groups: actualGroups, bonus: actualBonus }, { merge: true })
+          await setDoc(doc(db, 'admin', 'results'), { matches: sanitizeMatches(updatedMatches), groups: actualGroups, bonus: actualBonus }, { merge: true })
           await setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout })
 
           log.push(`⏱️ תוצאות 90 דקות: ${scoresFix} משחקים`)
@@ -448,9 +457,6 @@ export default function Admin() {
   const saveResults = async () => {
     // Mark any match that has isPlayed=true as manualScore so sync won't overwrite it
     // Also strip undefined values — Firebase rejects them
-    const stripUndefined = (obj: Record<string, any>) =>
-      Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
-
     const markedMatches: Record<number, any> = {}
     for (const [id, m] of Object.entries(matches)) {
       const base = (m as any).isPlayed ? { ...m, manualScore: true } : m
