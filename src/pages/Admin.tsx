@@ -29,7 +29,8 @@ export default function Admin() {
   const [matches, setMatches] = useState<Record<number, Match>>({})
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
-  const [qualifiedThirds, setQualifiedThirds] = useState<string[]>([])  const [settings, setSettings] = useState({
+  const [qualifiedThirds, setQualifiedThirds] = useState<string[]>([])
+  const [settings, setSettings] = useState({
     isOpen: true, deadline: '',
     knockoutOpen: false, knockoutDeadline: '',
     r16Deadline: '', qfDeadline: '', sfDeadline: '', p3Deadline: '', finalDeadline: '',
