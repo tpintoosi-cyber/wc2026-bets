@@ -168,11 +168,14 @@ export function calcKnockoutRedCardPoints(
 // ── GROUP ADVANCING ──────────────────────────────────────────────────────────
 export function calcGroupPoints(
   predictions: [string, string, string],
-  actual: [string, string, string]
+  actual: [string, string, string],
+  qualifiedThirds?: string[]
 ): number {
   let pts = 0
   for (let i = 0; i < 3; i++) {
     if (!predictions[i]) continue
+    // For 3rd place: only score if the actual 3rd-place team qualified to R32
+    if (i === 2 && qualifiedThirds && !qualifiedThirds.includes(actual[2])) continue
     if (predictions[i] === actual[i]) pts += 2
     else if (actual.includes(predictions[i])) pts += 1
   }
@@ -248,7 +251,8 @@ export function computeUserScore(
   actualBonus: Partial<BonusPredictions>,
   knockoutPredictions?: Record<number, KnockoutMatchPrediction>,
   playedKnockout?: KnockoutMatch[],
-  knockoutRedCards?: KnockoutRedCardPicks
+  knockoutRedCards?: KnockoutRedCardPicks,
+  qualifiedThirds?: string[]
 ): UserScore {
   const matchDetails: Record<number, MatchScore> = {}
   let matchPoints = 0
@@ -278,7 +282,7 @@ export function computeUserScore(
   for (const [group, actual] of Object.entries(actualGroups)) {
     const pred = groupPredictions[group]
     if (!pred) continue
-    groupPoints += calcGroupPoints(pred.advancing, actual)
+    groupPoints += calcGroupPoints(pred.advancing, actual, qualifiedThirds)
   }
 
   const bonusPoints = calcBonusPoints(bonusPredictions, actualBonus)
