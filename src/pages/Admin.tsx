@@ -26,6 +26,14 @@ const API_ALIASES: Record<string, string> = {
 }
 
 export default function Admin() {
+  const stripUndefined = (obj: Record<string, any>): Record<string, any> =>
+    Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
+  const sanitizeMatches = (matches: Record<number | string, any>): Record<number, any> => {
+    const out: Record<number, any> = {}
+    for (const [id, m] of Object.entries(matches)) out[Number(id)] = stripUndefined(m as Record<string, any>)
+    return out
+  }
+
   const [matches, setMatches] = useState<Record<number, Match>>({})
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
@@ -452,10 +460,6 @@ export default function Admin() {
 
   const saveResults = async () => {
     // Mark any match that has isPlayed=true as manualScore so sync won't overwrite it
-    // Also strip undefined values — Firebase rejects them
-    const stripUndefined = (obj: Record<string, any>) =>
-      Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
-
     const markedMatches: Record<number, any> = {}
     for (const [id, m] of Object.entries(matches)) {
       const base = (m as any).isPlayed ? { ...m, manualScore: true } : m
