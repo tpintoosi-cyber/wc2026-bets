@@ -49,6 +49,11 @@ export default function Admin() {
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
+  const [completionData, setCompletionData] = useState<{
+    userId: string; userName: string
+    matches: number; bonus: number; groups: number
+  }[] | null>(null)
+  const [loadingCompletion, setLoadingCompletion] = useState(false)
   const [syncLog, setSyncLog] = useState<string[]>([])
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, KnockoutMatch>>({})
   const [adminTab, setAdminTab] = useState<'group' | 'knockout' | 'users' | 'test'>('group')
@@ -401,6 +406,31 @@ export default function Admin() {
       try { await deleteDoc(doc(db, 'users', u.uid)) } catch {}
     }))
     setPendingUsers(prev => prev.filter(u => u.status !== 'rejected'))
+  }
+
+  const loadCompletion = async () => {
+    setLoadingCompletion(true)
+    const snap = await getDocs(collection(db, 'predictions'))
+    const totalMatches = MATCHES.length  // 72
+    const totalBonus = BONUS_QUESTIONS.length  // 14
+    const totalGroups = Object.keys(GROUPS_TEAMS).length  // 12
+    const result = snap.docs.map(d => {
+      const data = d.data()
+      const userName = data.userName ?? d.id
+      const matchPreds = data.matches ?? {}
+      const bonusPreds = data.bonus ?? {}
+      const groupPreds = data.groups ?? {}
+      const filledMatches = MATCHES.filter(m => matchPreds[m.id]?.prediction1X2).length
+      const filledBonus = BONUS_QUESTIONS.filter(q => bonusPreds[q.id]?.trim()).length
+      const filledGroups = Object.keys(GROUPS_TEAMS).filter(g => {
+        const adv = groupPreds[g]?.advancing
+        return adv && adv.filter(Boolean).length === 3
+      }).length
+      return { userId: d.id, userName, matches: filledMatches, bonus: filledBonus, groups: filledGroups,
+        totalMatches, totalBonus, totalGroups }
+    }).sort((a, b) => a.userName.localeCompare(b.userName, 'he'))
+    setCompletionData(result)
+    setLoadingCompletion(false)
   }
 
   const recalcAllScores = async (matchData?: Record<number, Match>) => {
@@ -1050,7 +1080,72 @@ export default function Admin() {
         </section>
       )}
 
-      {adminTab === 'test' && (
+      {adminTab === 'users' && (
+        <section className="admin-section" style={{ marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0 }}>📋 סטטוס מילוי הימורים</h3>
+            <button className="btn-secondary" onClick={loadCompletion} disabled={loadingCompletion}>
+              {loadingCompletion ? 'טוען...' : '🔄 בדוק השלמה'}
+            </button>
+          </div>
+
+          {completionData && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: '#1a1a2e', color: '#fff' }}>
+                    <td style={{ padding: '8px 12px', textAlign: 'right' }}>משתמש</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>משחקים (1X2)</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>שאלות בונוס</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>עולות מבתים</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>סה״כ</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {completionData.map((u, i) => {
+                    const matchOk = u.matches === MATCHES.length
+                    const bonusOk = u.bonus === BONUS_QUESTIONS.length
+                    const groupsOk = u.groups === Object.keys(GROUPS_TEAMS).length
+                    const allOk = matchOk && bonusOk && groupsOk
+                    return (
+                      <tr key={u.userId} style={{ background: i % 2 === 0 ? '#fafafa' : '#fff', borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{u.userName}</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          <span style={{ color: matchOk ? '#1a7a44' : '#c0392b', fontWeight: 600 }}>
+                            {matchOk ? '✅' : '❌'} {u.matches}/{MATCHES.length}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          <span style={{ color: bonusOk ? '#1a7a44' : '#c0392b', fontWeight: 600 }}>
+                            {bonusOk ? '✅' : '❌'} {u.bonus}/{BONUS_QUESTIONS.length}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          <span style={{ color: groupsOk ? '#1a7a44' : '#c0392b', fontWeight: 600 }}>
+                            {groupsOk ? '✅' : '❌'} {u.groups}/{Object.keys(GROUPS_TEAMS).length}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                          <span style={{
+                            display: 'inline-block', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700,
+                            background: allOk ? '#e8f5e9' : '#fff3e0',
+                            color: allOk ? '#1a7a44' : '#e65100',
+                          }}>
+                            {allOk ? '✅ הושלם' : '⚠️ חסר'}
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              <div style={{ fontSize: 12, color: '#888', marginTop: 8, textAlign: 'left' }}>
+                {completionData.filter(u => u.matches === MATCHES.length && u.bonus === BONUS_QUESTIONS.length && u.groups === Object.keys(GROUPS_TEAMS).length).length} / {completionData.length} השלימו הכל
+              </div>
+            </div>
+          )}
+        </section>
+      )}
         <section className="admin-section">
           <h3>🧪 פאנל בדיקות</h3>
           <AdminTestPanel />
