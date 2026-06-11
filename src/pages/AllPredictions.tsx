@@ -90,8 +90,9 @@ function HoverTooltip({ names, children }: { names: string[]; children: React.Re
 }
 
 // Group predictions by score table (like the image)
-function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, lang = "he" as Lang }: {
-  matchId: number; users: UserData[]; teamA: string; teamB: string; lang?: Lang; adminResult?: Match
+function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = "he" as Lang }: {
+  matchId: number; users: UserData[]; teamA: string; teamB: string
+  lang?: Lang; adminResult?: Match; rankMap?: Record<string, number>; currentUserId?: string
 }) {
   const t = T[lang]
   const played = adminResult?.isPlayed ?? false
@@ -102,9 +103,8 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, lang = "he
   users.forEach(u => {
     const p = u.matches[matchId]
     if (!p || p.scoreA === null || p.scoreB === null) {
-      const key = 'לא מולא'
-      groups[key] = groups[key] ?? []
-      groups[key].push(u)
+      groups['לא מולא'] = groups['לא מולא'] ?? []
+      groups['לא מולא'].push(u)
     } else {
       const key = `${p.scoreA}-${p.scoreB}`
       groups[key] = groups[key] ?? []
@@ -120,71 +120,111 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, lang = "he
     return (bA + bB) - (aA + aB) || aA - bA
   })
 
+  const rankBadge = (userId: string) => {
+    const r = rankMap[userId]
+    if (!r) return null
+    const medal = r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : null
+    return medal
+      ? <span style={{ fontSize: 13 }}>{medal}</span>
+      : <span style={{ fontSize: 11, fontWeight: 700, color: '#999', background: '#f0f0f0', borderRadius: 10, padding: '1px 6px' }}>#{r}</span>
+  }
+
+  const cols = [
+    { label: teamB, flag: FLAGS[teamB] ?? '', x2: '2' as const },
+    { label: t.draw, flag: '', x2: 'X' as const },
+    { label: teamA, flag: FLAGS[teamA] ?? '', x2: '1' as const },
+  ]
+
   return (
     <div style={{ marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: '#1a1a2e', borderBottom: '2px solid #1a1a2e', paddingBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
-        <span>פילוח לפי ניחוש — {teamB} נגד {teamA}</span>
+      {/* Title */}
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: '#1a1a2e',
+        borderBottom: '2px solid #1a1a2e', paddingBottom: 8,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>
+          <Flag emoji={FLAGS[teamA] ?? ''} size={18} /> {teamA} נגד <Flag emoji={FLAGS[teamB] ?? ''} size={18} /> {teamB}
+        </span>
         <span style={{ fontSize: 12, fontWeight: 400, color: '#888' }}>{Object.values(groups).reduce((s, a) => s + a.length, 0)} הימורים</span>
       </div>
 
-      {/* 3-column layout: teamA wins | draw | teamB wins */}
-      <div className="score-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        {[
-        { label: teamA, x2: '1', color: '#444', bg: '#f0f0f0' },
-          { label: t.draw, x2: 'X', color: '#444', bg: '#f0f0f0' },
-          { label: teamB, x2: '2', color: '#444', bg: '#f0f0f0' },
-        ].map(col => {
-          // Filter scores for this 1X2 outcome
+      {/* 3-column grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        {cols.map(col => {
           const colScores = sorted.filter(([score]) => {
-            if (score === t.notFilled) return col.x2 === 'X' // show "not filled" under draw
+            if (score === t.notFilled) return col.x2 === 'X'
             const [sA, sB] = score.split('-').map(Number)
             if (col.x2 === '1') return sA > sB
             if (col.x2 === '2') return sB > sA
             return sA === sB
           })
           const total = colScores.reduce((s, [, u]) => s + u.length, 0)
+          const isTeamCol = col.x2 !== 'X'
 
           return (
-            <div key={col.x2}>
+            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
               {/* Column header */}
-              <div style={{ background: col.bg, color: col.color, fontWeight: 700, fontSize: 13,
-                padding: '6px 10px', borderRadius: '8px 8px 0 0', textAlign: 'center', borderBottom: `2px solid ${col.color}` }}>
-                {col.label}
-                <span style={{ fontWeight: 400, fontSize: 11, marginRight: 5, opacity: 0.8 }}>({total})</span>
+              <div style={{
+                background: isTeamCol ? '#1a1a2e' : '#f0f0f0',
+                color: isTeamCol ? '#fff' : '#555',
+                padding: '8px 10px', textAlign: 'center',
+              }}>
+                {col.flag && <span style={{ fontSize: 16 }}>{col.flag} </span>}
+                <span style={{ fontWeight: 700, fontSize: 13 }}>{col.label}</span>
+                <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.7, marginRight: 4 }}> ({total})</span>
               </div>
 
-              {/* Score groups in this column */}
-              <div style={{ border: `1px solid ${col.color}30`, borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
+              {/* Score groups */}
+              <div style={{ background: '#fff' }}>
                 {colScores.length === 0 && (
-                  <div style={{ padding: '10px', fontSize: 12, color: '#ccc', textAlign: 'center' }}>{t.noPredictions}</div>
+                  <div style={{ padding: 12, fontSize: 12, color: '#ccc', textAlign: 'center' }}>—</div>
                 )}
                 {colScores.map(([score, scoreUsers], idx) => {
                   const [sA, sB] = score === t.notFilled ? [null, null] : score.split('-').map(Number)
+                  const displayScore = sA !== null && sB !== null
+                    ? (col.x2 === '2' ? `${sB}-${sA}` : `${sA}-${sB}`)
+                    : '—'
                   const isExact = played && sA !== null && sA === rA && sB === rB
-                  const isMargin = played && sA !== null && !isExact && (sA! - sB!) === (rA! - rB!)
+                  const isMargin = played && !isExact && sA !== null && (sA! - sB!) === (rA! - rB!)
+
                   return (
-                    <div key={score} style={{ borderBottom: idx < colScores.length - 1 ? '1px solid #f0f0f0' : 'none',
-                      background: isExact ? '#f0fbf4' : isMargin ? '#f0f6fb' : idx % 2 === 0 ? '#fafafa' : '#fff',
-                      padding: '7px 10px' }}>
-                      {/* Score badge */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <span style={{ fontSize: 15, fontWeight: 800, direction: 'ltr', display: 'inline-block',
-                          color: isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#1a1a2e' }}>
-                          {score === t.notFilled ? '—' : `${sB}-${sA}`}
+                    <div key={score} style={{
+                      padding: '10px 10px 8px',
+                      borderTop: idx > 0 ? '1px solid #f0f0f0' : 'none',
+                      background: isExact ? '#f0fbf4' : isMargin ? '#f0f6fb' : '#fff',
+                    }}>
+                      {/* Score */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                        <span style={{
+                          fontSize: 20, fontWeight: 900, direction: 'ltr', display: 'inline-block',
+                          color: isExact ? '#1a7a44' : isMargin ? '#185FA5' : '#1a1a2e',
+                          letterSpacing: 1,
+                        }}>
+                          {displayScore}
                         </span>
-                        {isExact && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#EAF3DE', color: '#3B6D11' }}>✓</span>}
-                        {isMargin && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#E6F1FB', color: '#185FA5' }}>~</span>}
-                        <span style={{ fontSize: 11, color: '#aaa', marginRight: 'auto' }}>({scoreUsers.length})</span>
+                        {isExact && <span style={{ fontSize: 10, background: '#EAF3DE', color: '#3B6D11', padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>✓ מדויק</span>}
+                        {isMargin && <span style={{ fontSize: 10, background: '#E6F1FB', color: '#185FA5', padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>~ הפרש</span>}
+                        <span style={{ fontSize: 11, color: '#bbb', marginRight: 'auto' }}>({scoreUsers.length})</span>
                       </div>
-                      {/* Names */}
-                      <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, display: 'flex', flexWrap: 'wrap', gap: '2px 0' }}>
-                        {scoreUsers.map((u, i) => (
-                          <span key={u.userId} style={{ whiteSpace: 'nowrap' }}>
-                            {getDisplayName(u)}
-                            {u.matches[matchId]?.redCard && <span style={{ fontSize: 10, marginRight: 2 }}>🟥</span>}
-                            {i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 5px' }}>·</span>}
-                          </span>
-                        ))}
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {scoreUsers.map(u => {
+                          const isMe = u.userId === currentUserId
+                          return (
+                            <span key={u.userId} style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              background: isMe ? '#1a1a2e' : '#f5f5f5',
+                              color: isMe ? '#fff' : '#333',
+                              borderRadius: 20,
+                              padding: '3px 9px', fontSize: 12, fontWeight: isMe ? 700 : 600,
+                              boxShadow: isMe ? '0 2px 6px rgba(26,26,46,0.25)' : 'none',
+                            }}>
+                              {rankBadge(u.userId)}
+                              {getDisplayName(u)}
+                              {isMe && <span style={{ fontSize: 10, opacity: 0.7 }}> ✦</span>}
+                              {u.matches[matchId]?.redCard && <span style={{ fontSize: 10 }}>🟥</span>}
+                            </span>
+                          )
+                        })}
                       </div>
                     </div>
                   )
@@ -1312,7 +1352,7 @@ ${userRows}
               <optgroup label={t.matchesGroupStage}>
                 {MATCHES.map(m => (
                   <option key={m.id} value={m.id}>
-                    #{m.id} {m.teamA} נגד {m.teamB} ({m.category}) {MATCH_SCHEDULE[m.id] ? `— ${MATCH_SCHEDULE[m.id]}` : ''}
+                    #{m.id} {m.teamA} נגד {m.teamB} ({m.category}) {(adminSchedule[m.id] || MATCH_SCHEDULE[m.id]) ? `— ${adminSchedule[m.id] || MATCH_SCHEDULE[m.id]}` : ''}
                     {adminResults[m.id]?.isPlayed ? ' ✓' : ''}
                   </option>
                 ))}
@@ -1568,11 +1608,12 @@ ${userRows}
               .forEach((u, i) => { rankMap[u.userId] = i + 1 })
             return (
               <>
-                <div className="match-row-view">
+                <ScoreGroupTable matchId={selectedMatchId} users={users} teamA={match.teamA} teamB={match.teamB} adminResult={result} rankMap={rankMap} currentUserId={user?.uid} />
+                <div className="match-row-view" style={{ marginTop: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                     <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
                     <span style={{ fontSize: 15, fontWeight: 600 }}><><Flag emoji={FLAGS[match.teamA]??''} size={22} /> {match.teamA}</> נגד <Flag emoji={FLAGS[match.teamB]??''} size={22} /> {match.teamB}</span>
-                    <span style={{ fontSize: 12, color: '#888' }}>{MATCH_SCHEDULE[match.id]}</span>
+                    <span style={{ fontSize: 12, color: '#888' }}>{adminSchedule[match.id] || MATCH_SCHEDULE[match.id]}</span>
                     {played && <span style={{ marginRight: 'auto', fontSize: 13, border: '1px solid rgba(128,128,128,0.25)', padding: '4px 10px', borderRadius: 8, fontWeight: 600 }}>
                       בפועל: {match.teamA} {result.resultA??0}–{result.resultB??0} {match.teamB}{result.hadRedCard?' 🟥':''}
                     </span>}
@@ -1737,7 +1778,6 @@ ${userRows}
                     })}
                   </div>
                 </div>
-                <ScoreGroupTable matchId={selectedMatchId} users={users} teamA={match.teamA} teamB={match.teamB} adminResult={result} />
               </>
             )
           })()}
