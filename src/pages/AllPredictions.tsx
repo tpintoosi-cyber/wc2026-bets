@@ -154,7 +154,7 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, lang = "he
               </div>
 
               {/* Score groups in this column */}
-              <div style={{ border: `1px solid ${col.color}30`, borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
+              <div style={{ border: `1px solid ${col.color}30`, borderTop: 'none', borderRadius: '0 0 8px 8px' }}>
                 {colScores.length === 0 && (
                   <div style={{ padding: '10px', fontSize: 12, color: '#ccc', textAlign: 'center' }}>{t.noPredictions}</div>
                 )}
@@ -170,16 +170,16 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, lang = "he
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                         <span style={{ fontSize: 15, fontWeight: 800, direction: 'ltr', display: 'inline-block',
                           color: isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#1a1a2e' }}>
-                          {score === t.notFilled ? '—' : `${sA}-${sB}`}
+                          {score === t.notFilled ? '—' : `${sB}-${sA}`}
                         </span>
                         {isExact && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#EAF3DE', color: '#3B6D11' }}>✓</span>}
                         {isMargin && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#E6F1FB', color: '#185FA5' }}>~</span>}
                         <span style={{ fontSize: 11, color: '#aaa', marginRight: 'auto' }}>({scoreUsers.length})</span>
                       </div>
                       {/* Names */}
-                      <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
+                      <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6, display: 'flex', flexWrap: 'wrap', gap: '2px 0' }}>
                         {scoreUsers.map((u, i) => (
-                          <span key={u.userId}>
+                          <span key={u.userId} style={{ whiteSpace: 'nowrap' }}>
                             {getDisplayName(u)}
                             {u.matches[matchId]?.redCard && <span style={{ fontSize: 10, marginRight: 2 }}>🟥</span>}
                             {i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 5px' }}>·</span>}
@@ -689,9 +689,9 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
         if (!p) return ''
         const res = adminResults[m.id]
         const flag = (t: string) => FLAGS[t] ?? ''
-        const actual = res?.isPlayed ? `${res.resultA}:${res.resultB}` : '—'
+        const actual = res?.isPlayed ? `${res.resultB}:${res.resultA}` : '—'
         const pred1x2 = p.prediction1X2 ?? '—'
-        const predScore = (p.scoreA != null && p.scoreB != null) ? `${p.scoreA}:${p.scoreB}` : '—'
+        const predScore = (p.scoreA != null && p.scoreB != null) ? `${p.scoreB}:${p.scoreA}` : '—'
         const rc = p.redCard ? '🟥' : ''
         return `<tr><td>${m.id}</td><td>${flag(m.teamA)}${m.teamA} נ׳ ${flag(m.teamB)}${m.teamB}</td><td>${pred1x2}</td><td>${predScore}</td><td>${rc}</td><td>${actual}</td></tr>`
       }).filter(Boolean).join('')
