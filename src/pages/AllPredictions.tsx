@@ -25,7 +25,7 @@ type MainTab = 'user' | 'match' | 'stats'
 type UserTab = 'matches' | 'groups' | 'bonus'
 
 // Module-level helper — usable in all sub-components
-function getDisplayName(u: UserData) { return u.nickname || u.userName }
+function getDisplayName(u: UserData) { return u.userName }
 
 // ── Helpers ──────────────────────────────────────────────────────
 function getBestMatchId(fullSchedule: Record<number | string, string>, mockNow?: number): number {
@@ -670,13 +670,9 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
     return { label: `+${pts} נק׳`, type: 'warn' }
   }
 
-  // Display name: nickname if set, else userName. Admin sees both.
-  const displayName = (u: UserData) => u.nickname || u.userName
-  const adminDisplayName = (u: UserData) => {
-    if (!isAdmin) return displayName(u)
-    if (u.nickname && u.nickname !== u.userName) return u.nickname + ' (' + u.userName + ')'
-    return u.userName
-  }
+  // Display name: always use userName
+  const displayName = (u: UserData) => u.userName
+  const adminDisplayName = (u: UserData) => u.userName
 
   const downloadReport = () => {
     const now = new Date()
