@@ -1150,8 +1150,69 @@ export default function Admin() {
       {adminTab === 'test' && (
         <section className="admin-section">
           <h3>🧪 פאנל בדיקות</h3>
+          <PlayerNamesAudit />
           <AdminTestPanel />
         </section>
+      )}
+    </div>
+  )
+}
+
+function PlayerNamesAudit() {
+  const [data, setData] = useState<{ name: string; count: number; field: string }[] | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const load = async () => {
+    setLoading(true)
+    const snap = await getDocs(collection(db, 'predictions'))
+    const counts: Record<string, { count: number; field: string }> = {}
+    snap.docs.forEach(d => {
+      const b = d.data().bonus ?? {}
+      ;(['q108', 'q110'] as const).forEach(field => {
+        const val = b[field]?.trim()
+        if (!val) return
+        const key = `${field}::${val}`
+        if (!counts[key]) counts[key] = { count: 0, field }
+        counts[key].count++
+      })
+    })
+    const result = Object.entries(counts)
+      .map(([key, { count, field }]) => ({ name: key.split('::')[1], count, field }))
+      .sort((a, b) => a.field.localeCompare(b.field) || b.count - a.count)
+    setData(result)
+    setLoading(false)
+  }
+
+  return (
+    <div style={{ marginBottom: 24, padding: 16, background: '#f9f9f9', borderRadius: 10, border: '1px solid #eee' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <strong>🔍 וריאנטים של שמות שחקנים</strong>
+        <button className="btn-secondary" onClick={load} disabled={loading}>
+          {loading ? 'טוען...' : 'הצג'}
+        </button>
+      </div>
+      {data && (
+        <div>
+          {(['q108', 'q110'] as const).map(field => {
+            const label = field === 'q108' ? 'מלך השערים' : 'מלך הבישולים'
+            const rows = data.filter(d => d.field === field)
+            return (
+              <div key={field} style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, marginBottom: 6, color: '#1a1a2e' }}>{label}</div>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                  <tbody>
+                    {rows.map((r, i) => (
+                      <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '4px 8px' }}>{r.name}</td>
+                        <td style={{ padding: '4px 8px', color: '#888' }}>{r.count} משתמשים</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )
+          })}
+        </div>
       )}
     </div>
   )
