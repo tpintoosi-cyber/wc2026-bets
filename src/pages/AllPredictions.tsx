@@ -1,6 +1,6 @@
 import Flag from '../components/Flag'
 import { useState, useEffect, useMemo } from 'react'
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore'
+import { collection, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
 import { Lang, T } from '../i18n'
@@ -567,10 +567,9 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
 
       // When liveMode is ON, even admins can't see predictions until closed
       const canSeePreds = isClosed || (isAdmin && !live)
-      const [resultsSnap, predsSnap, scoresSnap, koSnap, schedSnap] = await Promise.all([
+      const [resultsSnap, predsSnap, koSnap, schedSnap] = await Promise.all([
         getDoc(doc(db, 'admin', 'results')),
         canSeePreds ? getDocs(collection(db, 'predictions')) : Promise.resolve(null),
-        canSeePreds ? getDocs(collection(db, 'scores')) : Promise.resolve(null),
         getDoc(doc(db, 'admin', 'knockout')),
         getDoc(doc(db, 'admin', 'schedule')),
       ])
@@ -610,27 +609,6 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
         }
       }
 
-      if (scoresSnap) {
-        const sc: Record<string, number> = {}
-        const koSc: Record<string, number> = {}
-        const breakdown: Record<string, any> = {}
-        scoresSnap.docs.forEach(d => {
-          const data = d.data()
-          sc[d.id] = data.total ?? 0
-          koSc[d.id] = data.knockoutPoints ?? 0
-          breakdown[d.id] = {
-            total:          data.total          ?? 0,
-            matchPoints:    data.matchPoints     ?? 0,
-            groupPoints:    data.groupPoints     ?? 0,
-            bonusPoints:    data.bonusPoints     ?? 0,
-            redCardPoints:  data.redCardPoints   ?? 0,
-            knockoutPoints: data.knockoutPoints  ?? 0,
-          }
-        })
-        setScores(sc)
-        setKnockoutScores(koSc)
-        setScoreBreakdown(breakdown)
-      }
       setLoading(false)
     })()
   }, [isAdmin, authLoading, refreshKey])
@@ -641,6 +619,33 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
     const best = getBestMatchId(fullSchedule, mockNow)
     setSelectedMatchId(best)
   }, [adminSchedule, mockNow])
+
+  // Live scores listener — updates ranks whenever Admin recalculates
+  useEffect(() => {
+    if (authLoading || !user) return
+    const unsub = onSnapshot(collection(db, 'scores'), snap => {
+      const sc: Record<string, number> = {}
+      const koSc: Record<string, number> = {}
+      const breakdown: Record<string, any> = {}
+      snap.docs.forEach(d => {
+        const data = d.data()
+        sc[d.id] = data.total ?? 0
+        koSc[d.id] = data.knockoutPoints ?? 0
+        breakdown[d.id] = {
+          total:          data.total          ?? 0,
+          matchPoints:    data.matchPoints     ?? 0,
+          groupPoints:    data.groupPoints     ?? 0,
+          bonusPoints:    data.bonusPoints     ?? 0,
+          redCardPoints:  data.redCardPoints   ?? 0,
+          knockoutPoints: data.knockoutPoints  ?? 0,
+        }
+      })
+      setScores(sc)
+      setKnockoutScores(koSc)
+      setScoreBreakdown(breakdown)
+    })
+    return () => unsub()
+  }, [authLoading, user])
   function getMatchPts(matchId: number, pred: MatchPrediction | undefined) {
     if (!pred) return 0
     const result = adminResults[matchId]
