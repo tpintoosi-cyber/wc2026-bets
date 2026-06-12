@@ -111,6 +111,8 @@ export default function Leaderboard() {
     }
     setExporting(false)
   }
+
+  const COLS: { key: string; label: string; hint: string; sub?: boolean }[] = [
     { key: 'match',    label: 'בתים',      hint: '1X2 + תוצאה + 🟥' },
     { key: 'group',    label: 'עולות',     hint: 'עולות מהבתים' },
     { key: 'koR32',    label: '×32',       hint: 'שלב ה-32 האחרונות',  sub: true },
