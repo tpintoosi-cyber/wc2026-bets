@@ -134,11 +134,11 @@ export default function Leaderboard() {
             <div style="font-size:11px;font-weight:800;color:#1a1a2e">${i+1}</div>
             ${rdHtml}
           </td>
-          <td style="text-align:right;padding:4px 6px;border:1px solid #eee;background:${bg}">
-            <div style="font-size:${i<3?'14':'12'}px;font-weight:${i<3?'800':'600'};color:#1a1a2e">${s.userName}</div>
+          <td style="text-align:right;padding:4px 6px;border:1px solid #eee;background:${bg};width:75px;white-space:nowrap">
+            <div style="font-size:${i<3?'14':'12'}px;font-weight:${i<3?'800':'600'};color:#1a1a2e;overflow:hidden;text-overflow:ellipsis">${s.userName}</div>
           </td>
-          <td style="text-align:left;padding:4px 5px;border:1px solid #eee;background:${bg};direction:ltr;width:150px">
-            <div style="font-size:11px;color:#555;word-break:break-word;line-height:1.4">${picks}</div>
+          <td style="text-align:left;padding:4px 5px;border:1px solid #eee;background:${bg};direction:ltr;white-space:nowrap">
+            <div style="font-size:11px;color:#555">${picks}</div>
           </td>
           ${tdScore}
           <td style="text-align:center;font-size:${i<3?'15':'13'}px;font-weight:900;color:${i<3?'#B8860B':'#1a1a2e'};padding:4px 3px;border:1px solid #eee;width:34px;background:${bg}">${s.total}</td>
@@ -156,7 +156,7 @@ export default function Leaderboard() {
           <thead><tr>
             <th style="background:#1a1a2e;color:#fff;font-size:10px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:26px">#</th>
             <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:30px">±מקום</th>
-            <th style="background:#1a1a2e;color:#fff;font-size:10px;padding:5px 6px;text-align:right;border:1px solid #2d2d5e">שם</th>
+            <th style="background:#1a1a2e;color:#fff;font-size:10px;padding:5px 6px;text-align:right;border:1px solid #2d2d5e;width:75px">שם</th>
             <th style="background:#1a1a2e;color:#aac4ff;font-size:10px;padding:5px 5px;text-align:left;border:1px solid #2d2d5e;direction:ltr;width:150px">הימורים</th>
             ${thScore}
             <th style="background:#1a1a2e;color:#fff;font-size:11px;font-weight:800;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:34px">סה"כ</th>
