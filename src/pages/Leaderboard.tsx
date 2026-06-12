@@ -96,7 +96,7 @@ export default function Leaderboard() {
         koF:    { label: 'גמר',    header: '#FF5E00', body: '#FFE6D0' },
         bonus:  { label: 'בונוס',  header: '#9B59B6', body: '#F0E6FA' },
       }
-      const ACTIVE_COLS = ['match','group','koR16','koQF','koSF','koF','bonus'].filter(k => filteredScores.some(s => colVal(s,k) > 0))
+      const ACTIVE_COLS = ['match','group','koR16','koQF','koSF','koF','bonus']
       const dateStr = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })
 
       const thCols = ACTIVE_COLS.map(k =>
@@ -131,8 +131,8 @@ export default function Leaderboard() {
           <td style="text-align:center;padding:6px 4px;border:1px solid #eee;width:38px;background:${bg}">${rdHtml}</td>
           <td style="padding:6px 10px;border:1px solid #eee;background:${bg}">
             <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
-              <span style="font-size:10px;color:#777;white-space:nowrap;flex-shrink:0">${bonusParts}</span>
               <span style="font-size:${i<3?'16':'13'}px;font-weight:${i<3?'800':'600'};color:#1a1a2e;white-space:nowrap">${s.userName}</span>
+              <span style="font-size:10px;color:#777;white-space:nowrap;flex-shrink:0">${bonusParts}</span>
             </div>
           </td>
           ${tdCols}
