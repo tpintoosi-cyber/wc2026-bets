@@ -84,10 +84,10 @@ export default function Leaderboard() {
         })
       }
 
+      const W = 920
       const el = document.createElement('div')
-      el.style.cssText = 'position:fixed;left:-9999px;top:0;width:500px;font-family:Arial,sans-serif;direction:rtl;background:#fff;'
+      el.style.cssText = `position:fixed;left:-9999px;top:0;width:${W}px;font-family:Arial,sans-serif;direction:rtl;background:#f5f5f5;`
 
-      // Only active score columns
       const COL_CFG: Record<string, { label: string; header: string; body: string }> = {
         match: { label:'בתים',   header:'#5B9BD5', body:'#DDEEFF' },
         group: { label:'עולות',  header:'#70AD47', body:'#E2EFDA' },
@@ -100,73 +100,83 @@ export default function Leaderboard() {
       const SCORE_COLS = ['match','group','koR16','koQF','koSF','koF','bonus'].filter(k => filteredScores.some(s => colVal(s,k) > 0))
       const dateStr = new Date().toLocaleDateString('he-IL', { day:'numeric', month:'long' })
 
-      const colW = SCORE_COLS.length > 0 ? Math.min(38, Math.floor(120 / SCORE_COLS.length)) : 38
+      const buildTable = (users: typeof filteredScores) => {
+        const thScore = SCORE_COLS.map(k =>
+          `<th style="background:${COL_CFG[k].header};color:#fff;font-size:9px;font-weight:700;padding:5px 1px;text-align:center;border:1px solid rgba(255,255,255,0.2);width:30px">${COL_CFG[k].label}</th>`
+        ).join('')
 
-      const thScore = SCORE_COLS.map(k =>
-        `<th style="background:${COL_CFG[k].header};color:#fff;font-size:10px;font-weight:700;padding:6px 1px;text-align:center;border:1px solid rgba(255,255,255,0.2);width:${colW}px">${COL_CFG[k].label}</th>`
-      ).join('')
+        const rows = users.map((s) => {
+          const i = filteredScores.indexOf(s)
+          const sExt = s as UserScore & { prevTotal?: number; prevRank?: number }
+          const rd = sExt.prevRank != null && sExt.prevRank !== (i+1) ? sExt.prevRank-(i+1) : null
+          const pd = sExt.prevTotal != null && sExt.prevTotal !== s.total ? s.total-sExt.prevTotal : null
+          const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`
+          const bg = i%2===0?'#fff':'#f7f7f7'
+          const rdHtml = rd!=null&&rd!==0 ? `<div style="font-size:9px;font-weight:800;color:${rd>0?'#1a7a44':'#cc0000'}">${rd>0?'▲':'▼'}${Math.abs(rd)}</div>` : ''
+          const pdHtml = pd!=null&&pd!==0 ? `<span style="color:${pd>0?'#1a7a44':'#cc0000'};font-size:10px;font-weight:800">${pd>0?'+':''}${pd}</span>` : `<span style="color:#ccc;font-size:9px">0</span>`
+          const bp = bonusPreds[s.userId] ?? {}
+          const flags = [
+            bp.q105 && FLAGS[bp.q105] ? `${FLAGS[bp.q105]}🏆` : '',
+            bp.q106 && FLAGS[bp.q106] ? `${FLAGS[bp.q106]}🥈` : '',
+            bp.q107 && FLAGS[bp.q107] ? `${FLAGS[bp.q107]}🥉` : '',
+          ].filter(Boolean).join(' ')
+          const scorer  = bp.q108 ? `⚽${bp.q108.split(' ').slice(-1)[0]}` : ''
+          const assists = bp.q110 ? `👟${bp.q110.split(' ').slice(-1)[0]}` : ''
+          const picks = [flags, scorer, assists].filter(Boolean).join('  ')
+          const tdScore = SCORE_COLS.map(k => {
+            const v = colVal(s,k)
+            return `<td style="background:${COL_CFG[k].body};text-align:center;font-size:11px;font-weight:${v>0?'700':'400'};color:${v>0?'#222':'#bbb'};padding:4px 1px;border:1px solid rgba(0,0,0,0.06);width:30px">${v>0?v:'—'}</td>`
+          }).join('')
 
-      const rows = filteredScores.map((s, i) => {
-        const sExt = s as UserScore & { prevTotal?: number; prevRank?: number }
-        const rd = sExt.prevRank != null && sExt.prevRank !== (i+1) ? sExt.prevRank-(i+1) : null
-        const pd = sExt.prevTotal != null && sExt.prevTotal !== s.total ? s.total-sExt.prevTotal : null
-        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`
-        const bg = i%2===0?'#fff':'#f7f7f7'
-        const rdHtml = rd!=null&&rd!==0 ? `<div style="font-size:10px;font-weight:800;color:${rd>0?'#1a7a44':'#cc0000'}">${rd>0?'▲':'▼'}${Math.abs(rd)}</div>` : ''
-        const pdHtml = pd!=null&&pd!==0 ? `<span style="color:${pd>0?'#1a7a44':'#cc0000'};font-size:11px;font-weight:800">${pd>0?'+':''}${pd}</span>` : `<span style="color:#ccc;font-size:10px">0</span>`
-        const bp = bonusPreds[s.userId] ?? {}
-        const flags = [
-          bp.q105 && FLAGS[bp.q105] ? `${FLAGS[bp.q105]}🏆` : '',
-          bp.q106 && FLAGS[bp.q106] ? `${FLAGS[bp.q106]}🥈` : '',
-          bp.q107 && FLAGS[bp.q107] ? `${FLAGS[bp.q107]}🥉` : '',
-        ].filter(Boolean).join(' ')
-        const scorer  = bp.q108 ? bp.q108.split(' ').slice(-1)[0] : ''
-        const assists = bp.q110 ? bp.q110.split(' ').slice(-1)[0] : ''
-        const picks = [flags, scorer?`⚽${scorer}`:'', assists?`👟${assists}`:''].filter(Boolean).join('  ')
-        const tdScore = SCORE_COLS.map(k => {
-          const v = colVal(s,k)
-          return `<td style="background:${COL_CFG[k].body};text-align:center;font-size:12px;font-weight:${v>0?'700':'400'};color:${v>0?'#222':'#bbb'};padding:4px 1px;border:1px solid rgba(0,0,0,0.06);width:${colW}px">${v>0?v:'—'}</td>`
+          return `<tr>
+            <td style="text-align:center;font-size:${i<3?'14':'11'}px;font-weight:800;padding:4px 3px;border:1px solid #eee;width:24px;background:${bg}">${medal}</td>
+            <td style="text-align:center;padding:4px 2px;border:1px solid #eee;width:28px;background:${bg}">
+              <div style="font-size:10px;font-weight:800;color:#1a1a2e">${i+1}</div>
+              ${rdHtml}
+            </td>
+            <td style="text-align:right;padding:4px 5px;border:1px solid #eee;background:${bg};width:68px;white-space:nowrap">
+              <div style="font-size:${i<3?'13':'11'}px;font-weight:${i<3?'800':'600'};color:#1a1a2e">${s.userName}</div>
+            </td>
+            <td style="text-align:left;padding:4px 4px;border:1px solid #eee;background:${bg};direction:ltr;white-space:nowrap">
+              <span style="font-size:11px;color:#555">${picks}</span>
+            </td>
+            ${tdScore}
+            <td style="text-align:center;font-size:${i<3?'14':'12'}px;font-weight:900;color:${i<3?'#B8860B':'#1a1a2e'};padding:4px 2px;border:1px solid #eee;width:30px;background:${bg}">${s.total}</td>
+            <td style="text-align:center;padding:4px 2px;border:1px solid #eee;width:28px;background:${bg}">${pdHtml}</td>
+          </tr>`
         }).join('')
 
-        return `<tr>
-          <td style="text-align:center;font-size:${i<3?'15':'11'}px;font-weight:800;padding:4px 3px;border:1px solid #eee;width:26px;background:${bg}">${medal}</td>
-          <td style="text-align:center;padding:4px 2px;border:1px solid #eee;width:30px;background:${bg}">
-            <div style="font-size:11px;font-weight:800;color:#1a1a2e">${i+1}</div>
-            ${rdHtml}
-          </td>
-          <td style="text-align:right;padding:4px 6px;border:1px solid #eee;background:${bg};width:75px;white-space:nowrap">
-            <div style="font-size:${i<3?'14':'12'}px;font-weight:${i<3?'800':'600'};color:#1a1a2e;overflow:hidden;text-overflow:ellipsis">${s.userName}</div>
-          </td>
-          <td style="text-align:left;padding:4px 5px;border:1px solid #eee;background:${bg};direction:ltr;white-space:nowrap">
-            <div style="font-size:11px;color:#555">${picks}</div>
-          </td>
-          ${tdScore}
-          <td style="text-align:center;font-size:${i<3?'15':'13'}px;font-weight:900;color:${i<3?'#B8860B':'#1a1a2e'};padding:4px 3px;border:1px solid #eee;width:34px;background:${bg}">${s.total}</td>
-          <td style="text-align:center;padding:4px 2px;border:1px solid #eee;width:30px;background:${bg}">${pdHtml}</td>
-        </tr>`
-      }).join('')
-
-      el.innerHTML = `
-        <div style="background:#1a1a2e;padding:9px 12px;display:flex;justify-content:space-between;align-items:center">
-          <span style="color:#aac4ff;font-size:10px">${filteredScores.length} משתתפים</span>
-          <span style="color:#fff;font-size:14px;font-weight:900">⚽ WC2026 — ניקוד</span>
-          <span style="color:#aac4ff;font-size:10px">${dateStr}</span>
-        </div>
-        <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+        return `<table style="width:100%;border-collapse:collapse;table-layout:auto">
           <thead><tr>
-            <th style="background:#1a1a2e;color:#fff;font-size:10px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:26px">#</th>
-            <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:30px">±מקום</th>
-            <th style="background:#1a1a2e;color:#fff;font-size:10px;padding:5px 6px;text-align:right;border:1px solid #2d2d5e;width:75px">שם</th>
-            <th style="background:#1a1a2e;color:#aac4ff;font-size:10px;padding:5px 5px;text-align:left;border:1px solid #2d2d5e;direction:ltr;width:150px">הימורים</th>
+            <th style="background:#1a1a2e;color:#fff;font-size:9px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:24px">#</th>
+            <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:28px">±</th>
+            <th style="background:#1a1a2e;color:#fff;font-size:9px;padding:5px 5px;text-align:right;border:1px solid #2d2d5e;width:68px">שם</th>
+            <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 4px;text-align:left;border:1px solid #2d2d5e;direction:ltr">הימורים</th>
             ${thScore}
-            <th style="background:#1a1a2e;color:#fff;font-size:11px;font-weight:800;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:34px">סה"כ</th>
-            <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:30px">±נק׳</th>
+            <th style="background:#1a1a2e;color:#fff;font-size:10px;font-weight:800;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:30px">סה"כ</th>
+            <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:28px">±נק׳</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>`
+      }
+
+      const half = Math.ceil(filteredScores.length / 2)
+      const left  = filteredScores.slice(0, half)
+      const right = filteredScores.slice(half)
+
+      el.innerHTML = `
+        <div style="background:#1a1a2e;padding:9px 16px;display:flex;justify-content:space-between;align-items:center">
+          <span style="color:#aac4ff;font-size:11px">${filteredScores.length} משתתפים</span>
+          <span style="color:#fff;font-size:15px;font-weight:900">⚽ WC2026 — טבלת ניקוד</span>
+          <span style="color:#aac4ff;font-size:11px">${dateStr}</span>
+        </div>
+        <div style="display:flex;gap:3px;padding:3px;background:#f5f5f5">
+          <div style="flex:1;min-width:0">${buildTable(left)}</div>
+          <div style="flex:1;min-width:0">${buildTable(right)}</div>
+        </div>`
 
       document.body.appendChild(el)
-      const canvas = await (window as any).html2canvas(el, { backgroundColor:'#fff', scale:2, useCORS:true, width:500, windowWidth:500 })
+      const canvas = await (window as any).html2canvas(el, { backgroundColor:'#f5f5f5', scale:2, useCORS:true, width:W, windowWidth:W })
       document.body.removeChild(el)
       const link = document.createElement('a')
       link.download = `leaderboard-${new Date().toLocaleDateString('he-IL').replace(/\//g,'-')}.png`
@@ -175,6 +185,7 @@ export default function Leaderboard() {
     } catch (e) { alert('שגיאה בייצוא תמונה'); console.error(e) }
     setExporting(false)
   }
+
 
   const myIdx   = scores.findIndex(s => s.userId === user?.uid)
   const myScore = myIdx >= 0 ? scores[myIdx] : null
