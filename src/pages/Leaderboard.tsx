@@ -344,7 +344,7 @@ export default function Leaderboard() {
               {tournamentStarted && (
                 <div className="lb-row-bar" style={{ width: `${pct}%` }} />
               )}
-              <span className="lb-rank" style={{ fontWeight: 800 }}>
+              <span className="lb-rank" style={{ fontWeight: 800, alignSelf: "center" }}>
                 {rank}
                 {rankDelta != null && rankDelta !== 0 && (
                   <span style={{ fontSize: 10, marginRight: 2, color: rankDelta > 0 ? '#1a7a44' : '#c0392b' }}>
@@ -404,11 +404,15 @@ export default function Leaderboard() {
               </span>
               {visibleCols.map(c => (
                 <span key={c.key} className="lb-pts"
-                  style={{ color: colVal(s, c.key) === 0 && tournamentStarted ? '#ccc' : undefined }}>
+                  style={{
+                    color: colVal(s, c.key) === 0 && tournamentStarted ? '#ccc' : undefined,
+                    alignSelf: 'center',
+                    textAlign: 'center',
+                  }}>
                   {colVal(s, c.key)}
                 </span>
               ))}
-              <span className="lb-total" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}>
+              <span className="lb-total" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center', alignSelf: 'center' }}>
                 <span>{s.total}</span>
                 {ptsDelta != null && ptsDelta !== 0 && (
                   <span style={{
