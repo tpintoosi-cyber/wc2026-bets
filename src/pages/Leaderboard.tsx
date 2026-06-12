@@ -100,7 +100,7 @@ export default function Leaderboard() {
       const COLS_ORDER = ALL_COLS.filter(k => filteredScores.some(s => colVal(s, k) > 0))
       const dateStr = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })
       const headerCols = COLS_ORDER.map(k =>
-        `<th style="background:#1a1a2e;color:#93A8CC;font-size:11px;font-weight:700;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;min-width:52px">${COL_CONFIG[k].label}</th>`
+        `<th style="background:#1a1a2e;color:#93A8CC;font-size:10px;font-weight:700;padding:6px 2px;text-align:center;border:1px solid #2d2d5e;width:40px">${COL_CONFIG[k].label}</th>`
       ).join('')
 
       const rowsHtml = filteredScores.map((s, i) => {
@@ -116,15 +116,32 @@ export default function Leaderboard() {
           ? `<span style="color:${ptsDelta > 0 ? '#1a7a44' : '#cc0000'};font-weight:700">${ptsDelta > 0 ? '+' : ''}${ptsDelta}</span>` : `<span style="color:#aaa">0</span>`
         const scoreCols = COLS_ORDER.map(k => {
           const v = colVal(s, k)
-          return `<td style="background:${i % 2 === 0 ? '#fff' : '#f9f9f9'};text-align:center;font-size:13px;font-weight:${v > 0 ? '700' : '400'};color:${v > 0 ? '#1a1a2e' : '#ccc'};padding:5px 4px;border:1px solid #eee">${v > 0 ? v : '—'}</td>`
+          return `<td style="background:${i % 2 === 0 ? '#fff' : '#f9f9f9'};text-align:center;font-size:13px;font-weight:${v > 0 ? '700' : '400'};color:${v > 0 ? '#1a1a2e' : '#ccc'};padding:5px 2px;border:1px solid #eee;width:40px">${v > 0 ? v : '—'}</td>`
         }).join('')
+
+        // Bonus predictions for this user
+        const bp = bonusPreds[s.userId] ?? {}
+        const teams = [
+          bp.q105 && { icon: '🏆', flag: FLAGS[bp.q105] ?? '' },
+          bp.q106 && { icon: '🥈', flag: FLAGS[bp.q106] ?? '' },
+          bp.q107 && { icon: '🥉', flag: FLAGS[bp.q107] ?? '' },
+        ].filter(Boolean) as { icon: string; flag: string }[]
+        const scorer = bp.q108 ? bp.q108.split(' ').slice(-1)[0] : ''
+        const bonusHtml = (teams.length || scorer) ? `
+          <div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
+            ${teams.map(t => `<span style="font-size:11px">${t.flag}${t.icon}</span>`).join('')}
+            ${scorer ? `<span style="font-size:10px;color:#888;margin-right:2px">⚽ ${scorer}</span>` : ''}
+          </div>` : ''
         return `<tr style="background:${bg}">
-          <td style="text-align:center;font-size:${i < 3 ? '16' : '12'}px;font-weight:800;padding:5px 4px;border:1px solid #ddd;min-width:32px">${medal}</td>
-          <td style="text-align:right;font-size:12px;font-weight:${i < 3 ? '700' : '500'};padding:5px 8px;border:1px solid #ddd;min-width:80px;white-space:nowrap">${s.userName}</td>
-          <td style="text-align:center;font-size:11px;padding:5px 4px;border:1px solid #ddd;min-width:36px">${rdHtml}</td>
+          <td style="text-align:center;font-size:${i < 3 ? '16' : '12'}px;font-weight:800;padding:5px 4px;border:1px solid #eee;width:32px">${medal}</td>
+            <td style="text-align:right;padding:5px 10px;border:1px solid #eee;min-width:160px;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'}">
+              <div style="font-size:${i < 3 ? '15' : '13'}px;font-weight:${i < 3 ? '800' : '600'};color:#1a1a2e">${s.userName}</div>
+              ${bonusHtml}
+            </td>
+            <td style="text-align:center;font-size:11px;padding:5px 4px;border:1px solid #eee;width:50px;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'}">${rdHtml}</td>
           ${scoreCols}
-          <td style="text-align:center;font-size:${i < 3 ? '17' : '15'}px;font-weight:900;color:${i < 3 ? '#B8860B' : '#1a1a2e'};padding:5px 6px;border:1px solid #ddd;min-width:44px">${s.total}</td>
-          <td style="text-align:center;font-size:12px;font-weight:700;padding:5px 4px;border:1px solid #ddd;min-width:42px">${pdHtml}</td>
+          <td style="text-align:center;font-size:${i < 3 ? '17' : '15'}px;font-weight:900;color:${i < 3 ? '#B8860B' : '#1a1a2e'};padding:5px 4px;border:1px solid #eee;width:46px;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'}">${s.total}</td>
+          <td style="text-align:center;font-size:12px;font-weight:700;padding:5px 4px;border:1px solid #eee;width:42px;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'}">${pdHtml}</td>
         </tr>`
       }).join('')
 
@@ -137,12 +154,12 @@ export default function Leaderboard() {
         <table style="width:100%;border-collapse:collapse">
           <thead>
             <tr>
-              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e">#</th>
-              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 8px;text-align:right;border:1px solid #2d2d5e">שם</th>
-              <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e">±מקום</th>
+              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:32px">#</th>
+              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 10px;text-align:right;border:1px solid #2d2d5e;min-width:160px">שם + הימורי בונוס</th>
+              <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:50px">±מקום</th>
               ${headerCols}
-              <th style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:800;padding:7px 6px;text-align:center;border:1px solid #2d2d5e">סה"כ</th>
-              <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e">±נק׳</th>
+              <th style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:800;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:46px">סה"כ</th>
+              <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:42px">±נק׳</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
