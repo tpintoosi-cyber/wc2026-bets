@@ -26,18 +26,9 @@ const API_ALIASES: Record<string, string> = {
 }
 
 export default function Admin() {
-  const stripUndefined = (obj: Record<string, any>): Record<string, any> =>
-    Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
-  const sanitizeMatches = (matches: Record<number | string, any>): Record<number, any> => {
-    const out: Record<number, any> = {}
-    for (const [id, m] of Object.entries(matches)) out[Number(id)] = stripUndefined(m as Record<string, any>)
-    return out
-  }
-
   const [matches, setMatches] = useState<Record<number, Match>>({})
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
-  const [qualifiedThirds, setQualifiedThirds] = useState<string[]>([])
   const [settings, setSettings] = useState({
     isOpen: true, deadline: '',
     knockoutOpen: false, knockoutDeadline: '',
@@ -49,11 +40,6 @@ export default function Admin() {
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
-  const [completionData, setCompletionData] = useState<{
-    userId: string; userName: string
-    matches: number; bonus: number; groups: number
-  }[] | null>(null)
-  const [loadingCompletion, setLoadingCompletion] = useState(false)
   const [syncLog, setSyncLog] = useState<string[]>([])
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, KnockoutMatch>>({})
   const [adminTab, setAdminTab] = useState<'group' | 'knockout' | 'users' | 'test'>('group')
@@ -87,7 +73,6 @@ export default function Admin() {
         setMatches(fresh)
         setActualGroups(resultsSnap.data().groups ?? {})
         setActualBonus(resultsSnap.data().bonus ?? {})
-        setQualifiedThirds(resultsSnap.data().qualifiedThirds ?? [])
       }
       if (settingsSnap.exists()) {
         const d = settingsSnap.data()
@@ -224,6 +209,7 @@ export default function Admin() {
       if (isApiFootballConfigured()) {
         log.push('🔄 מושך נתונים מ-API-Football...')
         setSyncLog([...log])
+        let redCardsUpdated = 0
         try {
           const [fixtures, standings] = await Promise.all([
             fetchAllFixtures(),
@@ -247,7 +233,7 @@ export default function Admin() {
             enToHe[en] = he
           }
 
-          let redCards = 0, scoresFix = 0, advanceFix = 0
+          let scoresFix = 0, advanceFix = 0
 
           // ── Group stage: 90-min scores + red cards ──────────────────
           for (const match of MATCHES) {
@@ -270,7 +256,7 @@ export default function Admin() {
               const events = await fetchFixtureEvents(fixture.fixture.id)
               const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
               updatedMatches[match.id].hadRedCard = hasRed
-              if (hasRed) redCards++
+              if (hasRed) redCardsUpdated++
             }
           }
 
@@ -304,7 +290,7 @@ export default function Admin() {
               const events = await fetchFixtureEvents(fixture.fixture.id)
               const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
               kd.hadRedCard = hasRed
-              if (hasRed) redCards++
+              if (hasRed) redCardsUpdated++
             }
             updatedKnockout[km.id] = kd
           }
@@ -318,12 +304,10 @@ export default function Admin() {
               for (const [g, teams] of Object.entries(groupQualifiers)) {
                 if (teams[0]) setActualGroups(prev => ({ ...prev, [g]: teams }))
               }
-              if (best8Thirds.length > 0) setQualifiedThirds(best8Thirds)
               await setDoc(doc(db, 'admin', 'results'), {
-                matches: sanitizeMatches(updatedMatches),
+                matches: updatedMatches,
                 groups: { ...actualGroups, ...groupQualifiers },
                 bonus: actualBonus,
-                ...(best8Thirds.length > 0 ? { qualifiedThirds: best8Thirds } : {}),
               }, { merge: true })
               log.push(`🏅 עודכנו עולות מהבתים (${Object.keys(groupQualifiers).length} בתים)`)
 
@@ -344,7 +328,7 @@ export default function Admin() {
           await setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout })
 
           log.push(`⏱️ תוצאות 90 דקות: ${scoresFix} משחקים`)
-          log.push(`🟥 כרטיסים אדומים: ${redCards}`)
+          log.push(`🟥 כרטיסים אדומים: ${redCardsUpdated}`)
           log.push(`🏆 מי עלה הלאה: ${advanceFix} משחקים`)
 
         } catch (e) {
@@ -353,7 +337,7 @@ export default function Admin() {
       } else {
         log.push('ℹ️ API-Football לא מוגדר')
       }
-      if (updatedResults > 0 || koUpdated > 0) {
+      if (updatedResults > 0 || koUpdated > 0 || redCardsUpdated > 0) {
         log.push('🔄 מחשב ניקוד...')
         setSyncLog([...log])
         await recalcAllScores(updatedMatches)
@@ -408,31 +392,6 @@ export default function Admin() {
     setPendingUsers(prev => prev.filter(u => u.status !== 'rejected'))
   }
 
-  const loadCompletion = async () => {
-    setLoadingCompletion(true)
-    const snap = await getDocs(collection(db, 'predictions'))
-    const totalMatches = MATCHES.length  // 72
-    const totalBonus = BONUS_QUESTIONS.length  // 14
-    const totalGroups = Object.keys(GROUPS_TEAMS).length  // 12
-    const result = snap.docs.map(d => {
-      const data = d.data()
-      const userName = data.userName ?? d.id
-      const matchPreds = data.matches ?? {}
-      const bonusPreds = data.bonus ?? {}
-      const groupPreds = data.groups ?? {}
-      const filledMatches = MATCHES.filter(m => matchPreds[m.id]?.prediction1X2).length
-      const filledBonus = BONUS_QUESTIONS.filter(q => bonusPreds[q.id]?.trim()).length
-      const filledGroups = Object.keys(GROUPS_TEAMS).filter(g => {
-        const adv = groupPreds[g]?.advancing
-        return adv && adv.filter(Boolean).length === 3
-      }).length
-      return { userId: d.id, userName, matches: filledMatches, bonus: filledBonus, groups: filledGroups,
-        totalMatches, totalBonus, totalGroups }
-    }).sort((a, b) => a.userName.localeCompare(b.userName, 'he'))
-    setCompletionData(result)
-    setLoadingCompletion(false)
-  }
-
   const recalcAllScores = async (matchData?: Record<number, Match>) => {
     const data = matchData ?? matches
     const usersSnap = await getDocs(collection(db, 'predictions'))
@@ -462,8 +421,7 @@ export default function Admin() {
         (d.matches ?? {}) as Record<number, MatchPrediction>,
         (d.groups ?? {}) as Record<Group, GroupPrediction>,
         d.bonus ?? {}, playedMatches, actualGroups, actualBonus,
-        d.knockout ?? {}, playedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] },
-        qualifiedThirds.length > 0 ? qualifiedThirds : undefined
+        d.knockout ?? {}, playedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] }
       )
       newScores.push({ userId: userDoc.id, score })
     }
@@ -490,6 +448,10 @@ export default function Admin() {
 
   const saveResults = async () => {
     // Mark any match that has isPlayed=true as manualScore so sync won't overwrite it
+    // Also strip undefined values — Firebase rejects them
+    const stripUndefined = (obj: Record<string, any>) =>
+      Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined))
+
     const markedMatches: Record<number, any> = {}
     for (const [id, m] of Object.entries(matches)) {
       const base = (m as any).isPlayed ? { ...m, manualScore: true } : m
@@ -1080,139 +1042,11 @@ export default function Admin() {
         </section>
       )}
 
-      {adminTab === 'users' && (
-        <section className="admin-section" style={{ marginTop: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <h3 style={{ margin: 0 }}>📋 סטטוס מילוי הימורים</h3>
-            <button className="btn-secondary" onClick={loadCompletion} disabled={loadingCompletion}>
-              {loadingCompletion ? 'טוען...' : '🔄 בדוק השלמה'}
-            </button>
-          </div>
-
-          {completionData && (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                <thead>
-                  <tr style={{ background: '#1a1a2e', color: '#fff' }}>
-                    <td style={{ padding: '8px 12px', textAlign: 'right' }}>משתמש</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>משחקים (1X2)</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>שאלות בונוס</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>עולות מבתים</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'center' }}>סה״כ</td>
-                  </tr>
-                </thead>
-                <tbody>
-                  {completionData.map((u, i) => {
-                    const matchOk = u.matches === MATCHES.length
-                    const bonusOk = u.bonus === BONUS_QUESTIONS.length
-                    const groupsOk = u.groups === Object.keys(GROUPS_TEAMS).length
-                    const allOk = matchOk && bonusOk && groupsOk
-                    return (
-                      <tr key={u.userId} style={{ background: i % 2 === 0 ? '#fafafa' : '#fff', borderBottom: '1px solid #eee' }}>
-                        <td style={{ padding: '8px 12px', fontWeight: 600 }}>{u.userName}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                          <span style={{ color: matchOk ? '#1a7a44' : '#c0392b', fontWeight: 600 }}>
-                            {matchOk ? '✅' : '❌'} {u.matches}/{MATCHES.length}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                          <span style={{ color: bonusOk ? '#1a7a44' : '#c0392b', fontWeight: 600 }}>
-                            {bonusOk ? '✅' : '❌'} {u.bonus}/{BONUS_QUESTIONS.length}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                          <span style={{ color: groupsOk ? '#1a7a44' : '#c0392b', fontWeight: 600 }}>
-                            {groupsOk ? '✅' : '❌'} {u.groups}/{Object.keys(GROUPS_TEAMS).length}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                          <span style={{
-                            display: 'inline-block', padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 700,
-                            background: allOk ? '#e8f5e9' : '#fff3e0',
-                            color: allOk ? '#1a7a44' : '#e65100',
-                          }}>
-                            {allOk ? '✅ הושלם' : '⚠️ חסר'}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              <div style={{ fontSize: 12, color: '#888', marginTop: 8, textAlign: 'left' }}>
-                {completionData.filter(u => u.matches === MATCHES.length && u.bonus === BONUS_QUESTIONS.length && u.groups === Object.keys(GROUPS_TEAMS).length).length} / {completionData.length} השלימו הכל
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
       {adminTab === 'test' && (
         <section className="admin-section">
           <h3>🧪 פאנל בדיקות</h3>
-          <PlayerNamesAudit />
           <AdminTestPanel />
         </section>
-      )}
-    </div>
-  )
-}
-
-function PlayerNamesAudit() {
-  const [data, setData] = useState<{ name: string; count: number; field: string }[] | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  const load = async () => {
-    setLoading(true)
-    const snap = await getDocs(collection(db, 'predictions'))
-    const counts: Record<string, { count: number; field: string }> = {}
-    snap.docs.forEach(d => {
-      const b = d.data().bonus ?? {}
-      ;(['q108', 'q110'] as const).forEach(field => {
-        const val = b[field]?.trim()
-        if (!val) return
-        const key = `${field}::${val}`
-        if (!counts[key]) counts[key] = { count: 0, field }
-        counts[key].count++
-      })
-    })
-    const result = Object.entries(counts)
-      .map(([key, { count, field }]) => ({ name: key.split('::')[1], count, field }))
-      .sort((a, b) => a.field.localeCompare(b.field) || b.count - a.count)
-    setData(result)
-    setLoading(false)
-  }
-
-  return (
-    <div style={{ marginBottom: 24, padding: 16, background: '#f9f9f9', borderRadius: 10, border: '1px solid #eee' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <strong>🔍 וריאנטים של שמות שחקנים</strong>
-        <button className="btn-secondary" onClick={load} disabled={loading}>
-          {loading ? 'טוען...' : 'הצג'}
-        </button>
-      </div>
-      {data && (
-        <div>
-          {(['q108', 'q110'] as const).map(field => {
-            const label = field === 'q108' ? 'מלך השערים' : 'מלך הבישולים'
-            const rows = data.filter(d => d.field === field)
-            return (
-              <div key={field} style={{ marginBottom: 16 }}>
-                <div style={{ fontWeight: 700, marginBottom: 6, color: '#1a1a2e' }}>{label}</div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                  <tbody>
-                    {rows.map((r, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #eee' }}>
-                        <td style={{ padding: '4px 8px' }}>{r.name}</td>
-                        <td style={{ padding: '4px 8px', color: '#888' }}>{r.count} משתמשים</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )
-          })}
-        </div>
       )}
     </div>
   )
