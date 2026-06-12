@@ -83,7 +83,17 @@ export default function Leaderboard() {
     if (!lbRef.current) return
     setExporting(true)
     try {
-      const h2c = (await import('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.esm.js' as any)).default
+      // Load html2canvas from CDN if not already loaded
+      if (!(window as any).html2canvas) {
+        await new Promise<void>((resolve, reject) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+          s.onload = () => resolve()
+          s.onerror = () => reject(new Error('Failed to load html2canvas'))
+          document.head.appendChild(s)
+        })
+      }
+      const h2c = (window as any).html2canvas
       const canvas = await h2c(lbRef.current, {
         backgroundColor: '#ffffff',
         scale: 2,
