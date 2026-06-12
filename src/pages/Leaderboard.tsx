@@ -85,100 +85,91 @@ export default function Leaderboard() {
       }
 
       const el = document.createElement('div')
-      el.style.cssText = 'position:fixed;left:-9999px;top:0;width:820px;font-family:Arial,sans-serif;direction:rtl;background:#fff;'
+      el.style.cssText = 'position:fixed;left:-9999px;top:0;width:860px;font-family:Arial,sans-serif;direction:rtl;background:#fff;'
 
-      const COL_CONFIG: Record<string, { label: string }> = {
-        match:  { label: 'בתים' },
-        group:  { label: 'עולות' },
-        koR16:  { label: 'שמינית' },
-        koQF:   { label: 'רבע' },
-        koSF:   { label: 'חצי' },
-        koF:    { label: 'גמר' },
-        bonus:  { label: 'בונוס' },
+      const COL_CFG: Record<string, { label: string; header: string; body: string }> = {
+        match:  { label: 'בתים',   header: '#5B9BD5', body: '#DDEEFF' },
+        group:  { label: 'עולות',  header: '#70AD47', body: '#E2EFDA' },
+        koR16:  { label: 'שמינית', header: '#ED7D31', body: '#FCE4D6' },
+        koQF:   { label: 'רבע',    header: '#E2473E', body: '#FFD7D4' },
+        koSF:   { label: 'חצי',    header: '#FFC000', body: '#FFF2CC' },
+        koF:    { label: 'גמר',    header: '#FF5E00', body: '#FFE6D0' },
+        bonus:  { label: 'בונוס',  header: '#9B59B6', body: '#F0E6FA' },
       }
-      const ALL_COLS = ['match', 'group', 'koR16', 'koQF', 'koSF', 'koF', 'bonus']
-      const COLS_ORDER = ALL_COLS.filter(k => filteredScores.some(s => colVal(s, k) > 0))
+      const ACTIVE_COLS = ['match','group','koR16','koQF','koSF','koF','bonus'].filter(k => filteredScores.some(s => colVal(s,k) > 0))
       const dateStr = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })
-      const headerCols = COLS_ORDER.map(k =>
-        `<th style="background:#1a1a2e;color:#93A8CC;font-size:10px;font-weight:700;padding:6px 2px;text-align:center;border:1px solid #2d2d5e;width:40px">${COL_CONFIG[k].label}</th>`
+
+      const thCols = ACTIVE_COLS.map(k =>
+        `<th style="background:${COL_CFG[k].header};color:#fff;font-size:11px;font-weight:700;padding:7px 2px;text-align:center;border:1px solid rgba(255,255,255,0.2);width:46px">${COL_CFG[k].label}</th>`
       ).join('')
 
-      const rowsHtml = filteredScores.map((s, i) => {
+      const rows = filteredScores.map((s, i) => {
         const sExt = s as UserScore & { prevTotal?: number; prevRank?: number }
-        const rankDelta = sExt.prevRank != null && sExt.prevRank !== (i + 1) ? sExt.prevRank - (i + 1) : null
-        const ptsDelta  = sExt.prevTotal != null && sExt.prevTotal !== s.total ? s.total - sExt.prevTotal : null
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`
-        const bg = i % 2 === 0 ? '#fff' : '#f9f9f9'
-        const rdHtml = rankDelta != null && rankDelta !== 0
-          ? `<span style="font-size:10px;font-weight:800;color:${rankDelta > 0 ? '#1a7a44' : '#cc0000'}">${rankDelta > 0 ? '▲' : '▼'}${Math.abs(rankDelta)}</span>`
-          : ''
-        const pdHtml = ptsDelta != null && ptsDelta !== 0
-          ? `<span style="color:${ptsDelta > 0 ? '#1a7a44' : '#cc0000'};font-weight:700">${ptsDelta > 0 ? '+' : ''}${ptsDelta}</span>` : `<span style="color:#aaa">0</span>`
-        const scoreCols = COLS_ORDER.map(k => {
-          const v = colVal(s, k)
-          return `<td style="background:${i % 2 === 0 ? '#fff' : '#f9f9f9'};text-align:center;font-size:13px;font-weight:${v > 0 ? '700' : '400'};color:${v > 0 ? '#1a1a2e' : '#ccc'};padding:5px 2px;border:1px solid #eee;width:40px">${v > 0 ? v : '—'}</td>`
+        const rd = sExt.prevRank != null && sExt.prevRank !== (i+1) ? sExt.prevRank - (i+1) : null
+        const pd = sExt.prevTotal != null && sExt.prevTotal !== s.total ? s.total - sExt.prevTotal : null
+        const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`
+        const bg = i%2===0?'#fff':'#f9f9f9'
+        const rdHtml = rd!=null&&rd!==0 ? `<span style="font-size:11px;font-weight:800;color:${rd>0?'#1a7a44':'#cc0000'}">${rd>0?'▲':'▼'}${Math.abs(rd)}</span>` : `<span style="color:#ddd">—</span>`
+        const pdHtml = pd!=null&&pd!==0 ? `<span style="color:${pd>0?'#1a7a44':'#cc0000'};font-weight:800">${pd>0?'+':''}${pd}</span>` : `<span style="color:#bbb">0</span>`
+        const bp = bonusPreds[s.userId] ?? {}
+        const teamFlags = [
+          bp.q105 && FLAGS[bp.q105] ? `${FLAGS[bp.q105]}🏆` : '',
+          bp.q106 && FLAGS[bp.q106] ? `${FLAGS[bp.q106]}🥈` : '',
+          bp.q107 && FLAGS[bp.q107] ? `${FLAGS[bp.q107]}🥉` : '',
+        ].filter(Boolean).join(' ')
+        const scorer  = bp.q108 ? `⚽${bp.q108.split(' ').slice(-1)[0]}` : ''
+        const assists = bp.q110 ? `👟${bp.q110.split(' ').slice(-1)[0]}` : ''
+        const bonusParts = [teamFlags, scorer, assists].filter(Boolean).join('  ')
+
+        const tdCols = ACTIVE_COLS.map(k => {
+          const v = colVal(s,k)
+          return `<td style="background:${COL_CFG[k].body};text-align:center;font-size:14px;font-weight:${v>0?'700':'400'};color:${v>0?'#222':'#bbb'};padding:5px 2px;border:1px solid rgba(0,0,0,0.07);width:46px">${v>0?v:'—'}</td>`
         }).join('')
 
-        // Bonus predictions for this user
-        const bp = bonusPreds[s.userId] ?? {}
-        const teams = [
-          bp.q105 && { icon: '🏆', flag: FLAGS[bp.q105] ?? '' },
-          bp.q106 && { icon: '🥈', flag: FLAGS[bp.q106] ?? '' },
-          bp.q107 && { icon: '🥉', flag: FLAGS[bp.q107] ?? '' },
-        ].filter(Boolean) as { icon: string; flag: string }[]
-        const scorer = bp.q108 ? bp.q108.split(' ').slice(-1)[0] : ''
-        const assists = bp.q110 ? bp.q110.split(' ').slice(-1)[0] : ''
-        const bonusHtml = (teams.length || scorer || assists) ? `
-          <div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
-            ${teams.map(t => `<span style="font-size:11px">${t.flag}${t.icon}</span>`).join('')}
-            ${scorer ? `<span style="font-size:10px;color:#888">⚽ ${scorer}</span>` : ''}
-            ${assists ? `<span style="font-size:10px;color:#888">👟 ${assists}</span>` : ''}
-          </div>` : ''
-        return `<tr style="background:${bg}">
-          <td style="text-align:center;font-size:${i < 3 ? '16' : '12'}px;font-weight:800;padding:5px 4px;border:1px solid #eee;width:32px">${medal}</td>
-            <td style="text-align:center;font-size:11px;padding:5px 4px;border:1px solid #eee;width:50px;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'}">${rdHtml}</td>
-            <td style="text-align:right;padding:5px 10px;border:1px solid #eee;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'};width:auto">
-              <div style="font-size:${i < 3 ? '17' : '15'}px;font-weight:${i < 3 ? '800' : '700'};color:#1a1a2e">${s.userName}</div>
-              ${bonusHtml}
-            </td>
-          ${scoreCols}
-          <td style="text-align:center;font-size:${i < 3 ? '17' : '15'}px;font-weight:900;color:${i < 3 ? '#B8860B' : '#1a1a2e'};padding:5px 4px;border:1px solid #eee;width:46px;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'}">${s.total}</td>
-          <td style="text-align:center;font-size:12px;font-weight:700;padding:5px 4px;border:1px solid #eee;width:42px;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'}">${pdHtml}</td>
+        return `<tr>
+          <td style="text-align:center;font-size:${i<3?'17':'12'}px;font-weight:800;padding:6px 4px;border:1px solid #eee;width:32px;background:${bg}">${medal}</td>
+          <td style="text-align:center;padding:6px 4px;border:1px solid #eee;width:38px;background:${bg}">${rdHtml}</td>
+          <td style="padding:6px 10px;border:1px solid #eee;background:${bg}">
+            <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+              <span style="font-size:10px;color:#777;white-space:nowrap;flex-shrink:0">${bonusParts}</span>
+              <span style="font-size:${i<3?'16':'13'}px;font-weight:${i<3?'800':'600'};color:#1a1a2e;white-space:nowrap">${s.userName}</span>
+            </div>
+          </td>
+          ${tdCols}
+          <td style="text-align:center;font-size:${i<3?'18':'15'}px;font-weight:900;color:${i<3?'#B8860B':'#1a1a2e'};padding:5px 4px;border:1px solid #eee;width:46px;background:${bg}">${s.total}</td>
+          <td style="text-align:center;padding:5px 4px;border:1px solid #eee;width:40px;background:${bg}">${pdHtml}</td>
         </tr>`
       }).join('')
 
       el.innerHTML = `
-        <div style="background:#1a1a2e;padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
-          <span style="color:#aac4ff;font-size:11px">${dateStr}</span>
-          <span style="color:#fff;font-size:16px;font-weight:900">⚽ WC2026 — טבלת ניקוד</span>
+        <div style="background:#1a1a2e;padding:11px 16px;display:flex;justify-content:space-between;align-items:center">
           <span style="color:#aac4ff;font-size:11px">${filteredScores.length} משתתפים</span>
+          <span style="color:#fff;font-size:17px;font-weight:900">⚽ WC2026 — טבלת ניקוד</span>
+          <span style="color:#aac4ff;font-size:11px">${dateStr}</span>
         </div>
-        <table style="width:100%;border-collapse:collapse">
-          <thead>
-            <tr>
-              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:32px">#</th>
-              <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:50px">±מקום</th>
-              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 10px;text-align:right;border:1px solid #2d2d5e">שם + הימורי בונוס</th>
-              ${headerCols}
-              <th style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:800;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:46px">סה"כ</th>
-              <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:42px">±נק׳</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
+        <table style="width:100%;border-collapse:collapse;table-layout:fixed">
+          <thead><tr>
+            <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:32px">#</th>
+            <th style="background:#1a1a2e;color:#aac4ff;font-size:10px;padding:7px 2px;text-align:center;border:1px solid #2d2d5e;width:38px">±מקום</th>
+            <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 10px;text-align:right;border:1px solid #2d2d5e">שם + הימורים</th>
+            ${thCols}
+            <th style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:800;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:46px">סה"כ</th>
+            <th style="background:#1a1a2e;color:#aac4ff;font-size:10px;padding:7px 2px;text-align:center;border:1px solid #2d2d5e;width:40px">±נק׳</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
         </table>`
 
       document.body.appendChild(el)
-      const h2c = (window as any).html2canvas
-      const canvas = await h2c(el, { backgroundColor: '#fff', scale: 3, useCORS: true, width: 820, windowWidth: 820 })
+      const canvas = await (window as any).html2canvas(el, { backgroundColor:'#fff', scale:3, useCORS:true, width:860, windowWidth:860 })
       document.body.removeChild(el)
-
       const link = document.createElement('a')
-      link.download = `leaderboard-${new Date().toLocaleDateString('he-IL').replace(/\//g, '-')}.png`
+      link.download = `leaderboard-${new Date().toLocaleDateString('he-IL').replace(/\//g,'-')}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
     } catch (e) { alert('שגיאה בייצוא תמונה'); console.error(e) }
     setExporting(false)
   }
+
 
   const myIdx   = scores.findIndex(s => s.userId === user?.uid)
   const myScore = myIdx >= 0 ? scores[myIdx] : null
