@@ -319,16 +319,27 @@ export default function Leaderboard() {
 
       {/* ── Table ── */}
       <div className="leaderboard" style={{ overflowX: 'auto' }}>
-        <div className="lb-header">
-          <span className="lb-rank">#</span>
-          <span className="lb-name">שחקן</span>
+
+        {/* Header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: `52px 1fr ${visibleCols.map(() => '54px').join(' ')} 76px`,
+          background: '#1a1a2e', color: '#fff', borderRadius: '10px 10px 0 0',
+          padding: '10px 12px', alignItems: 'center', gap: 0,
+          fontSize: 12, fontWeight: 600, letterSpacing: 0.3,
+        }}>
+          <span style={{ textAlign: 'center' }}>#</span>
+          <span style={{ paddingRight: 4 }}>שחקן</span>
           {visibleCols.map(c => (
-            <span key={c.key} className="lb-pts" title={c.hint}
-              style={c.sub ? { color: '#93A8CC', fontSize: 11 } : undefined}>
+            <span key={c.key} title={c.hint} style={{
+              textAlign: 'center',
+              color: c.sub ? '#93A8CC' : '#fff',
+              fontSize: c.sub ? 11 : 12,
+            }}>
               {c.label}
             </span>
           ))}
-          <span className="lb-total">סה"כ</span>
+          <span style={{ textAlign: 'center' }}>סה"כ</span>
         </div>
 
         {filteredScores.map((s, i) => {
@@ -340,98 +351,132 @@ export default function Leaderboard() {
           const rank  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1
 
           const rowContent = (
-            <>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: `52px 1fr ${visibleCols.map(() => '54px').join(' ')} 76px`,
+              alignItems: 'center',
+              gap: 0,
+              padding: '10px 12px',
+              borderBottom: '1px solid #f0f0f0',
+              background: isMe
+                ? 'linear-gradient(to left, #EDF5FF, #f5f9ff)'
+                : i % 2 === 0 ? '#fff' : '#fafafa',
+              position: 'relative',
+              overflow: 'hidden',
+            }}>
+              {/* Progress bar */}
               {tournamentStarted && (
-                <div className="lb-row-bar" style={{ width: `${pct}%` }} />
+                <div style={{
+                  position: 'absolute', top: 0, right: 0, height: '100%',
+                  width: `${pct}%`, background: isMe ? 'rgba(24,95,165,0.06)' : 'rgba(26,26,46,0.03)',
+                  pointerEvents: 'none',
+                }} />
               )}
-              <span className="lb-rank" style={{ fontWeight: 800, alignSelf: "center" }}>
-                {rank}
+
+              {/* Rank */}
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                <span style={{ fontWeight: 800, fontSize: typeof rank === 'number' ? 15 : 20, lineHeight: 1 }}>
+                  {rank}
+                </span>
                 {rankDelta != null && rankDelta !== 0 && (
-                  <span style={{ fontSize: 10, marginRight: 2, color: rankDelta > 0 ? '#1a7a44' : '#c0392b' }}>
+                  <span style={{
+                    fontSize: 10, fontWeight: 800, padding: '2px 5px', borderRadius: 10,
+                    background: rankDelta > 0 ? '#EAF3DE' : '#FCEBEB',
+                    color: rankDelta > 0 ? '#1a7a44' : '#c0392b',
+                    lineHeight: 1.2,
+                  }}>
                     {rankDelta > 0 ? `▲${rankDelta}` : `▼${Math.abs(rankDelta)}`}
                   </span>
                 )}
-              </span>
-              <span className="lb-name" style={{ fontWeight: isMe ? 700 : 400 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              </div>
+
+              {/* Name */}
+              <div style={{ paddingRight: 4, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                  <span style={{ fontWeight: isMe ? 800 : 600, fontSize: 14, color: '#1a1a2e' }}>
                     {displayName(s)}
-                    {isMe && <span style={{ fontSize: 11, color: '#185FA5', marginRight: 4 }}>(אני)</span>}
-                  </div>
-                  {bonusPreds[s.userId] && (() => {
-                    const b = bonusPreds[s.userId]
-                    const teams = [
-                      b.q105 && { icon: '🏆', flag: FLAGS[b.q105] ?? '', title: b.q105 },
-                      b.q106 && { icon: '🥈', flag: FLAGS[b.q106] ?? '', title: b.q106 },
-                      b.q107 && { icon: '🥉', flag: FLAGS[b.q107] ?? '', title: b.q107 },
-                    ].filter(Boolean) as { icon: string; flag: string; title: string }[]
-                    const players = [
-                      b.q108 && { icon: '⚽', name: b.q108 },
-                      b.q110 && { icon: '👟', name: b.q110 },
-                    ].filter(Boolean) as { icon: string; name: string }[]
-                    if (!teams.length && !players.length) return null
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginTop: 2 }}>
-                        {/* Row 1: 3 medals with flags only, all in one line */}
-                        {teams.length > 0 && (
-                          <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
-                            {teams.map((item, idx) => (
-                              <span key={idx} title={item.title}
-                                style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 13 }}>
-                                {item.flag ? <Flag emoji={item.flag} size={18} /> : '—'}
-                                <span style={{ fontSize: 11 }}>{item.icon}</span>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        {/* Row 2: scorer + assists */}
-                        {players.length > 0 && (
-                          <div style={{ display: 'flex', gap: 6, fontSize: 10, color: '#999' }}>
-                            {players.map((item, idx) => (
-                              <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <span>{item.icon}</span>
-                                <span style={{ maxWidth: 65, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {item.name}
-                                </span>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })()}
+                  </span>
+                  {isMe && <span style={{ fontSize: 10, color: '#185FA5', background: '#EDF5FF', padding: '1px 6px', borderRadius: 8, fontWeight: 600 }}>אני</span>}
                 </div>
-              </span>
-              {visibleCols.map(c => (
-                <span key={c.key} className="lb-pts"
-                  style={{
-                    color: colVal(s, c.key) === 0 && tournamentStarted ? '#ccc' : undefined,
-                    alignSelf: 'center',
-                    textAlign: 'center',
-                  }}>
-                  {colVal(s, c.key)}
+                {bonusPreds[s.userId] && (() => {
+                  const b = bonusPreds[s.userId]
+                  const teams = [
+                    b.q105 && { icon: '🏆', flag: FLAGS[b.q105] ?? '', title: b.q105 },
+                    b.q106 && { icon: '🥈', flag: FLAGS[b.q106] ?? '', title: b.q106 },
+                    b.q107 && { icon: '🥉', flag: FLAGS[b.q107] ?? '', title: b.q107 },
+                  ].filter(Boolean) as { icon: string; flag: string; title: string }[]
+                  const players = [
+                    b.q108 && { icon: '⚽', name: b.q108 },
+                    b.q110 && { icon: '👟', name: b.q110 },
+                  ].filter(Boolean) as { icon: string; name: string }[]
+                  if (!teams.length && !players.length) return null
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {teams.length > 0 && (
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          {teams.map((item, idx) => (
+                            <span key={idx} title={item.title} style={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: 13 }}>
+                              {item.flag ? <Flag emoji={item.flag} size={16} /> : '—'}
+                              <span style={{ fontSize: 10 }}>{item.icon}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {players.length > 0 && (
+                        <div style={{ display: 'flex', gap: 6, fontSize: 10, color: '#aaa' }}>
+                          {players.map((item, idx) => (
+                            <span key={idx} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                              <span>{item.icon}</span>
+                              <span style={{ maxWidth: 70, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {item.name}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+              </div>
+
+              {/* Score columns */}
+              {visibleCols.map(c => {
+                const val = colVal(s, c.key)
+                return (
+                  <div key={c.key} style={{ textAlign: 'center' }}>
+                    <span style={{
+                      fontSize: val > 0 ? 15 : 13,
+                      fontWeight: val > 0 ? 700 : 400,
+                      color: val === 0 ? '#ddd' : c.sub ? '#4A6FA5' : '#1a1a2e',
+                    }}>
+                      {val > 0 ? val : '—'}
+                    </span>
+                  </div>
+                )
+              })}
+
+              {/* Total */}
+              <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 20, fontWeight: 900, color: isMe ? '#185FA5' : '#1a1a2e', lineHeight: 1 }}>
+                  {s.total}
                 </span>
-              ))}
-              <span className="lb-total" style={{ display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center', alignSelf: 'center' }}>
-                <span>{s.total}</span>
                 {ptsDelta != null && ptsDelta !== 0 && (
                   <span style={{
-                    fontSize: 11, fontWeight: 800, padding: '1px 6px', borderRadius: 20,
+                    fontSize: 11, fontWeight: 800, padding: '2px 7px', borderRadius: 12,
                     background: ptsDelta > 0 ? '#EAF3DE' : '#FCEBEB',
-                    color:      ptsDelta > 0 ? '#1a7a44' : '#c0392b',
+                    color: ptsDelta > 0 ? '#1a7a44' : '#c0392b',
                   }}>
                     {ptsDelta > 0 ? `+${ptsDelta}` : ptsDelta}
                   </span>
                 )}
-              </span>
-            </>
+              </div>
+            </div>
           )
 
           return (
             <div key={s.userId}>
               {/* Desktop row */}
-              <div className={`lb-row lb-row-desktop ${isMe ? 'lb-me' : ''}`}
-                style={{ position: 'relative', overflow: 'hidden' }}>
+              <div className={`lb-row-desktop ${isMe ? 'lb-me' : ''}`}>
                 {rowContent}
               </div>
 
