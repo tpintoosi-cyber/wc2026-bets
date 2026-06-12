@@ -197,7 +197,7 @@ export default function Admin() {
       log.push(`🏆 עודכנו ${koUpdated} תוצאות נוקאאוט`)
       if (koPenalties > 0) log.push(`⚠️ ${koPenalties} משחק(ים) תיקו — יש להגדיר "מי עלה" ידנית`)
 
-      await setDoc(doc(db, 'admin', 'results'), { matches: updatedMatches, groups: actualGroups, bonus: actualBonus }, { merge: true })
+      await setDoc(doc(db, 'admin', 'results'), { matches: sanitizeMatches(updatedMatches), groups: actualGroups, bonus: actualBonus }, { merge: true })
       await setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout })
       const scheduleMap: Record<number, string> = {}
       for (const [id, m] of Object.entries(updatedMatches)) {
@@ -305,7 +305,7 @@ export default function Admin() {
                 if (teams[0]) setActualGroups(prev => ({ ...prev, [g]: teams }))
               }
               await setDoc(doc(db, 'admin', 'results'), {
-                matches: updatedMatches,
+                matches: sanitizeMatches(updatedMatches),
                 groups: { ...actualGroups, ...groupQualifiers },
                 bonus: actualBonus,
               }, { merge: true })
@@ -324,7 +324,7 @@ export default function Admin() {
           // Save updated knockout
           setMatches({ ...updatedMatches })
           setKnockoutMatches({ ...updatedKnockout })
-          await setDoc(doc(db, 'admin', 'results'), { matches: updatedMatches, groups: actualGroups, bonus: actualBonus }, { merge: true })
+          await setDoc(doc(db, 'admin', 'results'), { matches: sanitizeMatches(updatedMatches), groups: actualGroups, bonus: actualBonus }, { merge: true })
           await setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout })
 
           log.push(`⏱️ תוצאות 90 דקות: ${scoresFix} משחקים`)
