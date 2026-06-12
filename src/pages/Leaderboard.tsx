@@ -176,6 +176,12 @@ export default function Leaderboard() {
     setExporting(false)
   }
 
+  const myIdx   = scores.findIndex(s => s.userId === user?.uid)
+  const myScore = myIdx >= 0 ? scores[myIdx] : null
+  const leader  = scores[0]
+  const maxTotal = leader?.total ?? 1
+  const tournamentStarted = scores.some(s => s.total > 0)
+
   const COLS: { key: string; label: string; hint: string; sub?: boolean }[] = [
     { key: 'match',    label: 'בתים',      hint: '1X2 + תוצאה + 🟥' },
     { key: 'group',    label: 'עולות',     hint: 'עולות מהבתים' },
