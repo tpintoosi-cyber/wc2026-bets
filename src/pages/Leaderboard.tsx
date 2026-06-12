@@ -76,102 +76,89 @@ export default function Leaderboard() {
   const exportImage = async () => {
     setExporting(true)
     try {
-      // Load html2canvas if needed
       if (!(window as any).html2canvas) {
         await new Promise<void>((resolve, reject) => {
           const s = document.createElement('script')
           s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
-          s.onload = () => resolve()
-          s.onerror = () => reject(new Error('Failed to load html2canvas'))
-          document.head.appendChild(s)
+          s.onload = () => resolve(); s.onerror = () => reject(new Error()); document.head.appendChild(s)
         })
       }
 
-      // Build off-screen export element
       const el = document.createElement('div')
-      el.style.cssText = `position:fixed;left:-9999px;top:0;width:440px;font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;direction:rtl;background:#f5f5f5;`
+      el.style.cssText = 'position:fixed;left:-9999px;top:0;width:820px;font-family:Arial,sans-serif;direction:rtl;background:#fff;'
 
-      const dateStr = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })
+      const COL_COLORS: Record<string, string> = {
+        match: '#DDEEFF', group: '#DDFFDD',
+        koR16: '#FFE4E4', koQF: '#FFD0D0', koSF: '#FFF3CC',
+        koF: '#FFE0CC', bonus: '#E8F5E9',
+      }
+      const COL_HEADERS: Record<string, string> = {
+        match: 'בתים', group: 'עולות', koR16: 'שמינית',
+        koQF: 'רבע', koSF: 'חצי', koF: 'גמר', bonus: 'בונוס',
+      }
+      const COLS_ORDER = ['match', 'group', 'koR16', 'koQF', 'koSF', 'koF', 'bonus']
+
+      const dateStr = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })
+
+      const headerCols = COLS_ORDER.map(k =>
+        `<th style="background:${COL_COLORS[k]};color:#333;font-size:11px;font-weight:700;padding:6px 4px;text-align:center;border:1px solid #ddd;min-width:52px">${COL_HEADERS[k]}</th>`
+      ).join('')
+
       const rowsHtml = filteredScores.map((s, i) => {
         const sExt = s as UserScore & { prevTotal?: number; prevRank?: number }
         const rankDelta = sExt.prevRank != null && sExt.prevRank !== (i + 1) ? sExt.prevRank - (i + 1) : null
         const ptsDelta  = sExt.prevTotal != null && sExt.prevTotal !== s.total ? s.total - sExt.prevTotal : null
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : ''
-        const isTop3 = i < 3
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`
         const bg = i % 2 === 0 ? '#fff' : '#f9f9f9'
-        const borderTop = i === 0 ? '' : 'border-top:1px solid #eee;'
-        const deltaHtml = rankDelta != null && rankDelta !== 0
-          ? `<span style="font-size:9px;font-weight:800;padding:1px 4px;border-radius:6px;background:${rankDelta > 0 ? '#EAF3DE' : '#FCEBEB'};color:${rankDelta > 0 ? '#1a7a44' : '#c0392b'};white-space:nowrap">${rankDelta > 0 ? '▲' : '▼'}${Math.abs(rankDelta)}</span>`
+        const rdHtml = rankDelta != null && rankDelta !== 0
+          ? `<span style="font-size:10px;font-weight:800;color:${rankDelta > 0 ? '#1a7a44' : '#cc0000'}">${rankDelta > 0 ? '▲' : '▼'}${Math.abs(rankDelta)}</span>`
           : ''
-        const ptsDeltaHtml = ptsDelta != null && ptsDelta !== 0
-          ? `<div style="font-size:9px;font-weight:800;color:${ptsDelta > 0 ? '#1a7a44' : '#c0392b'}">${ptsDelta > 0 ? '+' : ''}${ptsDelta}</div>`
-          : ''
-        const cv = (key: string) => {
-          const v = colVal(s, key)
-          return v > 0 ? `<td style="text-align:center;font-size:12px;font-weight:600;color:#1a1a2e;padding:5px 2px">${v}</td>`
-                       : `<td style="text-align:center;font-size:11px;color:#ccc;padding:5px 2px">—</td>`
-        }
-        return `
-          <tr style="background:${isTop3 ? '#fffbf0' : bg};${borderTop}">
-            <td style="padding:5px 6px;text-align:center;width:28px">
-              <div style="font-size:${medal ? '16' : '12'}px;font-weight:800;color:#1a1a2e;line-height:1">${medal || (i + 1)}</div>
-              ${deltaHtml}
-            </td>
-            <td style="padding:5px 6px;font-size:12px;font-weight:${isTop3 ? '700' : '500'};color:#1a1a2e;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-              ${s.userName}
-            </td>
-            ${cv('match')}
-            ${cv('group')}
-            ${cv('koR16')}
-            ${cv('koQF')}
-            ${cv('koSF')}
-            ${cv('koF')}
-            ${cv('bonus')}
-            <td style="text-align:center;padding:5px 4px;width:44px">
-              <div style="font-size:16px;font-weight:900;color:${isTop3 ? '#B8860B' : '#1a1a2e'}">${s.total}</div>
-              ${ptsDeltaHtml}
-            </td>
-          </tr>`
+        const pdHtml = ptsDelta != null && ptsDelta !== 0
+          ? `<span style="color:${ptsDelta > 0 ? '#1a7a44' : '#cc0000'};font-weight:700">${ptsDelta > 0 ? '+' : ''}${ptsDelta}</span>` : `<span style="color:#aaa">0</span>`
+        const scoreCols = COLS_ORDER.map(k => {
+          const v = colVal(s, k)
+          return `<td style="background:${COL_COLORS[k]};text-align:center;font-size:13px;font-weight:${v > 0 ? '700' : '400'};color:${v > 0 ? '#222' : '#bbb'};padding:5px 4px;border:1px solid #ddd">${v > 0 ? v : '—'}</td>`
+        }).join('')
+        return `<tr style="background:${bg}">
+          <td style="text-align:center;font-size:${i < 3 ? '16' : '12'}px;font-weight:800;padding:5px 4px;border:1px solid #ddd;min-width:32px">${medal}</td>
+          <td style="text-align:right;font-size:12px;font-weight:${i < 3 ? '700' : '500'};padding:5px 8px;border:1px solid #ddd;min-width:80px;white-space:nowrap">${s.userName}</td>
+          <td style="text-align:center;font-size:11px;padding:5px 4px;border:1px solid #ddd;min-width:36px">${rdHtml}</td>
+          ${scoreCols}
+          <td style="text-align:center;font-size:${i < 3 ? '17' : '15'}px;font-weight:900;color:${i < 3 ? '#B8860B' : '#1a1a2e'};padding:5px 6px;border:1px solid #ddd;min-width:44px">${s.total}</td>
+          <td style="text-align:center;font-size:12px;font-weight:700;padding:5px 4px;border:1px solid #ddd;min-width:42px">${pdHtml}</td>
+        </tr>`
       }).join('')
 
       el.innerHTML = `
-        <div style="background:linear-gradient(135deg,#1a1a2e,#2d2d5e);padding:16px 12px;text-align:center">
-          <div style="color:#fff;font-size:20px;font-weight:900;letter-spacing:0.5px">⚽ WC2026 — טבלת ניקוד</div>
-          <div style="color:#aac4ff;font-size:11px;margin-top:4px">${dateStr}</div>
+        <div style="background:#1a1a2e;padding:10px 16px;display:flex;justify-content:space-between;align-items:center">
+          <span style="color:#aac4ff;font-size:11px">${dateStr}</span>
+          <span style="color:#fff;font-size:16px;font-weight:900">⚽ WC2026 — טבלת ניקוד</span>
+          <span style="color:#aac4ff;font-size:11px">${filteredScores.length} משתתפים</span>
         </div>
         <table style="width:100%;border-collapse:collapse">
           <thead>
-            <tr style="background:#1a1a2e">
-              <th style="color:#fff;font-size:10px;padding:6px;text-align:center;width:28px">#</th>
-              <th style="color:#fff;font-size:10px;padding:6px;text-align:right">שם</th>
-              <th style="color:#90CAF9;font-size:10px;padding:6px;text-align:center">בתים</th>
-              <th style="color:#A5D6A7;font-size:10px;padding:6px;text-align:center">עולות</th>
-              <th style="color:#FFF176;font-size:10px;padding:6px;text-align:center">שמינית</th>
-              <th style="color:#FFF176;font-size:10px;padding:6px;text-align:center">רבע</th>
-              <th style="color:#FFF176;font-size:10px;padding:6px;text-align:center">חצי</th>
-              <th style="color:#FFAB91;font-size:10px;padding:6px;text-align:center">גמר</th>
-              <th style="color:#CE93D8;font-size:10px;padding:6px;text-align:center">בונוס</th>
-              <th style="color:#fff;font-size:11px;font-weight:800;padding:6px;text-align:center">סה"כ</th>
+            <tr style="background:#2d2d5e">
+              <th style="color:#fff;font-size:11px;padding:6px 4px;text-align:center;border:1px solid #444">#</th>
+              <th style="color:#fff;font-size:11px;padding:6px 8px;text-align:right;border:1px solid #444">שם</th>
+              <th style="color:#aac4ff;font-size:11px;padding:6px 4px;text-align:center;border:1px solid #444">±מקום</th>
+              ${headerCols}
+              <th style="color:#fff;font-size:12px;font-weight:800;padding:6px 6px;text-align:center;border:1px solid #444">סה"כ</th>
+              <th style="color:#aac4ff;font-size:11px;padding:6px 4px;text-align:center;border:1px solid #444">±נק׳</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
-        </table>
-        <div style="background:#1a1a2e;color:#555;font-size:9px;text-align:center;padding:6px">wc2026-bets</div>
-      `
+        </table>`
 
       document.body.appendChild(el)
       const h2c = (window as any).html2canvas
-      const canvas = await h2c(el, { backgroundColor: '#f5f5f5', scale: 2, useCORS: true, width: 440, windowWidth: 440 })
+      const canvas = await h2c(el, { backgroundColor: '#fff', scale: 2, useCORS: true, width: 820, windowWidth: 820 })
       document.body.removeChild(el)
 
       const link = document.createElement('a')
       link.download = `leaderboard-${new Date().toLocaleDateString('he-IL').replace(/\//g, '-')}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
-    } catch (e) {
-      alert('שגיאה בייצוא תמונה')
-      console.error(e)
-    }
+    } catch (e) { alert('שגיאה בייצוא תמונה'); console.error(e) }
     setExporting(false)
   }
 
