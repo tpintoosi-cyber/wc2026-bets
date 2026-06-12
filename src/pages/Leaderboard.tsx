@@ -127,15 +127,17 @@ export default function Leaderboard() {
           bp.q107 && { icon: '🥉', flag: FLAGS[bp.q107] ?? '' },
         ].filter(Boolean) as { icon: string; flag: string }[]
         const scorer = bp.q108 ? bp.q108.split(' ').slice(-1)[0] : ''
-        const bonusHtml = (teams.length || scorer) ? `
+        const assists = bp.q110 ? bp.q110.split(' ').slice(-1)[0] : ''
+        const bonusHtml = (teams.length || scorer || assists) ? `
           <div style="display:flex;gap:4px;align-items:center;margin-top:3px;flex-wrap:wrap">
             ${teams.map(t => `<span style="font-size:11px">${t.flag}${t.icon}</span>`).join('')}
-            ${scorer ? `<span style="font-size:10px;color:#888;margin-right:2px">⚽ ${scorer}</span>` : ''}
+            ${scorer ? `<span style="font-size:10px;color:#888">⚽ ${scorer}</span>` : ''}
+            ${assists ? `<span style="font-size:10px;color:#888">👟 ${assists}</span>` : ''}
           </div>` : ''
         return `<tr style="background:${bg}">
           <td style="text-align:center;font-size:${i < 3 ? '16' : '12'}px;font-weight:800;padding:5px 4px;border:1px solid #eee;width:32px">${medal}</td>
             <td style="text-align:center;font-size:11px;padding:5px 4px;border:1px solid #eee;width:50px;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'}">${rdHtml}</td>
-            <td style="text-align:right;padding:5px 10px;border:1px solid #eee;min-width:160px;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'}">
+            <td style="text-align:right;padding:5px 10px;border:1px solid #eee;background:${i % 2 === 0 ? '#fff' : '#f9f9f9'};width:auto">
               <div style="font-size:${i < 3 ? '17' : '15'}px;font-weight:${i < 3 ? '800' : '700'};color:#1a1a2e">${s.userName}</div>
               ${bonusHtml}
             </td>
@@ -156,7 +158,7 @@ export default function Leaderboard() {
             <tr>
               <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:32px">#</th>
               <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:50px">±מקום</th>
-              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 10px;text-align:right;border:1px solid #2d2d5e;min-width:160px">שם + הימורי בונוס</th>
+              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 10px;text-align:right;border:1px solid #2d2d5e">שם + הימורי בונוס</th>
               ${headerCols}
               <th style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:800;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:46px">סה"כ</th>
               <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e;width:42px">±נק׳</th>
