@@ -58,7 +58,7 @@ export default function Leaderboard() {
     })
   }, [])
 
-  const displayName = (s: UserScore) => nicknames[s.userId] || s.userName
+  const displayName = (s: UserScore) => s.userName
 
   if (loading) return <div className="center-screen">טוען טבלה...</div>
   if (!scores.length) return (
@@ -488,10 +488,15 @@ export default function Leaderboard() {
                 )}
                 {/* Top row: rank | name + bonus | total */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <div style={{ minWidth: 28, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 2 }}>
-                    <span style={{ fontWeight: 800, fontSize: 16 }}>{rank}</span>
+                  <div style={{ minWidth: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, paddingTop: 2 }}>
+                    <span style={{ fontWeight: 800, fontSize: typeof rank === 'number' ? 18 : 22, lineHeight: 1 }}>{rank}</span>
                     {rankDelta != null && rankDelta !== 0 && (
-                      <span style={{ fontSize: 10, fontWeight: 700, color: rankDelta > 0 ? '#1a7a44' : '#c0392b' }}>
+                      <span style={{
+                        fontSize: 12, fontWeight: 900, padding: '3px 7px', borderRadius: 10,
+                        background: rankDelta > 0 ? '#EAF3DE' : '#FCEBEB',
+                        color: rankDelta > 0 ? '#1a7a44' : '#c0392b',
+                        lineHeight: 1.2,
+                      }}>
                         {rankDelta > 0 ? `▲${rankDelta}` : `▼${Math.abs(rankDelta)}`}
                       </span>
                     )}
