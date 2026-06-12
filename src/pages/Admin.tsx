@@ -122,6 +122,7 @@ export default function Admin() {
       }
       let updatedSchedule = 0
       let updatedResults = 0
+      let redCardsUpdated = 0
       for (const apiMatch of apiGroupMatches) {
         const normHome = API_ALIASES[apiMatch.home_team?.toLowerCase()] ?? apiMatch.home_team?.toLowerCase()
         const normAway = API_ALIASES[apiMatch.away_team?.toLowerCase()] ?? apiMatch.away_team?.toLowerCase()
@@ -209,7 +210,6 @@ export default function Admin() {
       if (isApiFootballConfigured()) {
         log.push('🔄 מושך נתונים מ-API-Football...')
         setSyncLog([...log])
-        let redCardsUpdated = 0
         try {
           const [fixtures, standings] = await Promise.all([
             fetchAllFixtures(),
