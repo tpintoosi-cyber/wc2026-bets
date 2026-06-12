@@ -87,21 +87,24 @@ export default function Leaderboard() {
       const el = document.createElement('div')
       el.style.cssText = 'position:fixed;left:-9999px;top:0;width:820px;font-family:Arial,sans-serif;direction:rtl;background:#fff;'
 
-      const COL_COLORS: Record<string, string> = {
-        match: '#DDEEFF', group: '#DDFFDD',
-        koR16: '#FFE4E4', koQF: '#FFD0D0', koSF: '#FFF3CC',
-        koF: '#FFE0CC', bonus: '#E8F5E9',
+      const COL_CONFIG: Record<string, { label: string; header: string; body: string }> = {
+        match:  { label: 'בתים',    header: '#5B9BD5', body: '#DDEEFF' },
+        group:  { label: 'עולות',   header: '#70AD47', body: '#E2EFDA' },
+        koR16:  { label: 'שמינית',  header: '#ED7D31', body: '#FCE4D6' },
+        koQF:   { label: 'רבע',     header: '#E2473E', body: '#FFD7D4' },
+        koSF:   { label: 'חצי',     header: '#FFC000', body: '#FFF2CC' },
+        koF:    { label: 'גמר',     header: '#FF5E00', body: '#FFE6D0' },
+        bonus:  { label: 'בונוס',   header: '#9B59B6', body: '#F0E6FA' },
       }
-      const COL_HEADERS: Record<string, string> = {
-        match: 'בתים', group: 'עולות', koR16: 'שמינית',
-        koQF: 'רבע', koSF: 'חצי', koF: 'גמר', bonus: 'בונוס',
-      }
-      const COLS_ORDER = ['match', 'group', 'koR16', 'koQF', 'koSF', 'koF', 'bonus']
+      const ALL_COLS = ['match', 'group', 'koR16', 'koQF', 'koSF', 'koF', 'bonus']
+
+      // Only show columns that have data
+      const COLS_ORDER = ALL_COLS.filter(k => filteredScores.some(s => colVal(s, k) > 0))
 
       const dateStr = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long' })
 
       const headerCols = COLS_ORDER.map(k =>
-        `<th style="background:${COL_COLORS[k]};color:#333;font-size:11px;font-weight:700;padding:6px 4px;text-align:center;border:1px solid #ddd;min-width:52px">${COL_HEADERS[k]}</th>`
+        `<th style="background:${COL_CONFIG[k].header};color:#fff;font-size:11px;font-weight:700;padding:7px 4px;text-align:center;border:1px solid rgba(255,255,255,0.3);min-width:52px">${COL_CONFIG[k].label}</th>`
       ).join('')
 
       const rowsHtml = filteredScores.map((s, i) => {
@@ -117,7 +120,7 @@ export default function Leaderboard() {
           ? `<span style="color:${ptsDelta > 0 ? '#1a7a44' : '#cc0000'};font-weight:700">${ptsDelta > 0 ? '+' : ''}${ptsDelta}</span>` : `<span style="color:#aaa">0</span>`
         const scoreCols = COLS_ORDER.map(k => {
           const v = colVal(s, k)
-          return `<td style="background:${COL_COLORS[k]};text-align:center;font-size:13px;font-weight:${v > 0 ? '700' : '400'};color:${v > 0 ? '#222' : '#bbb'};padding:5px 4px;border:1px solid #ddd">${v > 0 ? v : '—'}</td>`
+          return `<td style="background:${COL_CONFIG[k].body};text-align:center;font-size:13px;font-weight:${v > 0 ? '700' : '400'};color:${v > 0 ? '#222' : '#bbb'};padding:5px 4px;border:1px solid rgba(0,0,0,0.06)">${v > 0 ? v : '—'}</td>`
         }).join('')
         return `<tr style="background:${bg}">
           <td style="text-align:center;font-size:${i < 3 ? '16' : '12'}px;font-weight:800;padding:5px 4px;border:1px solid #ddd;min-width:32px">${medal}</td>
@@ -137,13 +140,13 @@ export default function Leaderboard() {
         </div>
         <table style="width:100%;border-collapse:collapse">
           <thead>
-            <tr style="background:#2d2d5e">
-              <th style="color:#fff;font-size:11px;padding:6px 4px;text-align:center;border:1px solid #444">#</th>
-              <th style="color:#fff;font-size:11px;padding:6px 8px;text-align:right;border:1px solid #444">שם</th>
-              <th style="color:#aac4ff;font-size:11px;padding:6px 4px;text-align:center;border:1px solid #444">±מקום</th>
+            <tr>
+              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e">#</th>
+              <th style="background:#1a1a2e;color:#fff;font-size:11px;padding:7px 8px;text-align:right;border:1px solid #2d2d5e">שם</th>
+              <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e">±מקום</th>
               ${headerCols}
-              <th style="color:#fff;font-size:12px;font-weight:800;padding:6px 6px;text-align:center;border:1px solid #444">סה"כ</th>
-              <th style="color:#aac4ff;font-size:11px;padding:6px 4px;text-align:center;border:1px solid #444">±נק׳</th>
+              <th style="background:#1a1a2e;color:#fff;font-size:12px;font-weight:800;padding:7px 6px;text-align:center;border:1px solid #2d2d5e">סה"כ</th>
+              <th style="background:#1a1a2e;color:#aac4ff;font-size:11px;padding:7px 4px;text-align:center;border:1px solid #2d2d5e">±נק׳</th>
             </tr>
           </thead>
           <tbody>${rowsHtml}</tbody>
