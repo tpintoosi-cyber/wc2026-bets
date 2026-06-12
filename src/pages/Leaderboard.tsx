@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { collection, onSnapshot, query, orderBy, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -76,7 +76,31 @@ export default function Leaderboard() {
   const maxTotal = leader?.total ?? 1
   const tournamentStarted = scores.some(s => s.total > 0)
 
-  const COLS: { key: string; label: string; hint: string; sub?: boolean }[] = [
+  const lbRef = useRef<HTMLDivElement>(null)
+  const [exporting, setExporting] = useState(false)
+
+  const exportImage = async () => {
+    if (!lbRef.current) return
+    setExporting(true)
+    try {
+      const h2c = (await import('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.esm.js' as any)).default
+      const canvas = await h2c(lbRef.current, {
+        backgroundColor: '#ffffff',
+        scale: 2,
+        useCORS: true,
+        width: 420,
+        windowWidth: 420,
+      })
+      const link = document.createElement('a')
+      link.download = `leaderboard-${new Date().toLocaleDateString('he-IL').replace(/\//g, '-')}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch (e) {
+      alert('שגיאה בייצוא תמונה')
+      console.error(e)
+    }
+    setExporting(false)
+  }
     { key: 'match',    label: 'בתים',      hint: '1X2 + תוצאה + 🟥' },
     { key: 'group',    label: 'עולות',     hint: 'עולות מהבתים' },
     { key: 'koR32',    label: '×32',       hint: 'שלב ה-32 האחרונות',  sub: true },
@@ -216,6 +240,13 @@ export default function Leaderboard() {
       {/* ── Filters ── */}
       <div style={{ marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: showFilters ? 8 : 0 }}>
+          <button onClick={exportImage} disabled={exporting} style={{
+            fontSize: 12, padding: '4px 12px', borderRadius: 16,
+            border: '1px solid #1a1a2e', background: '#1a1a2e', color: '#fff',
+            cursor: exporting ? 'wait' : 'pointer', fontFamily: 'inherit',
+          }}>
+            {exporting ? '⏳ מייצא...' : '📸 שתף טבלה'}
+          </button>
           <button onClick={() => setShowFilters(v => !v)}
             style={{ fontSize: 12, padding: '4px 12px', borderRadius: 16, border: `1px solid ${showFilters || activeFilterCount > 0 ? '#1a7a44' : '#ddd'}`,
               background: showFilters ? '#1a7a44' : activeFilterCount > 0 ? '#EAF3DE' : '#fff',
@@ -318,7 +349,7 @@ export default function Leaderboard() {
       </div>
 
       {/* ── Table ── */}
-      <div className="leaderboard" style={{ overflowX: 'auto' }}>
+      <div ref={lbRef} className="leaderboard" style={{ overflowX: 'auto' }}>
 
         {/* Header */}
         <div style={{
