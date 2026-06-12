@@ -60,6 +60,9 @@ export default function Leaderboard() {
 
   const displayName = (s: UserScore) => s.userName
 
+  const lbRef = useRef<HTMLDivElement>(null)
+  const [exporting, setExporting] = useState(false)
+
   if (loading) return <div className="center-screen">טוען טבלה...</div>
   if (!scores.length) return (
     <div className="page">
@@ -69,15 +72,6 @@ export default function Leaderboard() {
       </div>
     </div>
   )
-
-  const myIdx   = scores.findIndex(s => s.userId === user?.uid)
-  const myScore = myIdx >= 0 ? scores[myIdx] : null
-  const leader  = scores[0]
-  const maxTotal = leader?.total ?? 1
-  const tournamentStarted = scores.some(s => s.total > 0)
-
-  const lbRef = useRef<HTMLDivElement>(null)
-  const [exporting, setExporting] = useState(false)
 
   const exportImage = async () => {
     if (!lbRef.current) return
@@ -111,6 +105,12 @@ export default function Leaderboard() {
     }
     setExporting(false)
   }
+
+  const myIdx   = scores.findIndex(s => s.userId === user?.uid)
+  const myScore = myIdx >= 0 ? scores[myIdx] : null
+  const leader  = scores[0]
+  const maxTotal = leader?.total ?? 1
+  const tournamentStarted = scores.some(s => s.total > 0)
 
   const COLS: { key: string; label: string; hint: string; sub?: boolean }[] = [
     { key: 'match',    label: 'בתים',      hint: '1X2 + תוצאה + 🟥' },
