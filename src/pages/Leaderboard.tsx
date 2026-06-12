@@ -169,7 +169,7 @@ export default function Leaderboard() {
 
       document.body.appendChild(el)
       const h2c = (window as any).html2canvas
-      const canvas = await h2c(el, { backgroundColor: '#fff', scale: 2, useCORS: true, width: 820, windowWidth: 820 })
+      const canvas = await h2c(el, { backgroundColor: '#fff', scale: 3, useCORS: true, width: 820, windowWidth: 820 })
       document.body.removeChild(el)
 
       const link = document.createElement('a')
