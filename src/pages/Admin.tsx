@@ -6,7 +6,7 @@ import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
 import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, fetchTopScorers, fetchTopAssists, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
-import { fetchZafronixMatches, buildTopScorers, countRedCards as countZafronixRedCards } from '../services/zafronix'
+import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards as countZafronixRedCards } from '../services/zafronix'
 import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
 
@@ -221,15 +221,17 @@ export default function Admin() {
         setSyncLog([...log])
         const zafronixMatches = await fetchZafronixMatches()
         const topScorersZ = buildTopScorers(zafronixMatches).slice(0, 10)
+        const topAssistsZ = buildTopAssists(zafronixMatches).slice(0, 10)
         const totalRedCardsZ = countZafronixRedCards(zafronixMatches)
 
         await setDoc(doc(db, 'admin', 'playerstats'), {
           topScorers: topScorersZ,
-          topAssists: [],  // Zafronix doesn't provide assists yet
+          topAssists: topAssistsZ,
           totalRedCards: totalRedCardsZ,
           updatedAt: new Date().toISOString(),
         })
         log.push(`⚽ מלך שערים: ${topScorersZ[0]?.name ?? '—'} (${topScorersZ[0]?.goals ?? 0} שערים)`)
+        log.push(`🎯 מלך בישולים: ${topAssistsZ[0]?.name ?? '—'} (${topAssistsZ[0]?.assists ?? 0} בישולים)`)
         log.push(`🟥 סה״כ אדומים בטורניר: ${totalRedCardsZ}`)
         setSyncLog([...log])
       } catch (e) {

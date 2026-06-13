@@ -132,6 +132,28 @@ export function buildTopScorers(matches: ZafronixMatch[]): { name: string; goals
     .sort((a, b) => b.goals - a.goals)
 }
 
+// Build top assists list from match goals data
+export function buildTopAssists(matches: ZafronixMatch[]): { name: string; assists: number; team: string }[] {
+  const assistMap: Record<string, { assists: number; team: string }> = {}
+
+  for (const match of matches) {
+    if (!match.goals) continue
+    for (const goal of match.goals) {
+      if (goal.type === 'own_goal' || !goal.assist) continue
+      const name = goal.assist
+      // Assist team = same team as scorer
+      const team = goal.team === 'home' ? (match.homeTeam ?? '') : (match.awayTeam ?? '')
+      const heTeam = ZAFRONIX_TO_HE[team] ?? team
+      if (!assistMap[name]) assistMap[name] = { assists: 0, team: heTeam }
+      assistMap[name].assists++
+    }
+  }
+
+  return Object.entries(assistMap)
+    .map(([name, data]) => ({ name, assists: data.assists, team: data.team }))
+    .sort((a, b) => b.assists - a.assists)
+}
+
 // Count total red cards from match cards data
 export function countRedCards(matches: ZafronixMatch[]): number {
   let total = 0

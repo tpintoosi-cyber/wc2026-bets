@@ -319,12 +319,36 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
   const mostGoalsGroup  = sortedGroups[0]
   const leastGoalsGroup = sortedGroups[sortedGroups.length - 1]
 
+  // Sort by: points → goal diff → goals for
   const sortedByPoints = Object.entries(teamPoints).sort((a, b) => {
-    if (b[1] !== a[1]) return b[1] - a[1]
+    const pts = b[1] - a[1]
+    if (pts !== 0) return pts
+    const gd = (teamGoalsFor[b[0]] ?? 0) - (teamGoalsAgainst[b[0]] ?? 0) -
+               ((teamGoalsFor[a[0]] ?? 0) - (teamGoalsAgainst[a[0]] ?? 0))
+    if (gd !== 0) return gd
     return (teamGoalsFor[b[0]] ?? 0) - (teamGoalsFor[a[0]] ?? 0)
   })
-  const bestTeam  = sortedByPoints[0]
-  const worstTeam = sortedByPoints[sortedByPoints.length - 1]
+
+  // Find all teams tied at top (best) and bottom (worst)
+  const bestTeams: string[] = sortedByPoints.length > 0 ? (() => {
+    const top = sortedByPoints[0]
+    return sortedByPoints.filter(t =>
+      t[1] === top[1] &&
+      ((teamGoalsFor[t[0]] ?? 0) - (teamGoalsAgainst[t[0]] ?? 0)) ===
+      ((teamGoalsFor[top[0]] ?? 0) - (teamGoalsAgainst[top[0]] ?? 0)) &&
+      (teamGoalsFor[t[0]] ?? 0) === (teamGoalsFor[top[0]] ?? 0)
+    ).map(t => t[0])
+  })() : []
+
+  const worstTeams: string[] = sortedByPoints.length > 0 ? (() => {
+    const bot = sortedByPoints[sortedByPoints.length - 1]
+    return sortedByPoints.filter(t =>
+      t[1] === bot[1] &&
+      ((teamGoalsFor[t[0]] ?? 0) - (teamGoalsAgainst[t[0]] ?? 0)) ===
+      ((teamGoalsFor[bot[0]] ?? 0) - (teamGoalsAgainst[bot[0]] ?? 0)) &&
+      (teamGoalsFor[t[0]] ?? 0) === (teamGoalsFor[bot[0]] ?? 0)
+    ).map(t => t[0])
+  })() : []
 
   const sortedByDefense = Object.entries(teamGoalsAgainst).sort((a, b) => a[1] - b[1])
   const bestDefense = sortedByDefense[0]
@@ -377,11 +401,11 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
       </>)}
 
       {section('⚽ מלך השערים', <>
-        {statusBadge('מוביל כרגע', topScorer?.name, topScorer ? `${topScorer.goals} שערים` : undefined)}
+        {statusBadge('מוביל כרגע', topScorer ? `${topScorer.name} (${topScorer.team})` : undefined, topScorer ? `${topScorer.goals} שערים` : undefined)}
         {statusBadge('כמה שערים יבקיע', topScorer ? `${topScorer.goals} עד כה` : undefined)}
         {playerStats?.topScorers?.slice(0, 5).map((s, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
-            <span>{i + 1}. {s.name}</span>
+            <span>{i + 1}. {s.name} <span style={{ color: '#aaa' }}>({s.team})</span></span>
             <span style={{ fontWeight: 600 }}>{s.goals} ⚽</span>
           </div>
         ))}
@@ -389,19 +413,22 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
       </>)}
 
       {section('🎯 מלך הבישולים', <>
-        {statusBadge('מוביל כרגע', topAssist?.name, topAssist ? `${topAssist.assists} בישולים` : undefined)}
+        {statusBadge('מוביל כרגע', topAssist ? `${topAssist.name} (${topAssist.team})` : undefined, topAssist ? `${topAssist.assists} בישולים` : undefined)}
         {playerStats?.topAssists?.slice(0, 5).map((s, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
-            <span>{i + 1}. {s.name}</span>
+            <span>{i + 1}. {s.name} <span style={{ color: '#aaa' }}>({s.team})</span></span>
             <span style={{ fontWeight: 600 }}>{s.assists} 🎯</span>
           </div>
         ))}
+        {playerStats?.topAssists?.length === 0 && <div style={{ fontSize: 12, color: '#aaa' }}>עדיין אין בישולים מתועדים</div>}
         {!playerStats && <div style={{ fontSize: 12, color: '#aaa' }}>יתעדכן אחרי הסנכרון הבא</div>}
       </>)}
 
       {section('🏅 נבחרת טובה/גרועה בבתים', <>
-        {statusBadge('הטובה ביותר כרגע', bestTeam ? `${bestTeam[0]} (${bestTeam[1]} נק׳)` : undefined)}
-        {statusBadge('הגרועה ביותר כרגע', worstTeam ? `${worstTeam[0]} (${worstTeam[1]} נק׳)` : undefined)}
+        {statusBadge('הטובה ביותר כרגע', bestTeams.length > 0 ? bestTeams.join(' / ') : undefined,
+          bestTeams.length > 0 ? `${teamPoints[bestTeams[0]]} נק׳, הפרש ${(teamGoalsFor[bestTeams[0]]??0)-(teamGoalsAgainst[bestTeams[0]]??0)}` : undefined)}
+        {statusBadge('הגרועה ביותר כרגע', worstTeams.length > 0 ? worstTeams.join(' / ') : undefined,
+          worstTeams.length > 0 ? `${teamPoints[worstTeams[0]]} נק׳, הפרש ${(teamGoalsFor[worstTeams[0]]??0)-(teamGoalsAgainst[worstTeams[0]]??0)}` : undefined)}
         {!groupStageDone && <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>שלב הבתים לא הסתיים ({playedCount}/48 משחקים)</div>}
       </>)}
 
