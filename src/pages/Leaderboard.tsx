@@ -243,6 +243,18 @@ export default function Leaderboard() {
   })
   const activeFilterCount = Object.entries(filters).filter(([k, v]) => k === 'topN' ? (v as number) > 0 : !!v).length
 
+  // Compute tied ranks (1,1,3,4...) based on full scores list (not filtered)
+  const tiedRanks: Record<string, number> = {}
+  let rankCounter = 1
+  scores.forEach((s, i) => {
+    if (i > 0 && s.total === scores[i - 1].total) {
+      tiedRanks[s.userId] = tiedRanks[scores[i - 1].userId]
+    } else {
+      tiedRanks[s.userId] = rankCounter
+    }
+    rankCounter++
+  })
+
   return (
     <div className="page" style={{ paddingBottom: 40 }}>
       <style>{`
@@ -471,9 +483,10 @@ export default function Leaderboard() {
           const isMe  = s.userId === user?.uid
           const pct   = maxTotal > 0 ? (s.total / maxTotal) * 100 : 0
           const sExt  = s as UserScore & { prevTotal?: number; prevRank?: number }
+          const myRank = tiedRanks[s.userId] ?? (i + 1)
           const ptsDelta  = sExt.prevTotal != null && sExt.prevTotal !== s.total ? s.total - sExt.prevTotal : null
-          const rankDelta = sExt.prevRank  != null && sExt.prevRank  !== (i + 1)  ? sExt.prevRank - (i + 1) : null
-          const rank  = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1
+          const rankDelta = sExt.prevRank  != null && sExt.prevRank  !== myRank  ? sExt.prevRank - myRank  : null
+          const rank  = myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : myRank
 
           const rowContent = (
             <div style={{

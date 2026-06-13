@@ -437,14 +437,38 @@ export default function Admin() {
     // Sort to compute new ranks — same stable sort as Leaderboard.tsx
     const sorted = [...newScores].sort((a, b) => b.score.total - a.score.total || a.userId.localeCompare(b.userId))
 
-    const batch = writeBatch(db)
+    // Compute tied ranks (1,1,3,4...) for new scores
+    const newTiedRanks: Record<string, number> = {}
+    let rankCounter = 1
     sorted.forEach(({ userId, score }, i) => {
-      const newRank = i + 1
+      if (i > 0 && score.total === sorted[i - 1].score.total) {
+        newTiedRanks[userId] = newTiedRanks[sorted[i - 1].userId]
+      } else {
+        newTiedRanks[userId] = rankCounter
+      }
+      rankCounter++
+    })
+
+    // Compute tied ranks for current (before recalc)
+    const currentTiedRanks: Record<string, number> = {}
+    let curCounter = 1
+    sortedCurrent.forEach((s, i) => {
+      if (i > 0 && s.total === sortedCurrent[i - 1].total) {
+        currentTiedRanks[s.userId] = currentTiedRanks[sortedCurrent[i - 1].userId]
+      } else {
+        currentTiedRanks[s.userId] = curCounter
+      }
+      curCounter++
+    })
+
+    const batch = writeBatch(db)
+    sorted.forEach(({ userId, score }) => {
+      const newRank   = newTiedRanks[userId]
       const prevTotal = currentTotals[userId] ?? score.total
-      const prevRank  = currentRanks[userId]  ?? newRank
+      const prevRank  = currentTiedRanks[userId] ?? newRank
       const changed   = score.total !== prevTotal
       const existingPrev = sortedCurrent.find(s => s.userId === userId)
-      const rankChanged = (currentRanks[userId] ?? newRank) !== newRank
+      const rankChanged = prevRank !== newRank
       batch.set(doc(db, 'scores', userId), {
         ...score,
         prevTotal: changed     ? prevTotal : (hasNewResults ? score.total : (existingPrev?.prevTotal ?? prevTotal)),
