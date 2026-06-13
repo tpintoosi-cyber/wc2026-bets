@@ -504,6 +504,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [adminResults, setAdminResults] = useState<Record<number, Match>>({})
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
+  const [playerStats, setPlayerStats] = useState<{ topScorers: { name: string; goals: number; team: string }[]; topAssists: { name: string; assists: number; team: string }[]; updatedAt?: string } | undefined>(undefined)
   const [scores, setScores] = useState<Record<string, number>>({})
   const [scoreBreakdown, setScoreBreakdown] = useState<Record<string, {
     total: number; matchPoints: number; groupPoints: number;
@@ -567,17 +568,21 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
 
       // When liveMode is ON, even admins can't see predictions until closed
       const canSeePreds = isClosed || (isAdmin && !live)
-      const [resultsSnap, predsSnap, koSnap, schedSnap] = await Promise.all([
+      const [resultsSnap, predsSnap, koSnap, schedSnap, playerStatsSnap] = await Promise.all([
         getDoc(doc(db, 'admin', 'results')),
         canSeePreds ? getDocs(collection(db, 'predictions')) : Promise.resolve(null),
         getDoc(doc(db, 'admin', 'knockout')),
         getDoc(doc(db, 'admin', 'schedule')),
+        getDoc(doc(db, 'admin', 'playerstats')),
       ])
 
       if (resultsSnap.exists()) {
         setAdminResults(resultsSnap.data().matches ?? {})
         setActualGroups(resultsSnap.data().groups ?? {})
         setActualBonus(resultsSnap.data().bonus ?? {})
+      }
+      if (playerStatsSnap.exists()) {
+        setPlayerStats(playerStatsSnap.data() as any)
       }
       if (koSnap.exists()) {
         const raw = koSnap.data().matches ?? {}
@@ -1833,6 +1838,7 @@ ${userRows}
               knockoutMatches={knockoutAdminMatches}
               currentUserId={user?.uid}
               getDisplayName={getDisplayName}
+              playerStats={playerStats}
             />
           )}
 

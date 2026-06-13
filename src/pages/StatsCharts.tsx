@@ -199,6 +199,7 @@ function FlagPieChart({ matchId, teamA, teamB, users, adminResult, isKO, koAdmin
   )
 }
 import { useState, useMemo } from 'react'
+import React from 'react'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
@@ -234,9 +235,14 @@ interface Props {
   knockoutMatches: Record<number, any>
   currentUserId?: string
   getDisplayName: (u: UserData) => string
+  playerStats?: {
+    topScorers: { name: string; goals: number; team: string }[]
+    topAssists: { name: string; assists: number; team: string }[]
+    updatedAt?: string
+  }
 }
 
-type ChartTab = 'distribution' | 'scores' | 'champion' | 'consensus' | 'myposition'
+type ChartTab = 'distribution' | 'scores' | 'champion' | 'consensus' | 'myposition' | 'bonus'
 
 const COLORS = {
   blue:   '#378ADD',
@@ -257,6 +263,7 @@ const TABS: { id: ChartTab; label: string }[] = [
   { id: 'champion',     label: '🏆 מי יהיה אלוף' },
   { id: 'consensus',    label: '🤝 הסכמת מהמרים' },
   { id: 'myposition',   label: '🎯 המצב שלי' },
+  { id: 'bonus',        label: '🎰 שאלות בונוס' },
 ]
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -271,7 +278,136 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   )
 }
 
-export default function StatsCharts({ users, adminResults, actualBonus, scoreBreakdown, knockoutMatches, currentUserId, getDisplayName }: Props) {
+function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
+  users: UserData[]
+  adminResults: Record<number, Match>
+  playerStats?: { topScorers: { name: string; goals: number; team: string }[]; topAssists: { name: string; assists: number; team: string }[]; updatedAt?: string }
+  getDisplayName: (u: UserData) => string
+}) {
+  // Compute group stats from adminResults
+  const groupGoals: Record<string, number> = {}
+  const teamGoalsFor: Record<string, number> = {}
+  const teamGoalsAgainst: Record<string, number> = {}
+  const teamPoints: Record<string, number> = {}
+
+  for (const match of MATCHES) {
+    const r = adminResults[match.id]
+    if (!r?.isPlayed || r.resultA == null || r.resultB == null) continue
+    const g = match.group
+    groupGoals[g] = (groupGoals[g] ?? 0) + r.resultA + r.resultB
+    teamGoalsFor[match.teamA] = (teamGoalsFor[match.teamA] ?? 0) + r.resultA
+    teamGoalsFor[match.teamB] = (teamGoalsFor[match.teamB] ?? 0) + r.resultB
+    teamGoalsAgainst[match.teamA] = (teamGoalsAgainst[match.teamA] ?? 0) + r.resultB
+    teamGoalsAgainst[match.teamB] = (teamGoalsAgainst[match.teamB] ?? 0) + r.resultA
+    // Points: win=3, draw=1, loss=0
+    if (r.resultA > r.resultB) {
+      teamPoints[match.teamA] = (teamPoints[match.teamA] ?? 0) + 3
+    } else if (r.resultA < r.resultB) {
+      teamPoints[match.teamB] = (teamPoints[match.teamB] ?? 0) + 3
+    } else {
+      teamPoints[match.teamA] = (teamPoints[match.teamA] ?? 0) + 1
+      teamPoints[match.teamB] = (teamPoints[match.teamB] ?? 0) + 1
+    }
+  }
+
+  const sortedGroups = Object.entries(groupGoals).sort((a, b) => b[1] - a[1])
+  const mostGoalsGroup  = sortedGroups[0]
+  const leastGoalsGroup = sortedGroups[sortedGroups.length - 1]
+
+  const sortedByPoints = Object.entries(teamPoints).sort((a, b) => {
+    if (b[1] !== a[1]) return b[1] - a[1]
+    return (teamGoalsFor[b[0]] ?? 0) - (teamGoalsFor[a[0]] ?? 0)
+  })
+  const bestTeam  = sortedByPoints[0]
+  const worstTeam = sortedByPoints[sortedByPoints.length - 1]
+
+  const sortedByDefense = Object.entries(teamGoalsAgainst).sort((a, b) => a[1] - b[1])
+  const bestDefense = sortedByDefense[0]
+
+  const sortedByAttack = Object.entries(teamGoalsFor).sort((a, b) => b[1] - a[1])
+  const bestAttack = sortedByAttack[0]
+
+  const playedCount = MATCHES.filter(m => adminResults[m.id]?.isPlayed).length
+  const groupStageDone = playedCount >= 48
+
+  const topScorer  = playerStats?.topScorers?.[0]
+  const topAssist  = playerStats?.topAssists?.[0]
+
+  const statusBadge = (label: string, value: string | undefined, extra?: string) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#f0f7ff', borderRadius: 8, marginTop: 6, fontSize: 13 }}>
+      <span style={{ fontWeight: 600, color: '#1a1a2e' }}>{label}:</span>
+      {value
+        ? <span style={{ color: '#1a7a44', fontWeight: 700 }}>{value}{extra ? ` (${extra})` : ''}</span>
+        : <span style={{ color: '#aaa' }}>עדיין לא ידוע</span>
+      }
+    </div>
+  )
+
+  const section = (title: string, children: React.ReactNode) => (
+    <div style={{ marginBottom: 20, background: '#fff', borderRadius: 12, border: '1px solid #eee', padding: '14px 16px' }}>
+      <div style={{ fontWeight: 700, fontSize: 14, color: '#1a1a2e', marginBottom: 8 }}>{title}</div>
+      {children}
+    </div>
+  )
+
+  return (
+    <div style={{ direction: 'rtl' }}>
+      {playerStats?.updatedAt && (
+        <div style={{ fontSize: 11, color: '#aaa', marginBottom: 12, textAlign: 'left' }}>
+          עודכן: {new Date(playerStats.updatedAt).toLocaleString('he-IL')}
+        </div>
+      )}
+
+      {section('🏆 שאלות גמר', <>
+        {statusBadge('אלוף העולם', undefined)}
+        {statusBadge('סגן האלוף', undefined)}
+        {statusBadge('מקום שלישי', undefined)}
+        <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>יתעדכן בסיום הטורניר</div>
+      </>)}
+
+      {section('⚽ מלך השערים', <>
+        {statusBadge('מוביל כרגע', topScorer?.name, topScorer ? `${topScorer.goals} שערים` : undefined)}
+        {playerStats?.topScorers?.slice(0, 5).map((s, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <span>{i + 1}. {s.name}</span>
+            <span style={{ fontWeight: 600 }}>{s.goals} ⚽</span>
+          </div>
+        ))}
+        {!playerStats && <div style={{ fontSize: 12, color: '#aaa' }}>יתעדכן אחרי הסנכרון הבא</div>}
+      </>)}
+
+      {section('🎯 מלך הבישולים', <>
+        {statusBadge('מוביל כרגע', topAssist?.name, topAssist ? `${topAssist.assists} בישולים` : undefined)}
+        {playerStats?.topAssists?.slice(0, 5).map((s, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
+            <span>{i + 1}. {s.name}</span>
+            <span style={{ fontWeight: 600 }}>{s.assists} 🎯</span>
+          </div>
+        ))}
+        {!playerStats && <div style={{ fontSize: 12, color: '#aaa' }}>יתעדכן אחרי הסנכרון הבא</div>}
+      </>)}
+
+      {section('🏅 נבחרת טובה/גרועה בבתים', <>
+        {statusBadge('הטובה ביותר כרגע', bestTeam ? `${bestTeam[0]} (${bestTeam[1]} נק׳)` : undefined)}
+        {statusBadge('הגרועה ביותר כרגע', worstTeam ? `${worstTeam[0]} (${worstTeam[1]} נק׳)` : undefined)}
+        {!groupStageDone && <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>שלב הבתים לא הסתיים ({playedCount}/48 משחקים)</div>}
+      </>)}
+
+      {section('📊 בית עם הכי הרבה/מעט שערים', <>
+        {statusBadge('הכי הרבה שערים', mostGoalsGroup ? `בית ${mostGoalsGroup[0]} (${mostGoalsGroup[1]} שערים)` : undefined)}
+        {statusBadge('הכי מעט שערים', leastGoalsGroup && leastGoalsGroup[0] !== mostGoalsGroup?.[0] ? `בית ${leastGoalsGroup[0]} (${leastGoalsGroup[1]} שערים)` : undefined)}
+      </>)}
+
+      {section('🛡️ ההגנה הטובה / ההתקפה הטובה', <>
+        {statusBadge('הגנה הטובה ביותר', bestDefense ? `${bestDefense[0]} (${bestDefense[1]} ספיגות)` : undefined)}
+        {statusBadge('התקפה הטובה ביותר', bestAttack ? `${bestAttack[0]} (${bestAttack[1]} שערים)` : undefined)}
+        {!groupStageDone && <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>שלב הבתים לא הסתיים</div>}
+      </>)}
+    </div>
+  )
+}
+
+export default function StatsCharts({ users, adminResults, actualBonus, scoreBreakdown, knockoutMatches, currentUserId, getDisplayName, playerStats }: Props) {
   const [tab, setTab]               = useState<ChartTab>('distribution')
   const [selectedMatchId, setSelectedMatchId] = useState<number>(MATCHES[0]?.id ?? 1)
 
@@ -604,6 +740,15 @@ export default function StatsCharts({ users, adminResults, actualBonus, scoreBre
             </>
           )}
         </div>
+      )}
+
+      {tab === 'bonus' && (
+        <BonusStatusTab
+          users={users}
+          adminResults={adminResults}
+          playerStats={playerStats}
+          getDisplayName={getDisplayName}
+        />
       )}
     </div>
   )

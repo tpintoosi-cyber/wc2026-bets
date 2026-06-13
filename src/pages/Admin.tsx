@@ -5,7 +5,7 @@ import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOC
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
-import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
+import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, fetchTopScorers, fetchTopAssists, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
 import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
 
@@ -219,9 +219,11 @@ export default function Admin() {
         log.push('🔄 מושך נתונים מ-API-Football...')
         setSyncLog([...log])
         try {
-          const [fixtures, standings] = await Promise.all([
+          const [fixtures, standings, topScorers, topAssists] = await Promise.all([
             fetchAllFixtures(),
             fetchStandings(),
+            fetchTopScorers(),
+            fetchTopAssists(),
           ])
 
           // Build name → fixture map for completed matches
@@ -338,6 +340,26 @@ export default function Admin() {
           log.push(`⏱️ תוצאות 90 דקות: ${scoresFix} משחקים`)
           log.push(`🟥 כרטיסים אדומים: ${redCardsUpdated}`)
           log.push(`🏆 מי עלה הלאה: ${advanceFix} משחקים`)
+
+          // Save top scorers & assists to Firestore
+          if (topScorers.length > 0 || topAssists.length > 0) {
+            const scorersList = topScorers.slice(0, 10).map(s => ({
+              name: s.player.name,
+              goals: s.statistics[0]?.goals?.total ?? 0,
+              team: s.statistics[0]?.team?.name ?? '',
+            }))
+            const assistsList = topAssists.slice(0, 10).map(s => ({
+              name: s.player.name,
+              assists: s.statistics[0]?.goals?.assists ?? 0,
+              team: s.statistics[0]?.team?.name ?? '',
+            }))
+            await setDoc(doc(db, 'admin', 'playerstats'), {
+              topScorers: scorersList,
+              topAssists: assistsList,
+              updatedAt: new Date().toISOString(),
+            })
+            log.push(`⚽ סטטיסטיקות שחקנים עודכנו`)
+          }
 
         } catch (e) {
           log.push(`⚠️ API-Football: ${(e as Error).message}`)

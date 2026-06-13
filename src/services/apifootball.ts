@@ -153,3 +153,27 @@ export function isConfigured(): boolean {
   return API_KEY.length > 10
 }
 
+
+export interface ApiFootballScorer {
+  player: { name: string }
+  statistics: [{
+    goals: { total: number | null; assists: number | null }
+    team: { name: string }
+  }]
+}
+
+// Fetch top scorers for WC 2026
+export async function fetchTopScorers(): Promise<ApiFootballScorer[]> {
+  const res = await fetch(`${API_BASE}/players/topscorers?league=1&season=2026`, { headers })
+  if (!res.ok) throw new Error(`API-Football topscorers error: ${res.status}`)
+  const data = await res.json()
+  return data.response ?? []
+}
+
+// Fetch top assists for WC 2026
+export async function fetchTopAssists(): Promise<ApiFootballScorer[]> {
+  const res = await fetch(`${API_BASE}/players/topassists?league=1&season=2026`, { headers })
+  if (!res.ok) throw new Error(`API-Football topassists error: ${res.status}`)
+  const data = await res.json()
+  return data.response ?? []
+}
