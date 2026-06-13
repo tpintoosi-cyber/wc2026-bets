@@ -413,7 +413,7 @@ export default function Admin() {
       .map(d => ({ userId: d.id, total: (d.data().total ?? 0) as number,
         prevTotal: d.data().prevTotal as number | undefined,
         prevRank:  d.data().prevRank  as number | undefined }))
-      .sort((a, b) => b.total - a.total)
+      .sort((a, b) => b.total - a.total || a.userId.localeCompare(b.userId))
     sortedCurrent.forEach((s, i) => {
       currentTotals[s.userId] = s.total
       currentRanks[s.userId] = i + 1
@@ -434,8 +434,8 @@ export default function Admin() {
       newScores.push({ userId: userDoc.id, score })
     }
 
-    // Sort to compute new ranks
-    const sorted = [...newScores].sort((a, b) => b.score.total - a.score.total)
+    // Sort to compute new ranks — same stable sort as Leaderboard.tsx
+    const sorted = [...newScores].sort((a, b) => b.score.total - a.score.total || a.userId.localeCompare(b.userId))
 
     const batch = writeBatch(db)
     sorted.forEach(({ userId, score }, i) => {

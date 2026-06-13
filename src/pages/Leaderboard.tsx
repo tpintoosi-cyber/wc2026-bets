@@ -53,6 +53,7 @@ export default function Leaderboard() {
     const q = query(collection(db, 'scores'), orderBy('total', 'desc'))
     return onSnapshot(q, snap => {
       const newScores = snap.docs.map(d => ({ ...d.data() } as UserScore & { prevTotal?: number; prevRank?: number }))
+      newScores.sort((a, b) => b.total - a.total || a.userId.localeCompare(b.userId))
       setScores(newScores)
       setLoading(false)
     })
