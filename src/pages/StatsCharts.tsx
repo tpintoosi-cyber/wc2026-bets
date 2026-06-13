@@ -295,6 +295,14 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
   const teamGoalsAgainst: Record<string, number> = {}
   const teamPoints: Record<string, number> = {}
 
+  // Initialize all teams that have played with 0 points
+  for (const match of MATCHES) {
+    const r = adminResults[match.id]
+    if (!r?.isPlayed || r.resultA == null || r.resultB == null) continue
+    if (!(match.teamA in teamPoints)) teamPoints[match.teamA] = 0
+    if (!(match.teamB in teamPoints)) teamPoints[match.teamB] = 0
+  }
+
   for (const match of MATCHES) {
     const r = adminResults[match.id]
     if (!r?.isPlayed || r.resultA == null || r.resultB == null) continue
