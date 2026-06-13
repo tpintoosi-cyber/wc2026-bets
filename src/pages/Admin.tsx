@@ -444,13 +444,11 @@ export default function Admin() {
       const prevRank  = currentRanks[userId]  ?? newRank
       const changed   = score.total !== prevTotal
       const existingPrev = sortedCurrent.find(s => s.userId === userId)
+      const rankChanged = (currentRanks[userId] ?? newRank) !== newRank
       batch.set(doc(db, 'scores', userId), {
         ...score,
-        // changed=true: save old prev so delta shows gain
-        // changed=false + hasNewResults: reset to current (delta=0, user gained nothing this round)
-        // changed=false + !hasNewResults: keep old prev (manual recalc / double-click — preserve delta)
-        prevTotal: changed ? prevTotal : (hasNewResults ? score.total : (existingPrev?.prevTotal ?? prevTotal)),
-        prevRank:  hasNewResults ? prevRank : (existingPrev?.prevRank ?? prevRank),
+        prevTotal: changed     ? prevTotal : (hasNewResults ? score.total : (existingPrev?.prevTotal ?? prevTotal)),
+        prevRank:  rankChanged ? prevRank  : (hasNewResults ? newRank     : (existingPrev?.prevRank  ?? prevRank)),
       })
     })
     await batch.commit()
