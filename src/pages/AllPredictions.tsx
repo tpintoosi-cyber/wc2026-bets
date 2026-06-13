@@ -1613,8 +1613,16 @@ ${userRows}
             const played = result?.isPlayed ?? false
             // Rank map: sort users by total score
             const rankMap: Record<string, number> = {}
-            ;[...users].sort((a, b) => (scores[b.userId] ?? 0) - (scores[a.userId] ?? 0))
-              .forEach((u, i) => { rankMap[u.userId] = i + 1 })
+            const sortedByScore = [...users].sort((a, b) => (scores[b.userId] ?? 0) - (scores[a.userId] ?? 0) || a.userId.localeCompare(b.userId))
+            let rankCounter = 1
+            sortedByScore.forEach((u, i) => {
+              if (i > 0 && (scores[u.userId] ?? 0) === (scores[sortedByScore[i-1].userId] ?? 0)) {
+                rankMap[u.userId] = rankMap[sortedByScore[i-1].userId]
+              } else {
+                rankMap[u.userId] = rankCounter
+              }
+              rankCounter++
+            })
             return (
               <>
                 <ScoreGroupTable matchId={selectedMatchId} users={users} teamA={match.teamA} teamB={match.teamB} adminResult={result} rankMap={rankMap} currentUserId={user?.uid} />
