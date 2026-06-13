@@ -450,7 +450,7 @@ export default function Admin() {
         // changed=false + hasNewResults: reset to current (delta=0, user gained nothing this round)
         // changed=false + !hasNewResults: keep old prev (manual recalc / double-click — preserve delta)
         prevTotal: changed ? prevTotal : (hasNewResults ? score.total : (existingPrev?.prevTotal ?? prevTotal)),
-        prevRank:  changed ? prevRank  : (hasNewResults ? newRank     : (existingPrev?.prevRank  ?? newRank)),
+        prevRank:  hasNewResults ? prevRank : (existingPrev?.prevRank ?? prevRank),
       })
     })
     await batch.commit()
