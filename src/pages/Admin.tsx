@@ -264,9 +264,10 @@ export default function Admin() {
             // Red cards from events — only fetch if not already determined
             if (updatedMatches[match.id].hadRedCard === undefined) {
               const events = await fetchFixtureEvents(fixture.fixture.id)
-              const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
-              updatedMatches[match.id].hadRedCard = hasRed
-              if (hasRed) redCardsUpdated++
+              const redCards = events.filter(e => e.type === 'Card' && e.detail === 'Red Card')
+              updatedMatches[match.id].hadRedCard = redCards.length > 0
+              updatedMatches[match.id].redCardCount = redCards.length
+              if (redCards.length > 0) redCardsUpdated++
             }
           }
 
@@ -298,9 +299,10 @@ export default function Admin() {
             // Red cards (R32 + R16 only) — only fetch if not already determined
             if ((km.round === 'R32' || km.round === 'R16') && kd.hadRedCard === undefined) {
               const events = await fetchFixtureEvents(fixture.fixture.id)
-              const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
-              kd.hadRedCard = hasRed
-              if (hasRed) redCardsUpdated++
+              const redCards = events.filter(e => e.type === 'Card' && e.detail === 'Red Card')
+              kd.hadRedCard = redCards.length > 0
+              kd.redCardCount = redCards.length
+              if (redCards.length > 0) redCardsUpdated++
             }
             updatedKnockout[km.id] = kd
           }

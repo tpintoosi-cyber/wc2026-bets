@@ -333,6 +333,9 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
   const topScorer  = playerStats?.topScorers?.[0]
   const topAssist  = playerStats?.topAssists?.[0]
 
+  // Count total red cards across all played matches
+  const totalRedCards = MATCHES.reduce((sum, m) => sum + (adminResults[m.id]?.redCardCount ?? (adminResults[m.id]?.hadRedCard ? 1 : 0)), 0)
+
   const statusBadge = (label: string, value: string | undefined, extra?: string) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#f0f7ff', borderRadius: 8, marginTop: 6, fontSize: 13 }}>
       <span style={{ fontWeight: 600, color: '#1a1a2e' }}>{label}:</span>
@@ -367,6 +370,7 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
 
       {section('⚽ מלך השערים', <>
         {statusBadge('מוביל כרגע', topScorer?.name, topScorer ? `${topScorer.goals} שערים` : undefined)}
+        {statusBadge('כמה שערים יבקיע', topScorer ? `${topScorer.goals} עד כה` : undefined)}
         {playerStats?.topScorers?.slice(0, 5).map((s, i) => (
           <div key={i} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
             <span>{i + 1}. {s.name}</span>
@@ -402,6 +406,11 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
         {statusBadge('הגנה הטובה ביותר', bestDefense ? `${bestDefense[0]} (${bestDefense[1]} ספיגות)` : undefined)}
         {statusBadge('התקפה הטובה ביותר', bestAttack ? `${bestAttack[0]} (${bestAttack[1]} שערים)` : undefined)}
         {!groupStageDone && <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>שלב הבתים לא הסתיים</div>}
+      </>)}
+
+      {section('🟥 כרטיסים אדומים בטורניר', <>
+        {statusBadge('עד כה', `${totalRedCards} כרטיסים אדומים ב-${playedCount} משחקים`)}
+        <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>השאלה: כמה סה״כ בכל 64 משחקי הטורניר</div>
       </>)}
     </div>
   )

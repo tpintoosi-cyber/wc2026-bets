@@ -16,6 +16,7 @@ export interface Match {
   resultA?: number
   resultB?: number
   hadRedCard?: boolean
+  redCardCount?: number
   isPlayed?: boolean
 }
 
@@ -32,6 +33,7 @@ export interface KnockoutMatch {
   resultB?: number
   advanceTeam?: string // who actually advanced (could be different from winner at 90min)
   hadRedCard?: boolean // R32 + R16 only
+  redCardCount?: number
   isPlayed?: boolean
 }
 
