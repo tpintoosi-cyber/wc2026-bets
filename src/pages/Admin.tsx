@@ -348,7 +348,7 @@ export default function Admin() {
       if (updatedResults > 0 || koUpdated > 0 || redCardsUpdated > 0) {
         log.push('🔄 מחשב ניקוד...')
         setSyncLog([...log])
-        await recalcAllScores(updatedMatches)
+        await recalcAllScores(updatedMatches, true)
         log.push('🏆 ניקוד עודכן!')
       }
       log.push('✅ סנכרון הושלם!')
@@ -400,7 +400,7 @@ export default function Admin() {
     setPendingUsers(prev => prev.filter(u => u.status !== 'rejected'))
   }
 
-  const recalcAllScores = async (matchData?: Record<number, Match>) => {
+  const recalcAllScores = async (matchData?: Record<number, Match>, hasNewResults = false) => {
     const data = matchData ?? matches
     const usersSnap = await getDocs(collection(db, 'predictions'))
     const playedMatches = MATCHES.map(m => ({ ...m, ...(data[m.id] ?? {}) })).filter(m => m.isPlayed)
@@ -446,9 +446,11 @@ export default function Admin() {
       const existingPrev = sortedCurrent.find(s => s.userId === userId)
       batch.set(doc(db, 'scores', userId), {
         ...score,
-        // Only update prev fields when score actually changed (avoid wiping delta on double-click)
-        prevTotal: changed ? prevTotal : (existingPrev?.prevTotal ?? prevTotal),
-        prevRank:  changed ? prevRank  : (existingPrev?.prevRank  ?? newRank),
+        // changed=true: save old prev so delta shows gain
+        // changed=false + hasNewResults: reset to current (delta=0, user gained nothing this round)
+        // changed=false + !hasNewResults: keep old prev (manual recalc / double-click — preserve delta)
+        prevTotal: changed ? prevTotal : (hasNewResults ? score.total : (existingPrev?.prevTotal ?? prevTotal)),
+        prevRank:  changed ? prevRank  : (hasNewResults ? newRank     : (existingPrev?.prevRank  ?? newRank)),
       })
     })
     await batch.commit()
