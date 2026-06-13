@@ -1355,7 +1355,11 @@ ${userRows}
             <select value={selectedMatchId} onChange={e => setSelectedMatchId(Number(e.target.value))}
               style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', flex: 1 }}>
               <optgroup label={t.matchesGroupStage}>
-                {MATCHES.map(m => (
+                {[...MATCHES].sort((a, b) => {
+                  const tA = adminSchedule[a.id] || MATCH_SCHEDULE[a.id] || ''
+                  const tB = adminSchedule[b.id] || MATCH_SCHEDULE[b.id] || ''
+                  return tA.localeCompare(tB) || a.id - b.id
+                }).map(m => (
                   <option key={m.id} value={m.id}>
                     #{m.id} {m.teamA} נגד {m.teamB} ({m.category}) {(adminSchedule[m.id] || MATCH_SCHEDULE[m.id]) ? `— ${adminSchedule[m.id] || MATCH_SCHEDULE[m.id]}` : ''}
                     {adminResults[m.id]?.isPlayed ? ' ✓' : ''}
