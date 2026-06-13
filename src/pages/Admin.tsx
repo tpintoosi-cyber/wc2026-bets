@@ -535,6 +535,19 @@ export default function Admin() {
     setScoring(false)
   }
 
+  const recalcWithDeltaBtn = async () => {
+    setScoring(true)
+    setMsg('מחשב ניקוד + מעדכן דלתא...')
+    try {
+      await recalcAllScores(undefined, true)
+      const usersSnap = await getDocs(collection(db, 'predictions'))
+      setMsg(`✓ ניקוד + דלתא עודכנו ל-${usersSnap.size} משתמשים`)
+    } catch (e) {
+      setMsg('שגיאה: ' + (e as Error).message)
+    }
+    setScoring(false)
+  }
+
   const updateMatchResult = (id: number, field: string, value: unknown) => {
     setMatches(prev => ({ ...prev, [id]: { ...(prev[id] ?? MATCHES.find(m => m.id === id)!), [field]: value } as Match }))
   }
@@ -594,6 +607,9 @@ export default function Admin() {
       <div style={{ display: 'flex', gap: 8, padding: '8px 0', borderBottom: '1px solid #eee', marginBottom: 8 }}>
         <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ flex: 1 }}>
           {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
+        </button>
+        <button className="btn-primary btn-lg" onClick={recalcWithDeltaBtn} disabled={scoring} style={{ flex: 1, background: '#7c3aed' }}>
+          {scoring ? 'מחשב...' : '🔄 חשב + עדכן דלתא'}
         </button>
         <button className="btn-primary" onClick={saveResults} style={{ flex: 1 }}>💾 שמור תוצאות</button>
       </div>
