@@ -504,7 +504,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [adminResults, setAdminResults] = useState<Record<number, Match>>({})
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
-  const [playerStats, setPlayerStats] = useState<{ topScorers: { name: string; goals: number; team: string }[]; topAssists: { name: string; assists: number; team: string }[]; updatedAt?: string } | undefined>(undefined)
+  const [playerStats, setPlayerStats] = useState<{ topScorers: { name: string; goals: number; team: string }[]; topAssists: { name: string; assists: number; team: string }[]; totalRedCards?: number; updatedAt?: string } | undefined>(undefined)
   const [scores, setScores] = useState<Record<string, number>>({})
   const [scoreBreakdown, setScoreBreakdown] = useState<Record<string, {
     total: number; matchPoints: number; groupPoints: number;

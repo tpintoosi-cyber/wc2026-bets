@@ -6,6 +6,7 @@ import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
 import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, fetchTopScorers, fetchTopAssists, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
+import { fetchZafronixMatches, buildTopScorers, countRedCards as countZafronixRedCards } from '../services/zafronix'
 import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
 
@@ -214,6 +215,27 @@ export default function Admin() {
       await setDoc(doc(db, 'admin', 'schedule'), { schedule: scheduleMap })
       log.push('💾 נשמר ב-Firestore')
 
+      // ── Zafronix: top scorers + red card counts from match goals/cards ──
+      try {
+        log.push('⚽ מושך סטטיסטיקות שחקנים מ-Zafronix...')
+        setSyncLog([...log])
+        const zafronixMatches = await fetchZafronixMatches()
+        const topScorersZ = buildTopScorers(zafronixMatches).slice(0, 10)
+        const totalRedCardsZ = countZafronixRedCards(zafronixMatches)
+
+        await setDoc(doc(db, 'admin', 'playerstats'), {
+          topScorers: topScorersZ,
+          topAssists: [],  // Zafronix doesn't provide assists yet
+          totalRedCards: totalRedCardsZ,
+          updatedAt: new Date().toISOString(),
+        })
+        log.push(`⚽ מלך שערים: ${topScorersZ[0]?.name ?? '—'} (${topScorersZ[0]?.goals ?? 0} שערים)`)
+        log.push(`🟥 סה״כ אדומים בטורניר: ${totalRedCardsZ}`)
+        setSyncLog([...log])
+      } catch (e) {
+        log.push(`⚠️ Zafronix: ${(e as Error).message}`)
+      }
+
       // ── API-Football: red cards + 90-min scores + standings + advanceTeam ──
       if (isApiFootballConfigured()) {
         log.push('🔄 מושך נתונים מ-API-Football...')
@@ -344,6 +366,8 @@ export default function Admin() {
           log.push(`🏆 מי עלה הלאה: ${advanceFix} משחקים`)
 
           // Save top scorers & assists to Firestore
+          log.push(`⚽ topScorers: ${topScorers.length}, topAssists: ${topAssists.length}`)
+          setSyncLog([...log])
           if (topScorers.length > 0 || topAssists.length > 0) {
             const scorersList = topScorers.slice(0, 10).map(s => ({
               name: s.player.name,

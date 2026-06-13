@@ -281,7 +281,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
   users: UserData[]
   adminResults: Record<number, Match>
-  playerStats?: { topScorers: { name: string; goals: number; team: string }[]; topAssists: { name: string; assists: number; team: string }[]; updatedAt?: string }
+  playerStats?: {
+    topScorers: { name: string; goals: number; team: string }[]
+    topAssists: { name: string; assists: number; team: string }[]
+    totalRedCards?: number
+    updatedAt?: string
+  }
   getDisplayName: (u: UserData) => string
 }) {
   // Compute group stats from adminResults
@@ -334,7 +339,10 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
   const topAssist  = playerStats?.topAssists?.[0]
 
   // Count total red cards across all played matches
-  const totalRedCards = MATCHES.reduce((sum, m) => sum + (adminResults[m.id]?.redCardCount ?? (adminResults[m.id]?.hadRedCard ? 1 : 0)), 0)
+  // Use Zafronix total red cards if available, fallback to hadRedCard count
+  const totalRedCards = playerStats?.totalRedCards != null
+    ? playerStats.totalRedCards
+    : MATCHES.reduce((sum, m) => sum + (adminResults[m.id]?.redCardCount ?? (adminResults[m.id]?.hadRedCard ? 1 : 0)), 0)
 
   const statusBadge = (label: string, value: string | undefined, extra?: string) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#f0f7ff', borderRadius: 8, marginTop: 6, fontSize: 13 }}>
