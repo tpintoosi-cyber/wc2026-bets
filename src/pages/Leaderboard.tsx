@@ -257,8 +257,8 @@ export default function Leaderboard() {
   })
 
   const myTiedRank = myScore ? (tiedRanks[myScore.userId] ?? myIdx + 1) : null
-  const abovePlayer = myScore ? scores.find(s => (tiedRanks[s.userId] ?? 0) < (myTiedRank ?? 0)) : null
-  const belowPlayer = myScore ? [...scores].reverse().find(s => (tiedRanks[s.userId] ?? 0) > (myTiedRank ?? 0)) : null
+  const abovePlayer = myScore ? [...scores].reverse().find(s => (tiedRanks[s.userId] ?? 0) < (myTiedRank ?? 0)) : null
+  const belowPlayer = myScore ? scores.find(s => (tiedRanks[s.userId] ?? 0) > (myTiedRank ?? 0)) : null
 
   return (
     <div className="page" style={{ paddingBottom: 40 }}>
