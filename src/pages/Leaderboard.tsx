@@ -109,9 +109,10 @@ export default function Leaderboard() {
         const rows = users.map((s) => {
           const i = filteredScores.indexOf(s)
           const sExt = s as UserScore & { prevTotal?: number; prevRank?: number }
-          const rd = sExt.prevRank != null && sExt.prevRank !== (i+1) ? sExt.prevRank-(i+1) : null
+          const myR = tiedRanks[s.userId] ?? (i + 1)
+          const rd = sExt.prevRank != null && sExt.prevRank !== myR ? sExt.prevRank - myR : null
           const pd = sExt.prevTotal != null && sExt.prevTotal !== s.total ? s.total-sExt.prevTotal : null
-          const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':`${i+1}`
+          const medal = myR===1?'🥇':myR===2?'🥈':myR===3?'🥉':`${myR}`
           const bg = i%2===0?'#fff':'#f7f7f7'
           const rdHtml = rd!=null&&rd!==0 ? `<div style="font-size:9px;font-weight:800;color:${rd>0?'#1a7a44':'#cc0000'}">${rd>0?'▲':'▼'}${Math.abs(rd)}</div>` : ''
           const pdHtml = pd!=null&&pd!==0 ? `<span style="color:${pd>0?'#1a7a44':'#cc0000'};font-size:10px;font-weight:800">${pd>0?'+':''}${pd}</span>` : `<span style="color:#ccc;font-size:9px">0</span>`
@@ -255,6 +256,10 @@ export default function Leaderboard() {
     rankCounter++
   })
 
+  const myTiedRank = myScore ? (tiedRanks[myScore.userId] ?? myIdx + 1) : null
+  const abovePlayer = myScore ? scores.find(s => (tiedRanks[s.userId] ?? 0) < (myTiedRank ?? 0)) : null
+  const belowPlayer = myScore ? [...scores].reverse().find(s => (tiedRanks[s.userId] ?? 0) > (myTiedRank ?? 0)) : null
+
   return (
     <div className="page" style={{ paddingBottom: 40 }}>
       <style>{`
@@ -285,7 +290,7 @@ export default function Leaderboard() {
         }}>
           <div style={{ textAlign: 'center', minWidth: 56 }}>
             <div style={{ fontSize: 32, lineHeight: 1 }}>
-              {myIdx === 0 ? '🥇' : myIdx === 1 ? '🥈' : myIdx === 2 ? '🥉' : `#${myIdx + 1}`}
+              {myTiedRank === 1 ? '🥇' : myTiedRank === 2 ? '🥈' : myTiedRank === 3 ? '🥉' : `#${myTiedRank}`}
             </div>
             <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>מתוך {scores.length}</div>
           </div>
@@ -308,7 +313,7 @@ export default function Leaderboard() {
             <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>נקודות</div>
           </div>
 
-          {myIdx > 0 && (
+          {(abovePlayer || belowPlayer) && (
             <>
               <div style={{ width: 1, background: 'rgba(255,255,255,0.1)', alignSelf: 'stretch' }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -317,18 +322,18 @@ export default function Leaderboard() {
                   <span style={{ color: '#aaa' }}>עד ראשון: </span>
                   <span style={{ color: '#FF6B6B', fontWeight: 700 }}>-{leader.total - myScore.total}</span>
                 </div>
-                {myIdx > 0 && (
+                {abovePlayer && (
                   <div style={{ fontSize: 12, color: '#ccc' }}>
                     <span style={{ marginLeft: 4 }}>⬆️</span>
                     <span style={{ color: '#aaa' }}>עד המקום מעלי: </span>
-                    <span style={{ color: '#FF6B6B', fontWeight: 700 }}>-{scores[myIdx - 1].total - myScore.total}</span>
+                    <span style={{ color: '#FF6B6B', fontWeight: 700 }}>-{abovePlayer.total - myScore.total}</span>
                   </div>
                 )}
-                {myIdx < scores.length - 1 && (
+                {belowPlayer && (
                   <div style={{ fontSize: 12, color: '#ccc' }}>
                     <span style={{ marginLeft: 4 }}>⬇️</span>
                     <span style={{ color: '#aaa' }}>הפרש ממקום תחתי: </span>
-                    <span style={{ color: '#51CF66', fontWeight: 700 }}>+{myScore.total - scores[myIdx + 1].total}</span>
+                    <span style={{ color: '#51CF66', fontWeight: 700 }}>+{myScore.total - belowPlayer.total}</span>
                   </div>
                 )}
               </div>
