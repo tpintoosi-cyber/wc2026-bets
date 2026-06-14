@@ -149,10 +149,15 @@ export default function Admin() {
           if ((matches[ourMatch.id] as any)?.manualScore) {
             log.push(`🔒 #${ourMatch.id} — נשמר ידנית, לא הוחלף`)
           } else {
-            current.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
-            current.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
+            const newA = isReversed ? apiMatch.away_score : apiMatch.home_score
+            const newB = isReversed ? apiMatch.home_score : apiMatch.away_score
+            const existingA = matches[ourMatch.id]?.resultA
+            const existingB = matches[ourMatch.id]?.resultB
+            const isNew = !matches[ourMatch.id]?.isPlayed || existingA !== newA || existingB !== newB
+            current.resultA = newA
+            current.resultB = newB
             current.isPlayed = true
-            updatedResults++
+            if (isNew) updatedResults++
           }
         }
         updatedMatches[ourMatch.id] = current as Match
