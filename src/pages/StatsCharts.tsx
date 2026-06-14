@@ -2,6 +2,14 @@ import Flag, { getFlagUrl, flagToIso } from '../components/Flag'
 
 // ── Custom SVG arc helper ─────────────────────────────────────────────────
 function arcPath(cx: number, cy: number, ir: number, or: number, sa: number, ea: number): string {
+  // SVG arc can't draw a full 360° circle — split into two semicircles
+  if (ea - sa >= 359.9) {
+    const top = `${cx},${cy - or}`, bot = `${cx},${cy + or}`
+    const outer = `M${top} A${or},${or} 0 1 1 ${bot} A${or},${or} 0 1 1 ${top} Z`
+    if (ir <= 0) return outer
+    const it = `${cx},${cy - ir}`, ib = `${cx},${cy + ir}`
+    return `${outer} M${it} A${ir},${ir} 0 1 0 ${ib} A${ir},${ir} 0 1 0 ${it} Z`
+  }
   const r = (a: number) => (a - 90) * Math.PI / 180
   const pt = (radius: number, a: number) => `${cx + radius * Math.cos(r(a))},${cy + radius * Math.sin(r(a))}`
   const large = ea - sa > 180 ? 1 : 0
@@ -198,7 +206,7 @@ function FlagPieChart({ matchId, teamA, teamB, users, adminResult, isKO, koAdmin
     </div>
   )
 }
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import React from 'react'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -207,6 +215,7 @@ import {
 } from 'recharts'
 import { MATCHES, BONUS_QUESTIONS, FLAGS, KNOCKOUT_MATCHES, KNOCKOUT_ROUND_LABELS } from '../data/matches'
 import { Match } from '../types'
+import { getOUType } from '../scoring'
 
 interface UserData {
   userId: string
@@ -462,6 +471,16 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
 export default function StatsCharts({ users, adminResults, actualBonus, scoreBreakdown, knockoutMatches, currentUserId, getDisplayName, playerStats }: Props) {
   const [tab, setTab]               = useState<ChartTab>('distribution')
   const [selectedMatchId, setSelectedMatchId] = useState<number>(MATCHES[0]?.id ?? 1)
+  const [matchAutoSet, setMatchAutoSet] = useState(false)
+
+  // Auto-select the next upcoming (non-played) match when adminResults loads
+  useEffect(() => {
+    if (matchAutoSet) return
+    if (Object.keys(adminResults).length === 0) return
+    const nextMatch = MATCHES.find(m => !adminResults[m.id]?.isPlayed)
+    if (nextMatch) setSelectedMatchId(nextMatch.id)
+    setMatchAutoSet(true)
+  }, [adminResults, matchAutoSet])
 
   const playedMatches = MATCHES.filter(m => adminResults[m.id]?.isPlayed)
 
@@ -489,6 +508,32 @@ export default function StatsCharts({ users, adminResults, actualBonus, scoreBre
       ].filter(d => d.value > 0),
     }
   }, [selectedMatchId, users, adminResults])
+
+  // ── 1.5 Per-user match stats ─────────────────────────────────────
+  const userMatchStats = useMemo(() => {
+    const stats: Record<string, { exact: number; margin: number; ou: number }> = {}
+    for (const user of users) {
+      let exact = 0, margin = 0, ou = 0
+      for (const match of MATCHES) {
+        const result = adminResults[match.id]
+        if (!result?.isPlayed || result.resultA == null || result.resultB == null) continue
+        const pred = user.matches[match.id]
+        if (!pred || pred.scoreA == null || pred.scoreB == null) continue
+        const rA = Number(result.resultA), rB = Number(result.resultB)
+        const pA = Number(pred.scoreA), pB = Number(pred.scoreB)
+        if (pA === rA && pB === rB) {
+          exact++
+        } else if ((pA - pB) === (rA - rB)) {
+          margin++
+        }
+        const ouType = getOUType(rA + rB)
+        const predOuType = getOUType(pA + pB)
+        if (ouType && predOuType === ouType && !(pA === rA && pB === rB)) ou++
+      }
+      stats[user.userId] = { exact, margin, ou }
+    }
+    return stats
+  }, [users, adminResults])
 
   // ── 2. Score breakdown ───────────────────────────────────────────
   const scoreData = useMemo(() => {
@@ -574,10 +619,23 @@ export default function StatsCharts({ users, adminResults, actualBonus, scoreBre
 
   const myRank = useMemo(() => {
     if (!currentUserId) return null
-    const sorted = Object.entries(scoreBreakdown).sort((a, b) => b[1].total - a[1].total)
-    const idx = sorted.findIndex(([uid]) => uid === currentUserId)
-    return idx >= 0 ? idx + 1 : null
-  }, [currentUserId, scoreBreakdown])
+    const sorted = [...users].sort((a, b) =>
+      (scoreBreakdown[b.userId]?.total ?? 0) - (scoreBreakdown[a.userId]?.total ?? 0) ||
+      a.userId.localeCompare(b.userId)
+    )
+    let rank = 1
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && (scoreBreakdown[sorted[i].userId]?.total ?? 0) < (scoreBreakdown[sorted[i-1].userId]?.total ?? 0)) {
+        rank = i + 1
+      }
+      if (sorted[i].userId === currentUserId) return rank
+    }
+    return null
+  }, [currentUserId, scoreBreakdown, users])
+
+  const leaderTotal = useMemo(() =>
+    Math.max(0, ...Object.values(scoreBreakdown).map(b => b.total ?? 0))
+  , [scoreBreakdown])
 
   return (
     <div style={{ paddingBottom: 32 }}>
@@ -686,6 +744,46 @@ export default function StatsCharts({ users, adminResults, actualBonus, scoreBre
                   <Bar dataKey="🟥"          stackId="a" fill={COLORS.coral}  radius={[0,4,4,0]} />
                 </BarChart>
               </ResponsiveContainer>
+
+              {/* Match prediction stats table */}
+              {playedMatches.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a2e', marginBottom: 8 }}>סטטיסטיקת ניחושי משחקים</div>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr style={{ background: '#1a1a2e', color: '#fff' }}>
+                          <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600 }}>שם</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>✓ מדויק</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>~ הפרש</th>
+                          <th style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>📊 אנד/אובר</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...users]
+                          .filter(u => scoreBreakdown[u.userId]?.total >= 0)
+                          .sort((a, b) => {
+                            const sa = userMatchStats[a.userId] ?? { exact: 0, margin: 0, ou: 0 }
+                            const sb = userMatchStats[b.userId] ?? { exact: 0, margin: 0, ou: 0 }
+                            return sb.exact - sa.exact || sb.margin - sa.margin || sb.ou - sa.ou
+                          })
+                          .map((u, i) => {
+                            const s = userMatchStats[u.userId] ?? { exact: 0, margin: 0, ou: 0 }
+                            const isMe = u.userId === currentUserId
+                            return (
+                              <tr key={u.userId} style={{ background: isMe ? '#f0f4ff' : i % 2 === 0 ? '#fff' : '#f9f9f9', fontWeight: isMe ? 700 : 400 }}>
+                                <td style={{ padding: '5px 10px', borderBottom: '1px solid #f0f0f0' }}>{getDisplayName(u)}{isMe ? ' ✦' : ''}</td>
+                                <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: '1px solid #f0f0f0', color: s.exact > 0 ? '#1a7a44' : '#bbb', fontWeight: s.exact > 0 ? 700 : 400 }}>{s.exact}</td>
+                                <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: '1px solid #f0f0f0', color: s.margin > 0 ? '#185FA5' : '#bbb', fontWeight: s.margin > 0 ? 700 : 400 }}>{s.margin}</td>
+                                <td style={{ padding: '5px 8px', textAlign: 'center', borderBottom: '1px solid #f0f0f0', color: s.ou > 0 ? '#7c3aed' : '#bbb', fontWeight: s.ou > 0 ? 700 : 400 }}>{s.ou}</td>
+                              </tr>
+                            )
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -765,7 +863,7 @@ export default function StatsCharts({ users, adminResults, actualBonus, scoreBre
                   {[
                     { label: 'מיקום', value: `${myRank} / ${Object.keys(scoreBreakdown).length}`, color: myRank <= 3 ? '#B8860B' : '#1a1a2e' },
                     { label: 'סה״כ נקודות', value: scoreBreakdown[currentUserId]?.total ?? 0, color: '#1a7a44' },
-                    { label: 'פער מהמוביל', value: Math.max(0, (Object.values(scoreBreakdown)[0]?.total ?? 0) - (scoreBreakdown[currentUserId]?.total ?? 0)), color: '#c0392b' },
+                    { label: 'פער מהמוביל', value: Math.max(0, leaderTotal - (scoreBreakdown[currentUserId]?.total ?? 0)), color: '#c0392b' },
                   ].map((s, i) => (
                     <div key={i} style={{ background: '#f8f9fa', borderRadius: 10, padding: '12px 20px', textAlign: 'center', flex: 1, minWidth: 100 }}>
                       <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value}</div>
