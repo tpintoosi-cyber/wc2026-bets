@@ -452,12 +452,49 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
       {section('📊 בית עם הכי הרבה/מעט שערים', <>
         {statusBadge('הכי הרבה שערים', mostGoalsGroup ? `בית ${mostGoalsGroup[0]} (${mostGoalsGroup[1]} שערים)` : undefined)}
         {statusBadge('הכי מעט שערים', leastGoalsGroup && leastGoalsGroup[0] !== mostGoalsGroup?.[0] ? `בית ${leastGoalsGroup[0]} (${leastGoalsGroup[1]} שערים)` : undefined)}
+        {/* Goals per group table */}
+        {sortedGroups.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>שערים לפי בית:</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {Object.entries(groupGoals).sort(([a], [b]) => a.localeCompare(b)).map(([g, goals]) => (
+                <div key={g} style={{ background: '#f5f5f5', borderRadius: 6, padding: '3px 8px', fontSize: 12, fontWeight: 600 }}>
+                  בית {g}: <span style={{ color: '#1a7a44' }}>{goals}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </>)}
 
       {section('🛡️ ההגנה הטובה / ההתקפה הטובה', <>
         {statusBadge('הגנה הטובה ביותר', bestDefense ? `${bestDefense[0]} (${bestDefense[1]} ספיגות)` : undefined)}
         {statusBadge('התקפה הטובה ביותר', bestAttack ? `${bestAttack[0]} (${bestAttack[1]} שערים)` : undefined)}
         {!groupStageDone && <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>שלב הבתים לא הסתיים</div>}
+        {/* Top 5 attack */}
+        {sortedByAttack.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>🔥 טופ 5 התקפה:</div>
+            {sortedByAttack.slice(0, 5).map(([team, goals], i) => (
+              <div key={team} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', borderBottom: '1px solid #f5f5f5' }}>
+                <span>{i + 1}. {team}</span>
+                <span style={{ fontWeight: 700, color: '#1a7a44' }}>{goals} ⚽</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Top 5 defense */}
+        {sortedByDefense.length > 0 && (
+          <div style={{ marginTop: 8 }}>
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>🛡️ טופ 5 הגנה (הכי פחות ספיגות):</div>
+            {sortedByDefense.slice(0, 5).map(([team, goals], i) => (
+              <div key={team} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', borderBottom: '1px solid #f5f5f5' }}>
+                <span>{i + 1}. {team}</span>
+                <span style={{ fontWeight: 700, color: '#185FA5' }}>{goals} 🛡️</span>
+              </div>
+            ))}
+          </div>
+        )}
       </>)}
 
       {section('🟥 כרטיסים אדומים בטורניר', <>

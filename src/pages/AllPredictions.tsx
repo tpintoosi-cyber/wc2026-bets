@@ -90,9 +90,10 @@ function HoverTooltip({ names, children }: { names: string[]; children: React.Re
 }
 
 // Group predictions by score table (like the image)
-function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = "he" as Lang }: {
+function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, scoreBreakdown = {}, lang = "he" as Lang }: {
   matchId: number; users: UserData[]; teamA: string; teamB: string
   lang?: Lang; adminResult?: Match; rankMap?: Record<string, number>; currentUserId?: string
+  scoreBreakdown?: Record<string, { total: number }>
 }) {
   const t = T[lang]
   const played = adminResult?.isPlayed ?? false
@@ -121,13 +122,30 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
     return (bA + bB) - (aA + aB) || aA - bA
   })
 
+  const myTotal = currentUserId ? (scoreBreakdown[currentUserId]?.total ?? null) : null
+
   const rankBadge = (userId: string) => {
     const r = rankMap[userId]
-    if (!r) return null
+    const isMe = userId === currentUserId
+    const theirTotal = scoreBreakdown[userId]?.total ?? null
+    const delta = myTotal != null && theirTotal != null && !isMe ? theirTotal - myTotal : null
+    const deltaEl = delta != null ? (
+      <span style={{
+        fontSize: 10, fontWeight: 700, marginRight: 3,
+        color: delta > 0 ? '#c0392b' : delta < 0 ? '#1a7a44' : '#aaa'
+      }}>
+        {delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '='}
+      </span>
+    ) : null
+    if (!r) return deltaEl
     const medal = r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : null
-    return medal
-      ? <span style={{ fontSize: 13 }}>{medal}</span>
-      : <span style={{ fontSize: 11, fontWeight: 700, color: '#999', background: '#f0f0f0', borderRadius: 10, padding: '1px 6px' }}>#{r}</span>
+    return <>
+      {medal
+        ? <span style={{ fontSize: 13 }}>{medal}</span>
+        : <span style={{ fontSize: 11, fontWeight: 700, color: '#999', background: '#f0f0f0', borderRadius: 10, padding: '1px 6px' }}>#{r}</span>
+      }
+      {deltaEl}
+    </>
   }
 
   const allCols = [
@@ -576,14 +594,14 @@ function BonusPredTable({ qId, users, actualVal, lang = "he" as Lang }: {
       {Object.entries(groups).sort(([a], [b]) => a === t.notFilled ? 1 : b === t.notFilled ? -1 : a.localeCompare(b)).map(([val, valUsers], idx, arr) => {
         const isCorrect = actualVal && val !== 'לא מולא' && val.trim().toLowerCase() === actualVal.trim().toLowerCase()
         return (
-          <div key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+          <div key={val} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 10px',
             borderBottom: idx < arr.length - 1 ? '1px solid #f0f0f0' : 'none',
             background: isCorrect ? '#EAF3DE' : idx % 2 === 0 ? '#fafafa' : '#fff' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, minWidth: 100, color: isCorrect ? '#3B6D11' : '#1a1a2e' }}>
+            <span style={{ fontSize: 13, fontWeight: 600, minWidth: 80, flexShrink: 0, color: isCorrect ? '#3B6D11' : '#1a1a2e', paddingTop: 1 }}>
               {isCorrect && '✓ '}{val}
               <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400, marginRight: 4 }}>({valUsers.length})</span>
             </span>
-            <span style={{ fontSize: 12, color: '#555', flex: 1 }}>
+            <span style={{ fontSize: 12, color: '#555', flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: '2px 0' }}>
               {valUsers.map((u, i) => (
                 <span key={u.userId}>{getDisplayName(u)}{i < valUsers.length - 1 ? <span style={{ color: '#ddd', margin: '0 4px' }}>|</span> : ''}</span>
               ))}
@@ -1737,7 +1755,7 @@ ${userRows}
             })
             return (
               <>
-                <ScoreGroupTable matchId={selectedMatchId} users={users} teamA={match.teamA} teamB={match.teamB} adminResult={result} rankMap={rankMap} currentUserId={user?.uid} />
+                <ScoreGroupTable matchId={selectedMatchId} users={users} teamA={match.teamA} teamB={match.teamB} adminResult={result} rankMap={rankMap} currentUserId={user?.uid} scoreBreakdown={scoreBreakdown} />
                 <div className="match-row-view" style={{ marginTop: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                     <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
