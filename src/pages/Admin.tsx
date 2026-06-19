@@ -151,13 +151,12 @@ export default function Admin() {
           } else {
             const newA = isReversed ? apiMatch.away_score : apiMatch.home_score
             const newB = isReversed ? apiMatch.home_score : apiMatch.away_score
-            const existingA = matches[ourMatch.id]?.resultA
-            const existingB = matches[ourMatch.id]?.resultB
-            const isNew = !matches[ourMatch.id]?.isPlayed || existingA !== newA || existingB !== newB
+            const wasPlayed = current.isPlayed === true
+            const scoresChanged = wasPlayed && (current.resultA !== newA || current.resultB !== newB)
             current.resultA = newA
             current.resultB = newB
             current.isPlayed = true
-            if (isNew) updatedResults++
+            if (!wasPlayed || scoresChanged) updatedResults++
           }
         }
         updatedMatches[ourMatch.id] = current as Match
@@ -229,6 +228,22 @@ export default function Admin() {
         const topAssistsZ = buildTopAssists(zafronixMatches).slice(0, 10)
         const totalRedCardsZ = countZafronixRedCards(zafronixMatches)
 
+        // Update hadRedCard + redCardCount from Zafronix cards data
+        for (const zm of zafronixMatches) {
+          if (!zm.cards || zm.cards.length === 0) continue
+          const matchId = zm.matchNo
+          if (!updatedMatches[matchId]) continue
+          const reds = zm.cards.filter((c: any) => c.color === 'red')
+          if (reds.length > 0) {
+            updatedMatches[matchId].hadRedCard = true
+            updatedMatches[matchId].redCardCount = reds.length
+            log.push(`🟥 משחק ${matchId}: ${reds.length} כרטיס/ים אדום/ים`)
+          } else if (updatedMatches[matchId].hadRedCard !== true) {
+            updatedMatches[matchId].hadRedCard = false
+            updatedMatches[matchId].redCardCount = 0
+          }
+        }
+
         await setDoc(doc(db, 'admin', 'playerstats'), {
           topScorers: topScorersZ,
           topAssists: topAssistsZ,
@@ -290,8 +305,8 @@ export default function Admin() {
               scoresFix++
             }
 
-            // Red cards from events — only fetch if not already determined
-            if (updatedMatches[match.id].hadRedCard === undefined) {
+            // Red cards from events — skip only if already confirmed true
+            if (updatedMatches[match.id].hadRedCard !== true) {
               const events = await fetchFixtureEvents(fixture.fixture.id)
               const redCards = events.filter(e => e.type === 'Card' && e.detail === 'Red Card')
               updatedMatches[match.id].hadRedCard = redCards.length > 0
@@ -325,8 +340,8 @@ export default function Admin() {
               advanceFix++
             }
 
-            // Red cards (R32 + R16 only) — only fetch if not already determined
-            if ((km.round === 'R32' || km.round === 'R16') && kd.hadRedCard === undefined) {
+            // Red cards (R32 + R16 only) — skip only if already confirmed true
+            if ((km.round === 'R32' || km.round === 'R16') && kd.hadRedCard !== true) {
               const events = await fetchFixtureEvents(fixture.fixture.id)
               const redCards = events.filter(e => e.type === 'Card' && e.detail === 'Red Card')
               kd.hadRedCard = redCards.length > 0
