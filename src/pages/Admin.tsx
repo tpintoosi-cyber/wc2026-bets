@@ -6,7 +6,7 @@ import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
 import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, fetchTopScorers, fetchTopAssists, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
-import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards as countZafronixRedCards } from '../services/zafronix'
+import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards as countZafronixRedCards, ZAFRONIX_TO_HE } from '../services/zafronix'
 import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
 
@@ -228,19 +228,25 @@ export default function Admin() {
         const topAssistsZ = buildTopAssists(zafronixMatches).slice(0, 10)
         const totalRedCardsZ = countZafronixRedCards(zafronixMatches)
 
-        // Update hadRedCard + redCardCount from Zafronix cards data
+        // Update hadRedCard + redCardCount from Zafronix cards data (match by team names, not matchNo)
         for (const zm of zafronixMatches) {
           if (!zm.cards || zm.cards.length === 0) continue
-          const matchId = zm.matchNo
-          if (!updatedMatches[matchId]) continue
+          const heHome = ZAFRONIX_TO_HE[zm.homeTeam ?? ''] ?? zm.homeTeam
+          const heAway = ZAFRONIX_TO_HE[zm.awayTeam ?? ''] ?? zm.awayTeam
+          // Find matching match in our data by team names
+          const ourMatchId = MATCHES.find(m =>
+            (m.teamA === heHome && m.teamB === heAway) ||
+            (m.teamA === heAway && m.teamB === heHome)
+          )?.id
+          if (!ourMatchId || !updatedMatches[ourMatchId]) continue
           const reds = zm.cards.filter((c: any) => c.color === 'red')
           if (reds.length > 0) {
-            updatedMatches[matchId].hadRedCard = true
-            updatedMatches[matchId].redCardCount = reds.length
-            log.push(`🟥 משחק ${matchId}: ${reds.length} כרטיס/ים אדום/ים`)
-          } else if (updatedMatches[matchId].hadRedCard !== true) {
-            updatedMatches[matchId].hadRedCard = false
-            updatedMatches[matchId].redCardCount = 0
+            updatedMatches[ourMatchId].hadRedCard = true
+            ;(updatedMatches[ourMatchId] as any).redCardCount = reds.length
+            log.push(`🟥 משחק ${ourMatchId} (${heHome} - ${heAway}): ${reds.length} אדום/ים`)
+          } else if (updatedMatches[ourMatchId].hadRedCard !== true) {
+            updatedMatches[ourMatchId].hadRedCard = false
+            ;(updatedMatches[ourMatchId] as any).redCardCount = 0
           }
         }
 
