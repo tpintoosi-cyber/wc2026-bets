@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, query, where, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../firebase'
-import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_BRACKET, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_BRACKET, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound, MATCH_SCHEDULE } from '../data/matches'
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
@@ -424,7 +424,7 @@ export default function Admin() {
       if (updatedResults > 0 || koUpdated > 0 || redCardsUpdated > 0) {
         log.push('🔄 מחשב ניקוד...')
         setSyncLog([...log])
-        await recalcAllScores(updatedMatches, true)
+        await recalcAllScores(updatedMatches)
         log.push('🏆 ניקוד עודכן!')
       }
       log.push('✅ סנכרון הושלם!')
@@ -476,30 +476,51 @@ export default function Admin() {
     setPendingUsers(prev => prev.filter(u => u.status !== 'rejected'))
   }
 
-  const recalcAllScores = async (matchData?: Record<number, Match>, hasNewResults = false) => {
+  const recalcAllScores = async (matchData?: Record<number, Match>) => {
     const data = matchData ?? matches
     const usersSnap = await getDocs(collection(db, 'predictions'))
     const playedMatches = MATCHES.map(m => ({ ...m, ...(data[m.id] ?? {}) })).filter(m => m.isPlayed)
+    const playedKO = KNOCKOUT_MATCHES.map(km => ({ ...km, ...(knockoutMatches[km.id] ?? {}) })).filter(km => km.isPlayed)
 
-    // Read current scores before computing new ones (for delta tracking)
-    const currentScoresSnap = await getDocs(collection(db, 'scores'))
-    const currentTotals: Record<string, number> = {}
-    const currentRanks: Record<string, number> = {}
-    const sortedCurrent = currentScoresSnap.docs
-      .map(d => ({ userId: d.id, total: (d.data().total ?? 0) as number,
-        prevTotal: d.data().prevTotal as number | undefined,
-        prevRank:  d.data().prevRank  as number | undefined }))
-      .sort((a, b) => b.total - a.total || a.userId.localeCompare(b.userId))
-    sortedCurrent.forEach((s, i) => {
-      currentTotals[s.userId] = s.total
-      currentRanks[s.userId] = i + 1
-    })
+    // Helper: parse "d/M HH:MM" to sortable number
+    const parseTime = (s: string): number => {
+      if (!s) return 0
+      const [datePart, timePart] = s.split(' ')
+      if (!datePart || !timePart) return 0
+      const [day, month] = datePart.split('/').map(Number)
+      const [hour, min] = timePart.split(':').map(Number)
+      return month * 100000 + day * 1000 + hour * 60 + min
+    }
 
-    // Compute new scores
-    const newScores: { userId: string; score: ReturnType<typeof computeUserScore> }[] = []
+    // Build full schedule (static + admin overrides from scheduleIL field)
+    const fullSchedule: Record<number, string> = { ...MATCH_SCHEDULE }
+    for (const [id, m] of Object.entries(data)) {
+      if ((m as any).scheduleIL) fullSchedule[Number(id)] = (m as any).scheduleIL
+    }
+
+    // Find last batch time = max schedule time among all played matches
+    let lastBatchTime = 0
+    for (const m of playedMatches) {
+      const t = parseTime(fullSchedule[m.id] ?? '')
+      if (t > lastBatchTime) lastBatchTime = t
+    }
+    for (const km of playedKO) {
+      const t = parseTime(fullSchedule[km.id] ?? '')
+      if (t > lastBatchTime) lastBatchTime = t
+    }
+
+    // Previous batch = everything played BEFORE the last batch time
+    const prevPlayedMatches = lastBatchTime > 0
+      ? playedMatches.filter(m => parseTime(fullSchedule[m.id] ?? '') < lastBatchTime)
+      : []
+    const prevPlayedKO = lastBatchTime > 0
+      ? playedKO.filter(km => parseTime(fullSchedule[km.id] ?? '') < lastBatchTime)
+      : []
+
+    // Compute current + prev scores for each user
+    const newScores: { userId: string; score: ReturnType<typeof computeUserScore>; prevScore: ReturnType<typeof computeUserScore> }[] = []
     for (const userDoc of usersSnap.docs) {
       const d = userDoc.data()
-      const playedKO = KNOCKOUT_MATCHES.map(km => ({ ...km, ...(knockoutMatches[km.id] ?? {}) })).filter(km => km.isPlayed)
       const score = computeUserScore(
         userDoc.id, d.userName ?? 'Unknown',
         (d.matches ?? {}) as Record<number, MatchPrediction>,
@@ -507,13 +528,18 @@ export default function Admin() {
         d.bonus ?? {}, playedMatches, actualGroups, actualBonus,
         d.knockout ?? {}, playedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] }
       )
-      newScores.push({ userId: userDoc.id, score })
+      const prevScore = computeUserScore(
+        userDoc.id, d.userName ?? 'Unknown',
+        (d.matches ?? {}) as Record<number, MatchPrediction>,
+        (d.groups ?? {}) as Record<Group, GroupPrediction>,
+        d.bonus ?? {}, prevPlayedMatches, actualGroups, actualBonus,
+        d.knockout ?? {}, prevPlayedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] }
+      )
+      newScores.push({ userId: userDoc.id, score, prevScore })
     }
 
-    // Sort to compute new ranks — same stable sort as Leaderboard.tsx
+    // Sort by current score → tied ranks
     const sorted = [...newScores].sort((a, b) => b.score.total - a.score.total || a.userId.localeCompare(b.userId))
-
-    // Compute tied ranks (1,1,3,4...) for new scores
     const newTiedRanks: Record<string, number> = {}
     let rankCounter = 1
     sorted.forEach(({ userId, score }, i) => {
@@ -525,30 +551,25 @@ export default function Admin() {
       rankCounter++
     })
 
-    // Compute tied ranks for current (before recalc)
-    const currentTiedRanks: Record<string, number> = {}
-    let curCounter = 1
-    sortedCurrent.forEach((s, i) => {
-      if (i > 0 && s.total === sortedCurrent[i - 1].total) {
-        currentTiedRanks[s.userId] = currentTiedRanks[sortedCurrent[i - 1].userId]
+    // Sort by prev score → prev tied ranks
+    const sortedPrev = [...newScores].sort((a, b) => b.prevScore.total - a.prevScore.total || a.userId.localeCompare(b.userId))
+    const prevTiedRanks: Record<string, number> = {}
+    let prevCounter = 1
+    sortedPrev.forEach(({ userId, prevScore }, i) => {
+      if (i > 0 && prevScore.total === sortedPrev[i - 1].prevScore.total) {
+        prevTiedRanks[userId] = prevTiedRanks[sortedPrev[i - 1].userId]
       } else {
-        currentTiedRanks[s.userId] = curCounter
+        prevTiedRanks[userId] = prevCounter
       }
-      curCounter++
+      prevCounter++
     })
 
     const batch = writeBatch(db)
-    sorted.forEach(({ userId, score }) => {
-      const newRank   = newTiedRanks[userId]
-      const prevTotal = currentTotals[userId] ?? score.total
-      const prevRank  = currentTiedRanks[userId] ?? newRank
-      const changed   = score.total !== prevTotal
-      const existingPrev = sortedCurrent.find(s => s.userId === userId)
-      const rankChanged = prevRank !== newRank
+    sorted.forEach(({ userId, score, prevScore }) => {
       batch.set(doc(db, 'scores', userId), {
         ...score,
-        prevTotal: changed     ? prevTotal : (hasNewResults ? score.total : (existingPrev?.prevTotal ?? prevTotal)),
-        prevRank:  rankChanged ? prevRank  : (hasNewResults ? newRank     : (existingPrev?.prevRank  ?? prevRank)),
+        prevTotal: prevScore.total,
+        prevRank:  prevTiedRanks[userId] ?? newTiedRanks[userId],
       })
     })
     await batch.commit()
@@ -637,7 +658,7 @@ export default function Admin() {
     setScoring(true)
     setMsg('מחשב ניקוד + מעדכן דלתא...')
     try {
-      await recalcAllScores(undefined, true)
+      await recalcAllScores()
       const usersSnap = await getDocs(collection(db, 'predictions'))
       setMsg(`✓ ניקוד + דלתא עודכנו ל-${usersSnap.size} משתמשים`)
     } catch (e) {
