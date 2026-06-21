@@ -205,7 +205,8 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
             const r = rankMap[u.userId]
             const medal = r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : r ? `#${r}` : ''
             const isMe = u.userId === currentUserId
-            return `<span style="display:inline-flex;align-items:center;gap:3px;background:${isMe?'#1a1a2e':'#f0f0f0'};color:${isMe?'#fff':'#333'};border-radius:16px;padding:3px 8px;font-size:12px;font-weight:${isMe?700:600};margin:2px">${medal} ${u.userName}</span>`
+            const redCard = u.matches[matchId]?.redCard ? ' 🟥' : ''
+            return `<span style="display:inline-flex;align-items:center;gap:3px;background:${isMe?'#1a1a2e':'#f0f0f0'};color:${isMe?'#fff':'#333'};border-radius:16px;padding:3px 8px;font-size:12px;font-weight:${isMe?700:600};margin:2px">${medal} ${u.userName}${redCard}</span>`
           }).join('')
 
           return `<div style="padding:8px 10px;border-top:1px solid #f0f0f0;background:${bg}">
