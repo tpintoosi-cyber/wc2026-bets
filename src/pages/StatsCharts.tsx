@@ -374,7 +374,7 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
   const bestAttack = sortedByAttack[0]
 
   const playedCount = MATCHES.filter(m => adminResults[m.id]?.isPlayed).length
-  const groupStageDone = playedCount >= 48
+  const groupStageDone = playedCount >= 72
 
   const topScorer  = playerStats?.topScorers?.[0]
   const topAssist  = playerStats?.topAssists?.[0]
@@ -444,9 +444,33 @@ function BonusStatusTab({ users, adminResults, playerStats, getDisplayName }: {
       {section('🏅 נבחרת טובה/גרועה בבתים', <>
         {statusBadge('הטובה ביותר כרגע', bestTeams.length > 0 ? bestTeams.join(' / ') : undefined,
           bestTeams.length > 0 ? `${teamPoints[bestTeams[0]]} נק׳, הפרש ${(teamGoalsFor[bestTeams[0]]??0)-(teamGoalsAgainst[bestTeams[0]]??0)}` : undefined)}
-        {statusBadge('הגרועה ביותר כרגע', worstTeams.length > 0 ? worstTeams.join(' / ') : undefined,
-          worstTeams.length > 0 ? `${teamPoints[worstTeams[0]]} נק׳, הפרש ${(teamGoalsFor[worstTeams[0]]??0)-(teamGoalsAgainst[worstTeams[0]]??0)}` : undefined)}
-        {!groupStageDone && <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>שלב הבתים לא הסתיים ({playedCount}/48 משחקים)</div>}
+        {sortedByPoints.length > 0 && (
+          <div style={{ marginTop: 6 }}>
+            <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>🏆 טופ 5 נבחרות:</div>
+            {sortedByPoints.slice(0, 5).map(([team, pts], i) => (
+              <div key={team} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', borderBottom: '1px solid #f5f5f5' }}>
+                <span>{i + 1}. {team}</span>
+                <span style={{ color: '#888', fontSize: 11 }}>{pts} נק׳ | הפרש {(teamGoalsFor[team]??0)-(teamGoalsAgainst[team]??0)} | {teamGoalsFor[team]??0}⚽</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ marginTop: 10 }}>
+          {statusBadge('הגרועה ביותר כרגע', worstTeams.length > 0 ? worstTeams.join(' / ') : undefined,
+            worstTeams.length > 0 ? `${teamPoints[worstTeams[0]]} נק׳, הפרש ${(teamGoalsFor[worstTeams[0]]??0)-(teamGoalsAgainst[worstTeams[0]]??0)}` : undefined)}
+          {sortedByPoints.length > 0 && (
+            <div style={{ marginTop: 6 }}>
+              <div style={{ fontSize: 11, color: '#aaa', marginBottom: 4 }}>📉 טופ 5 גרועות:</div>
+              {[...sortedByPoints].reverse().slice(0, 5).map(([team, pts], i) => (
+                <div key={team} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '3px 0', borderBottom: '1px solid #f5f5f5' }}>
+                  <span>{i + 1}. {team}</span>
+                  <span style={{ color: '#888', fontSize: 11 }}>{pts} נק׳ | הפרש {(teamGoalsFor[team]??0)-(teamGoalsAgainst[team]??0)} | {teamGoalsFor[team]??0}⚽</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {!groupStageDone && <div style={{ fontSize: 11, color: '#aaa', marginTop: 6 }}>שלב הבתים לא הסתיים ({playedCount}/72 משחקים)</div>}
       </>)}
 
       {section('📊 בית עם הכי הרבה/מעט שערים', <>

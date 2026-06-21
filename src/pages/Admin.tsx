@@ -49,6 +49,9 @@ export default function Admin() {
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
+  const [manualAssists, setManualAssists] = useState<{ name: string; assists: number; team: string }[]>([])
+  const [assistsInput, setAssistsInput] = useState('')
+  const [savingAssists, setSavingAssists] = useState(false)
   const [syncLog, setSyncLog] = useState<string[]>([])
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, KnockoutMatch>>({})
   const [adminTab, setAdminTab] = useState<'group' | 'knockout' | 'users' | 'test'>('group')
@@ -57,11 +60,19 @@ export default function Admin() {
 
   useEffect(() => {
     ;(async () => {
-      const [resultsSnap, settingsSnap, koSnap] = await Promise.all([
+      const [resultsSnap, settingsSnap, koSnap, playerStatsSnap] = await Promise.all([
         getDoc(doc(db, 'admin', 'results')),
         getDoc(doc(db, 'settings', 'app')),
         getDoc(doc(db, 'admin', 'knockout')),
+        getDoc(doc(db, 'admin', 'playerstats')),
       ])
+      if (playerStatsSnap.exists()) {
+        const manualList = playerStatsSnap.data().manualAssists ?? []
+        setManualAssists(manualList)
+        if (manualList.length > 0) {
+          setAssistsInput(manualList.map((a: any) => `${a.name} (${a.team}) ${a.assists}`).join('\n'))
+        }
+      }
       if (resultsSnap.exists()) {
         const stored = resultsSnap.data().matches ?? {}
         // Always use fresh category + fifaPoints from MATCHES array
@@ -438,6 +449,36 @@ export default function Admin() {
     setTimeout(() => setMsg(''), 5000)
   }
 
+  const saveManualAssists = async () => {
+    setSavingAssists(true)
+    try {
+      // Parse input: each line "Name (Team) N" or "Name N"
+      const lines = assistsInput.split('\n').map(l => l.trim()).filter(Boolean)
+      const parsed = lines.map(line => {
+        const match = line.match(/^(.+?)\s*\(([^)]+)\)\s*(\d+)$/) || line.match(/^(.+?)\s+(\d+)$/)
+        if (!match) return null
+        if (match.length === 4) return { name: match[1].trim(), team: match[2].trim(), assists: Number(match[3]) }
+        return { name: match[1].trim(), team: '', assists: Number(match[2]) }
+      }).filter(Boolean) as { name: string; team: string; assists: number }[]
+      parsed.sort((a, b) => b.assists - a.assists)
+      setManualAssists(parsed)
+      // Merge with existing playerstats doc
+      const snap = await getDoc(doc(db, 'admin', 'playerstats'))
+      const existing = snap.exists() ? snap.data() : {}
+      await setDoc(doc(db, 'admin', 'playerstats'), {
+        ...existing,
+        manualAssists: parsed,
+        topAssists: parsed,
+        updatedAt: new Date().toISOString(),
+      })
+      setMsg('✓ מלך הבישולים נשמר')
+    } catch (e) {
+      setMsg('שגיאה: ' + (e as Error).message)
+    }
+    setSavingAssists(false)
+    setTimeout(() => setMsg(''), 3000)
+  }
+
   const loadPendingUsers = async () => {
     setUsersLoading(true)
     const snap = await getDocs(collection(db, 'pendingUsers'))
@@ -739,6 +780,27 @@ export default function Admin() {
         <button className="btn-primary btn-lg btn-sync" onClick={syncFromApi} disabled={syncing}>
           {syncing ? '⏳ מסנכרן...' : '🔄 סנכרן עכשיו'}
         </button>
+
+      <section className="admin-section" style={{ marginTop: 16 }}>
+        <h2>🎯 מלך הבישולים — הזנה ידנית</h2>
+        <p className="hint">הזן שורה לכל שחקן בפורמט: שם (נבחרת) מספר<br/>לדוגמה: Pedri (ספרד) 3</p>
+        <textarea
+          value={assistsInput}
+          onChange={e => setAssistsInput(e.target.value)}
+          rows={6}
+          style={{ width: '100%', fontFamily: 'monospace', fontSize: 13, padding: 8, borderRadius: 6, border: '1px solid #ddd', direction: 'ltr', boxSizing: 'border-box' }}
+          placeholder={'Pedri (ספרד) 3\nOdegaard (נורווגיה) 2\nMbappé (צרפת) 2'}
+        />
+        <button className="btn-primary" onClick={saveManualAssists} disabled={savingAssists} style={{ marginTop: 8 }}>
+          {savingAssists ? 'שומר...' : '💾 שמור מלך בישולים'}
+        </button>
+        {manualAssists.length > 0 && (
+          <div style={{ marginTop: 8, fontSize: 12, color: '#555' }}>
+            נשמר: {manualAssists.slice(0, 3).map(a => `${a.name} (${a.assists})`).join(', ')}
+            {manualAssists.length > 3 ? ` +${manualAssists.length - 3}` : ''}
+          </div>
+        )}
+      </section>
         {syncLog.length > 0 && (
           <div className="sync-log">
             {syncLog.map((line, i) => <div key={i}>{line}</div>)}
