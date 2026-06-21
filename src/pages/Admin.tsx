@@ -523,43 +523,29 @@ export default function Admin() {
     const playedMatches = MATCHES.map(m => ({ ...m, ...(data[m.id] ?? {}) })).filter(m => m.isPlayed)
     const playedKO = KNOCKOUT_MATCHES.map(km => ({ ...km, ...(knockoutMatches[km.id] ?? {}) })).filter(km => km.isPlayed)
 
-    // Helper: parse "d/M HH:MM" to sortable number
-    const parseTime = (s: string): number => {
-      if (!s) return 0
-      const [datePart, timePart] = s.split(' ')
-      if (!datePart || !timePart) return 0
-      const [day, month] = datePart.split('/').map(Number)
-      const [hour, min] = timePart.split(':').map(Number)
-      return month * 100000 + day * 1000 + hour * 60 + min
-    }
+    // Snapshot current scores BEFORE computing new ones → these become prevTotal/prevRank
+    const currentScoresSnap = await getDocs(collection(db, 'scores'))
+    const snapshotTotals: Record<string, number> = {}
+    const snapshotScores = currentScoresSnap.docs.map(d => ({
+      userId: d.id,
+      total: (d.data().total ?? 0) as number,
+    })).sort((a, b) => b.total - a.total || a.userId.localeCompare(b.userId))
+    snapshotScores.forEach(s => { snapshotTotals[s.userId] = s.total })
 
-    // Build full schedule (static + admin overrides from scheduleIL field)
-    const fullSchedule: Record<number, string> = { ...MATCH_SCHEDULE }
-    for (const [id, m] of Object.entries(data)) {
-      if ((m as any).scheduleIL) fullSchedule[Number(id)] = (m as any).scheduleIL
-    }
+    // Compute tied ranks for snapshot
+    const snapshotTiedRanks: Record<string, number> = {}
+    let snapCounter = 1
+    snapshotScores.forEach((s, i) => {
+      if (i > 0 && s.total === snapshotScores[i - 1].total) {
+        snapshotTiedRanks[s.userId] = snapshotTiedRanks[snapshotScores[i - 1].userId]
+      } else {
+        snapshotTiedRanks[s.userId] = snapCounter
+      }
+      snapCounter++
+    })
 
-    // Find last batch time = max schedule time among all played matches
-    let lastBatchTime = 0
-    for (const m of playedMatches) {
-      const t = parseTime(fullSchedule[m.id] ?? '')
-      if (t > lastBatchTime) lastBatchTime = t
-    }
-    for (const km of playedKO) {
-      const t = parseTime(fullSchedule[km.id] ?? '')
-      if (t > lastBatchTime) lastBatchTime = t
-    }
-
-    // Previous batch = everything played BEFORE the last batch time
-    const prevPlayedMatches = lastBatchTime > 0
-      ? playedMatches.filter(m => parseTime(fullSchedule[m.id] ?? '') < lastBatchTime)
-      : []
-    const prevPlayedKO = lastBatchTime > 0
-      ? playedKO.filter(km => parseTime(fullSchedule[km.id] ?? '') < lastBatchTime)
-      : []
-
-    // Compute current + prev scores for each user
-    const newScores: { userId: string; score: ReturnType<typeof computeUserScore>; prevScore: ReturnType<typeof computeUserScore> }[] = []
+    // Compute new scores
+    const newScores: { userId: string; score: ReturnType<typeof computeUserScore> }[] = []
     for (const userDoc of usersSnap.docs) {
       const d = userDoc.data()
       const score = computeUserScore(
@@ -569,17 +555,10 @@ export default function Admin() {
         d.bonus ?? {}, playedMatches, actualGroups, actualBonus,
         d.knockout ?? {}, playedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] }
       )
-      const prevScore = computeUserScore(
-        userDoc.id, d.userName ?? 'Unknown',
-        (d.matches ?? {}) as Record<number, MatchPrediction>,
-        (d.groups ?? {}) as Record<Group, GroupPrediction>,
-        d.bonus ?? {}, prevPlayedMatches, actualGroups, actualBonus,
-        d.knockout ?? {}, prevPlayedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] }
-      )
-      newScores.push({ userId: userDoc.id, score, prevScore })
+      newScores.push({ userId: userDoc.id, score })
     }
 
-    // Sort by current score → tied ranks
+    // Sort by new score → tied ranks
     const sorted = [...newScores].sort((a, b) => b.score.total - a.score.total || a.userId.localeCompare(b.userId))
     const newTiedRanks: Record<string, number> = {}
     let rankCounter = 1
@@ -592,25 +571,12 @@ export default function Admin() {
       rankCounter++
     })
 
-    // Sort by prev score → prev tied ranks
-    const sortedPrev = [...newScores].sort((a, b) => b.prevScore.total - a.prevScore.total || a.userId.localeCompare(b.userId))
-    const prevTiedRanks: Record<string, number> = {}
-    let prevCounter = 1
-    sortedPrev.forEach(({ userId, prevScore }, i) => {
-      if (i > 0 && prevScore.total === sortedPrev[i - 1].prevScore.total) {
-        prevTiedRanks[userId] = prevTiedRanks[sortedPrev[i - 1].userId]
-      } else {
-        prevTiedRanks[userId] = prevCounter
-      }
-      prevCounter++
-    })
-
     const batch = writeBatch(db)
-    sorted.forEach(({ userId, score, prevScore }) => {
+    sorted.forEach(({ userId, score }) => {
       batch.set(doc(db, 'scores', userId), {
         ...score,
-        prevTotal: prevScore.total,
-        prevRank:  prevTiedRanks[userId] ?? newTiedRanks[userId],
+        prevTotal: snapshotTotals[userId] ?? score.total,
+        prevRank:  snapshotTiedRanks[userId] ?? newTiedRanks[userId],
       })
     })
     await batch.commit()
