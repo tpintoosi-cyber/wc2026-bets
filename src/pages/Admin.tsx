@@ -251,6 +251,21 @@ export default function Admin() {
           updatedKnockout = koWithR32
           r32Log.forEach(l => log.push(l))
         }
+
+        // Pass savedGroups directly so recalcAllScores doesn't use stale React state
+        if (updatedResults > 0 || koUpdated > 0 || redCardsUpdated > 0) {
+          log.push('🔄 מחשב ניקוד...')
+          setSyncLog([...log])
+          await recalcAllScores(updatedMatches, savedGroups)
+          log.push('🏆 ניקוד עודכן!')
+          setSyncLog([...log])
+        }
+      } else if (updatedResults > 0 || koUpdated > 0 || redCardsUpdated > 0) {
+        // No group updates — call recalcAllScores with current actualGroups
+        log.push('🔄 מחשב ניקוד...')
+        setSyncLog([...log])
+        await recalcAllScores(updatedMatches)
+        log.push('🏆 ניקוד עודכן!')
       }
 
       // ── Zafronix: top scorers + red card counts from match goals/cards ──
@@ -438,12 +453,6 @@ export default function Admin() {
       } else {
         log.push('ℹ️ API-Football לא מוגדר')
       }
-      if (updatedResults > 0 || koUpdated > 0 || redCardsUpdated > 0) {
-        log.push('🔄 מחשב ניקוד...')
-        setSyncLog([...log])
-        await recalcAllScores(updatedMatches)
-        log.push('🏆 ניקוד עודכן!')
-      }
       log.push('✅ סנכרון הושלם!')
       setMsg(`✓ סנכרון הצליח — ${updatedResults} תוצאות בתים, ${koUpdated} נוקאאוט`)
     } catch (e) {
@@ -523,8 +532,9 @@ export default function Admin() {
     setPendingUsers(prev => prev.filter(u => u.status !== 'rejected'))
   }
 
-  const recalcAllScores = async (matchData?: Record<number, Match>) => {
+  const recalcAllScores = async (matchData?: Record<number, Match>, groupsOverride?: Record<string, [string, string, string]>) => {
     const data = matchData ?? matches
+    const effectiveGroups = groupsOverride ?? actualGroups
     const usersSnap = await getDocs(collection(db, 'predictions'))
     const playedMatches = MATCHES.map(m => ({ ...m, ...(data[m.id] ?? {}) })).filter(m => m.isPlayed)
     const playedKO = KNOCKOUT_MATCHES.map(km => ({ ...km, ...(knockoutMatches[km.id] ?? {}) })).filter(km => km.isPlayed)
@@ -558,7 +568,7 @@ export default function Admin() {
         userDoc.id, d.userName ?? 'Unknown',
         (d.matches ?? {}) as Record<number, MatchPrediction>,
         (d.groups ?? {}) as Record<Group, GroupPrediction>,
-        d.bonus ?? {}, playedMatches, actualGroups, actualBonus,
+        d.bonus ?? {}, playedMatches, effectiveGroups, actualBonus,
         d.knockout ?? {}, playedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] }
       )
       newScores.push({ userId: userDoc.id, score })

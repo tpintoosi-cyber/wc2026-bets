@@ -165,8 +165,8 @@ export function computeStandingsFromMatches(
       b[1].pts - a[1].pts || b[1].gd - a[1].gd || b[1].gf - a[1].gf || a[0].localeCompare(b[0])
     )
     if (sorted.length >= 3) {
-      const top3 = sorted.slice(0, 3).map(([name]) => name) as [string, string, string]
-      groupQualifiers[g] = top3
+      // Only 1st and 2nd qualify automatically — 3rd filled later when best-8 known
+      groupQualifiers[g] = [sorted[0][0], sorted[1][0], '']
       thirds.push({ name: sorted[2][0], pts: sorted[2][1].pts, gd: sorted[2][1].gd, gf: sorted[2][1].gf, group: g })
     }
   }
@@ -176,6 +176,14 @@ export function computeStandingsFromMatches(
   const best8Thirds = allGroupsDone
     ? thirds.sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf).slice(0, 8).map(t => t.name)
     : []
+
+  // Fill 3rd place in groupQualifiers only when best-8 is determined
+  if (allGroupsDone) {
+    for (const thirdTeam of best8Thirds) {
+      const entry = thirds.find(t => t.name === thirdTeam)
+      if (entry) groupQualifiers[entry.group][2] = thirdTeam
+    }
+  }
 
   return { groupQualifiers, best8Thirds }
 }
