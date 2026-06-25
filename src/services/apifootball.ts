@@ -106,6 +106,60 @@ export function getKnockoutResult(
   return { score90A: score90A!, score90B: score90B!, advanceTeam }
 }
 
+// Compute group standings directly from match results (no API needed)
+// Returns same format as parseStandings
+export function computeStandingsFromMatches(
+  matches: { id: number; group: string; teamA: string; teamB: string; resultA?: number; resultB?: number; isPlayed?: boolean }[],
+  matchResults: Record<number, { resultA?: number; resultB?: number; isPlayed?: boolean }>
+): { groupQualifiers: Record<string, [string, string, string]>; best8Thirds: string[] } {
+  // Build per-team stats per group
+  const groupStats: Record<string, Record<string, { pts: number; gd: number; gf: number; ga: number; played: number }>> = {}
+
+  for (const m of matches) {
+    const result = matchResults[m.id]
+    if (!result?.isPlayed || result.resultA == null || result.resultB == null) continue
+
+    const g = m.group
+    if (!groupStats[g]) groupStats[g] = {}
+    const stats = groupStats[g]
+
+    // Init teams
+    if (!stats[m.teamA]) stats[m.teamA] = { pts: 0, gd: 0, gf: 0, ga: 0, played: 0 }
+    if (!stats[m.teamB]) stats[m.teamB] = { pts: 0, gd: 0, gf: 0, ga: 0, played: 0 }
+
+    const rA = Number(result.resultA), rB = Number(result.resultB)
+    stats[m.teamA].gf += rA; stats[m.teamA].ga += rB
+    stats[m.teamA].gd += rA - rB; stats[m.teamA].played++
+    stats[m.teamB].gf += rB; stats[m.teamB].ga += rA
+    stats[m.teamB].gd += rB - rA; stats[m.teamB].played++
+
+    if (rA > rB) { stats[m.teamA].pts += 3 }
+    else if (rA < rB) { stats[m.teamB].pts += 3 }
+    else { stats[m.teamA].pts += 1; stats[m.teamB].pts += 1 }
+  }
+
+  const groupQualifiers: Record<string, [string, string, string]> = {}
+  const thirds: { name: string; pts: number; gd: number; gf: number; group: string }[] = []
+
+  for (const [g, stats] of Object.entries(groupStats)) {
+    const sorted = Object.entries(stats).sort((a, b) =>
+      b[1].pts - a[1].pts || b[1].gd - a[1].gd || b[1].gf - a[1].gf || a[0].localeCompare(b[0])
+    )
+    if (sorted.length >= 3) {
+      const top3 = sorted.slice(0, 3).map(([name]) => name) as [string, string, string]
+      groupQualifiers[g] = top3
+      thirds.push({ name: sorted[2][0], pts: sorted[2][1].pts, gd: sorted[2][1].gd, gf: sorted[2][1].gf, group: g })
+    }
+  }
+
+  const best8Thirds = thirds
+    .sort((a, b) => b.pts - a.pts || b.gd - a.gd || b.gf - a.gf)
+    .slice(0, 8)
+    .map(t => t.name)
+
+  return { groupQualifiers, best8Thirds }
+}
+
 // Parse standings into our format:
 // Returns { groupQualifiers, best8Thirds }
 export function parseStandings(

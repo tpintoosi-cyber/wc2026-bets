@@ -5,7 +5,7 @@ import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOC
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
-import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, fetchTopScorers, fetchTopAssists, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
+import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, fetchTopScorers, fetchTopAssists, getKnockoutResult, parseStandings, computeStandingsFromMatches, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
 import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards as countZafronixRedCards, ZAFRONIX_TO_HE } from '../services/zafronix'
 import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
@@ -230,6 +230,29 @@ export default function Admin() {
       await setDoc(doc(db, 'admin', 'schedule'), { schedule: scheduleMap })
       log.push('💾 נשמר ב-Firestore')
 
+      // ── Compute group qualifiers from match results (no API needed) ──
+      const { groupQualifiers: localQualifiers, best8Thirds: localBest8 } =
+        computeStandingsFromMatches(MATCHES, updatedMatches)
+
+      if (Object.keys(localQualifiers).length > 0) {
+        const savedGroups = { ...actualGroups, ...localQualifiers }
+        await setDoc(doc(db, 'admin', 'results'), {
+          matches: sanitizeMatches(updatedMatches),
+          groups: savedGroups,
+          bonus: actualBonus,
+        }, { merge: true })
+        setActualGroups(savedGroups)
+        log.push(`🏅 עולות מהבתים: ${Object.keys(localQualifiers).length} בתים`)
+
+        // Auto-populate R32 teams
+        const { updatedKnockout: koWithR32, populated, log: r32Log } =
+          populateR32Teams(localQualifiers, localBest8, updatedKnockout, TEAM_FIFA_POINTS, calcCategoryByRound)
+        if (populated > 0) {
+          updatedKnockout = koWithR32
+          r32Log.forEach(l => log.push(l))
+        }
+      }
+
       // ── Zafronix: top scorers + red card counts from match goals/cards ──
       try {
         log.push('⚽ מושך סטטיסטיקות שחקנים מ-Zafronix...')
@@ -373,24 +396,7 @@ export default function Admin() {
             const { groupQualifiers, best8Thirds } = parseStandings(standings, enToHe)
             const hasData = Object.keys(groupQualifiers).length > 0
             if (hasData) {
-              // Merge with existing — don't overwrite if already set
-              for (const [g, teams] of Object.entries(groupQualifiers)) {
-                if (teams[0]) setActualGroups(prev => ({ ...prev, [g]: teams }))
-              }
-              await setDoc(doc(db, 'admin', 'results'), {
-                matches: sanitizeMatches(updatedMatches),
-                groups: { ...actualGroups, ...groupQualifiers },
-                bonus: actualBonus,
-              }, { merge: true })
-              log.push(`🏅 עודכנו עולות מהבתים (${Object.keys(groupQualifiers).length} בתים)`)
-
-              // Auto-populate R32 teams from group results
-              const { updatedKnockout: koWithR32, populated, log: r32Log } =
-                populateR32Teams(groupQualifiers, best8Thirds, updatedKnockout, TEAM_FIFA_POINTS, calcCategoryByRound)
-              if (populated > 0) {
-                updatedKnockout = koWithR32
-                r32Log.forEach(l => log.push(l))
-              }
+              log.push(`📊 API-Football standings: ${Object.keys(groupQualifiers).length} בתים (לבדיקה בלבד)`)
             }
           }
 
