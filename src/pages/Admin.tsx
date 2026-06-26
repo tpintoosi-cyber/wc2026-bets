@@ -290,6 +290,8 @@ export default function Admin() {
           if (!ourMatchId || !updatedMatches[ourMatchId]) continue
           const reds = zm.cards.filter((c: any) => c.color === 'red')
           if (reds.length > 0) {
+            // Only count as "updated" if this is newly detected
+            if (!updatedMatches[ourMatchId].hadRedCard) redCardsUpdated++
             updatedMatches[ourMatchId].hadRedCard = true
             ;(updatedMatches[ourMatchId] as any).redCardCount = reds.length
             log.push(`🟥 משחק ${ourMatchId} (${heHome} - ${heAway}): ${reds.length} אדום/ים`)
