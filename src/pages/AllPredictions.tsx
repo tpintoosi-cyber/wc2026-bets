@@ -1,5 +1,5 @@
 import Flag from '../components/Flag'
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { collection, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -90,16 +90,14 @@ function HoverTooltip({ names, children }: { names: string[]; children: React.Re
 }
 
 // Group predictions by score table (like the image)
-function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, scoreBreakdown = {}, lang = "he" as Lang }: {
+function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = "he" as Lang }: {
   matchId: number; users: UserData[]; teamA: string; teamB: string
   lang?: Lang; adminResult?: Match; rankMap?: Record<string, number>; currentUserId?: string
-  scoreBreakdown?: Record<string, { total: number }>
 }) {
   const t = T[lang]
   const played = adminResult?.isPlayed ?? false
   const rA = played ? Number(adminResult!.resultA ?? 0) : null
   const rB = played ? Number(adminResult!.resultB ?? 0) : null
-  const [exporting, setExporting] = React.useState(false)
 
   const groups: Record<string, UserData[]> = {}
   users.forEach(u => {
@@ -122,159 +120,35 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
     return (bA + bB) - (aA + aB) || aA - bA
   })
 
-  const myTotal = currentUserId ? (scoreBreakdown[currentUserId]?.total ?? null) : null
-
   const rankBadge = (userId: string) => {
     const r = rankMap[userId]
-    const isMe = userId === currentUserId
-    const theirTotal = scoreBreakdown[userId]?.total ?? null
-    const delta = myTotal != null && theirTotal != null && !isMe ? theirTotal - myTotal : null
-    const deltaEl = delta != null ? (
-      <span style={{
-        fontSize: 10, fontWeight: 700, marginRight: 3,
-        color: delta > 0 ? '#c0392b' : delta < 0 ? '#1a7a44' : '#aaa'
-      }}>
-        {delta > 0 ? `+${delta}` : delta < 0 ? `${delta}` : '='}
-      </span>
-    ) : null
-    if (!r) return deltaEl
+    if (!r) return null
     const medal = r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : null
-    return <>
-      {medal
-        ? <span style={{ fontSize: 13 }}>{medal}</span>
-        : <span style={{ fontSize: 11, fontWeight: 700, color: '#999', background: '#f0f0f0', borderRadius: 10, padding: '1px 6px' }}>#{r}</span>
-      }
-      {deltaEl}
-    </>
+    return medal
+      ? <span style={{ fontSize: 13 }}>{medal}</span>
+      : <span style={{ fontSize: 11, fontWeight: 700, color: '#999', background: '#f0f0f0', borderRadius: 10, padding: '1px 6px' }}>#{r}</span>
   }
 
-  const allCols = [
+  const cols = [
     { label: teamB, flag: FLAGS[teamB] ?? '', x2: '2' as const },
     { label: t.draw, flag: '', x2: 'X' as const },
     { label: teamA, flag: FLAGS[teamA] ?? '', x2: '1' as const },
   ]
 
-  // Hide columns with 0 bets
-  const cols = allCols.filter(col => {
-    return sorted.some(([score]) => {
-      if (score === t.notFilled) return false
-      const [sA, sB] = score.split('-').map(Number)
-      if (col.x2 === '1') return sA > sB
-      if (col.x2 === '2') return sB > sA
-      return sA === sB
-    })
-  })
-
-  const exportMatchImage = async () => {
-    setExporting(true)
-    try {
-      if (!(window as any).html2canvas) {
-        await new Promise<void>((resolve, reject) => {
-          const s = document.createElement('script')
-          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
-          s.onload = () => resolve(); s.onerror = () => reject(new Error()); document.head.appendChild(s)
-        })
-      }
-
-      const W = 480
-      const el = document.createElement('div')
-      el.style.cssText = `position:fixed;left:-9999px;top:0;width:${W}px;font-family:Arial,sans-serif;direction:rtl;background:#f5f5f5;`
-
-      const colsHtml = cols.map(col => {
-        const colScores = sorted.filter(([score]) => {
-          if (score === t.notFilled) return false
-          const [sA, sB] = score.split('-').map(Number)
-          if (col.x2 === '1') return sA > sB
-          if (col.x2 === '2') return sB > sA
-          return sA === sB
-        })
-        const total = colScores.reduce((s, [, u]) => s + u.length, 0)
-        const isTeamCol = col.x2 !== 'X'
-        const colWidth = cols.length === 1 ? '100%' : cols.length === 2 ? '50%' : '33.33%'
-
-        const scoreRowsHtml = colScores.map(([score, scoreUsers]) => {
-          const [sA, sB] = score.split('-').map(Number)
-          const displayScore = col.x2 === '2' ? `${sB}-${sA}` : `${sA}-${sB}`
-          const isExact = played && sA === rA && sB === rB
-          const isMargin = played && !isExact && (sA - sB) === (rA! - rB!)
-          const bg = isExact ? '#f0fbf4' : isMargin ? '#f0f6fb' : '#fff'
-          const scoreColor = isExact ? '#1a7a44' : isMargin ? '#185FA5' : '#1a1a2e'
-          const badge = isExact ? `<span style="font-size:10px;background:#EAF3DE;color:#3B6D11;padding:2px 5px;border-radius:6px;font-weight:700;margin-right:4px">✓</span>` :
-                        isMargin ? `<span style="font-size:10px;background:#E6F1FB;color:#185FA5;padding:2px 5px;border-radius:6px;font-weight:700;margin-right:4px">~</span>` : ''
-          const namesHtml = scoreUsers.map(u => {
-            const r = rankMap[u.userId]
-            const medal = r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : r ? `#${r}` : ''
-            const isMe = u.userId === currentUserId
-            const redCard = u.matches[matchId]?.redCard ? ' 🟥' : ''
-            return `<span style="display:inline-flex;align-items:center;gap:3px;background:${isMe?'#1a1a2e':'#f0f0f0'};color:${isMe?'#fff':'#333'};border-radius:16px;padding:3px 8px;font-size:12px;font-weight:${isMe?700:600};margin:2px">${medal} ${u.userName}${redCard}</span>`
-          }).join('')
-
-          return `<div style="padding:8px 10px;border-top:1px solid #f0f0f0;background:${bg}">
-            <div style="display:flex;align-items:center;gap:4px;margin-bottom:6px">
-              ${badge}
-              <span style="font-size:18px;font-weight:900;color:${scoreColor};letter-spacing:1px;direction:ltr">${displayScore}</span>
-              <span style="font-size:11px;color:#bbb;margin-right:auto">(${scoreUsers.length})</span>
-            </div>
-            <div style="display:flex;flex-wrap:wrap;gap:3px">${namesHtml}</div>
-          </div>`
-        }).join('')
-
-        return `<div style="width:${colWidth};border:1px solid #e8e8e8;border-radius:8px;overflow:hidden;background:#fff">
-          <div style="background:${isTeamCol?'#1a1a2e':'#f0f0f0'};color:${isTeamCol?'#fff':'#555'};padding:8px;text-align:center;font-weight:700;font-size:13px">
-            ${col.flag ? `${col.flag} ` : ''}${col.label} (${total})
-          </div>
-          ${scoreRowsHtml || `<div style="padding:12px;color:#ccc;text-align:center;font-size:12px">—</div>`}
-        </div>`
-      }).join('')
-
-      const resultBadge = played
-        ? `<span style="background:#EAF3DE;color:#1a7a44;padding:3px 10px;border-radius:8px;font-size:12px;font-weight:700">תוצאה: ${teamA} ${rA}–${rB} ${teamB}${adminResult?.hadRedCard?' 🟥':''}</span>`
-        : `<span style="background:#fff3cd;color:#856404;padding:3px 10px;border-radius:8px;font-size:12px">טרם נסתיים</span>`
-
-      el.innerHTML = `
-        <div style="background:#1a1a2e;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">
-          <span style="color:#aac4ff;font-size:11px">WC2026</span>
-          <span style="color:#fff;font-size:14px;font-weight:900">⚽ ${teamA} נגד ${teamB}</span>
-          <span style="color:#aac4ff;font-size:11px">${users.length} הימורים</span>
-        </div>
-        <div style="padding:8px;text-align:center">${resultBadge}</div>
-        <div style="display:flex;gap:6px;padding:6px;background:#f5f5f5">${colsHtml}</div>
-        <div style="padding:6px;text-align:center;font-size:10px;color:#bbb">WC2026 Bets</div>`
-
-      document.body.appendChild(el)
-      const canvas = await (window as any).html2canvas(el, { backgroundColor: '#f5f5f5', scale: 2.5, useCORS: true, width: W, windowWidth: W })
-      document.body.removeChild(el)
-      const link = document.createElement('a')
-      link.download = `match-${teamA}-vs-${teamB}.png`
-      link.href = canvas.toDataURL('image/png')
-      link.click()
-    } catch (e) { alert('שגיאה בייצוא'); console.error(e) }
-    setExporting(false)
-  }
-
   return (
     <div style={{ marginTop: 16 }}>
-      {/* Title + Export button */}
+      {/* Title */}
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: '#1a1a2e',
         borderBottom: '2px solid #1a1a2e', paddingBottom: 8,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>
           <Flag emoji={FLAGS[teamA] ?? ''} size={18} /> {teamA} נגד <Flag emoji={FLAGS[teamB] ?? ''} size={18} /> {teamB}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 400, color: '#888' }}>{Object.values(groups).reduce((s, a) => s + a.length, 0)} הימורים</span>
-          <button onClick={exportMatchImage} disabled={exporting} style={{
-            fontSize: 12, padding: '4px 10px', borderRadius: 16,
-            border: '1px solid #1a1a2e', background: '#1a1a2e', color: '#fff',
-            cursor: exporting ? 'wait' : 'pointer', fontFamily: 'inherit',
-          }}>
-            {exporting ? '⏳' : '📸 שתף'}
-          </button>
-        </div>
+        <span style={{ fontSize: 12, fontWeight: 400, color: '#888' }}>{Object.values(groups).reduce((s, a) => s + a.length, 0)} הימורים</span>
       </div>
 
-      {/* Columns grid — only non-empty columns */}
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${cols.length}, 1fr)`, gap: 8 }}>
+      {/* 3-column grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
         {cols.map(col => {
           const colScores = sorted.filter(([score]) => {
             if (score === t.notFilled) return col.x2 === 'X'
@@ -593,16 +467,17 @@ function BonusPredTable({ qId, users, actualVal, lang = "he" as Lang }: {
   return (
     <div style={{ border: '1px solid #e5e5e5', borderRadius: 8, overflow: 'hidden', marginTop: 8 }}>
       {Object.entries(groups).sort(([a], [b]) => a === t.notFilled ? 1 : b === t.notFilled ? -1 : a.localeCompare(b)).map(([val, valUsers], idx, arr) => {
-        const isCorrect = actualVal && val !== 'לא מולא' && val.trim().toLowerCase() === actualVal.trim().toLowerCase()
+        const actualVals = actualVal ? actualVal.split(',').map((v: string) => v.trim().toLowerCase()) : []
+        const isCorrect = actualVal && val !== 'לא מולא' && actualVals.includes(val.trim().toLowerCase())
         return (
-          <div key={val} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 10px',
+          <div key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
             borderBottom: idx < arr.length - 1 ? '1px solid #f0f0f0' : 'none',
             background: isCorrect ? '#EAF3DE' : idx % 2 === 0 ? '#fafafa' : '#fff' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, minWidth: 80, flexShrink: 0, color: isCorrect ? '#3B6D11' : '#1a1a2e', paddingTop: 1 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, minWidth: 100, color: isCorrect ? '#3B6D11' : '#1a1a2e' }}>
               {isCorrect && '✓ '}{val}
               <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400, marginRight: 4 }}>({valUsers.length})</span>
             </span>
-            <span style={{ fontSize: 12, color: '#555', flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: '2px 0' }}>
+            <span style={{ fontSize: 12, color: '#555', flex: 1 }}>
               {valUsers.map((u, i) => (
                 <span key={u.userId}>{getDisplayName(u)}{i < valUsers.length - 1 ? <span style={{ color: '#ddd', margin: '0 4px' }}>|</span> : ''}</span>
               ))}
@@ -630,7 +505,6 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [adminResults, setAdminResults] = useState<Record<number, Match>>({})
   const [actualGroups, setActualGroups] = useState<Record<string, [string, string, string]>>({})
   const [actualBonus, setActualBonus] = useState<Partial<BonusPredictions>>({})
-  const [playerStats, setPlayerStats] = useState<{ topScorers: { name: string; goals: number; team: string }[]; topAssists: { name: string; assists: number; team: string }[]; totalRedCards?: number; updatedAt?: string } | undefined>(undefined)
   const [scores, setScores] = useState<Record<string, number>>({})
   const [scoreBreakdown, setScoreBreakdown] = useState<Record<string, {
     total: number; matchPoints: number; groupPoints: number;
@@ -694,21 +568,17 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
 
       // When liveMode is ON, even admins can't see predictions until closed
       const canSeePreds = isClosed || (isAdmin && !live)
-      const [resultsSnap, predsSnap, koSnap, schedSnap, playerStatsSnap] = await Promise.all([
+      const [resultsSnap, predsSnap, koSnap, schedSnap] = await Promise.all([
         getDoc(doc(db, 'admin', 'results')),
         canSeePreds ? getDocs(collection(db, 'predictions')) : Promise.resolve(null),
         getDoc(doc(db, 'admin', 'knockout')),
         getDoc(doc(db, 'admin', 'schedule')),
-        getDoc(doc(db, 'admin', 'playerstats')),
       ])
 
       if (resultsSnap.exists()) {
         setAdminResults(resultsSnap.data().matches ?? {})
         setActualGroups(resultsSnap.data().groups ?? {})
         setActualBonus(resultsSnap.data().bonus ?? {})
-      }
-      if (playerStatsSnap.exists()) {
-        setPlayerStats(playerStatsSnap.data() as any)
       }
       if (koSnap.exists()) {
         const raw = koSnap.data().matches ?? {}
@@ -1274,7 +1144,8 @@ ${userRows}
                   const predVal = (current.bonus as any)?.[q.id]
                   const actualVal = (actualBonus as any)?.[q.id]
                   const hasResult = !!actualVal
-                  const isCorrect = hasResult && predVal?.trim().toLowerCase() === actualVal?.trim().toLowerCase()
+                  const actualValsU = actualVal ? actualVal.split(',').map((v: string) => v.trim().toLowerCase()) : []
+                  const isCorrect = hasResult && !!predVal && actualValsU.includes(predVal.trim().toLowerCase())
                   const isWrong = hasResult && predVal && !isCorrect
                   return (
                     <div key={q.id} className="bonus-row" style={isCorrect ? { borderColor: '#1a7a44', borderWidth: 2 } : {}}>
@@ -1486,11 +1357,7 @@ ${userRows}
             <select value={selectedMatchId} onChange={e => setSelectedMatchId(Number(e.target.value))}
               style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontFamily: 'inherit', flex: 1 }}>
               <optgroup label={t.matchesGroupStage}>
-                {[...MATCHES].sort((a, b) => {
-                  const tA = adminSchedule[a.id] || MATCH_SCHEDULE[a.id] || ''
-                  const tB = adminSchedule[b.id] || MATCH_SCHEDULE[b.id] || ''
-                  return tA.localeCompare(tB) || a.id - b.id
-                }).map(m => (
+                {MATCHES.map(m => (
                   <option key={m.id} value={m.id}>
                     #{m.id} {m.teamA} נגד {m.teamB} ({m.category}) {(adminSchedule[m.id] || MATCH_SCHEDULE[m.id]) ? `— ${adminSchedule[m.id] || MATCH_SCHEDULE[m.id]}` : ''}
                     {adminResults[m.id]?.isPlayed ? ' ✓' : ''}
@@ -1744,19 +1611,11 @@ ${userRows}
             const played = result?.isPlayed ?? false
             // Rank map: sort users by total score
             const rankMap: Record<string, number> = {}
-            const sortedByScore = [...users].sort((a, b) => (scores[b.userId] ?? 0) - (scores[a.userId] ?? 0) || a.userId.localeCompare(b.userId))
-            let rankCounter = 1
-            sortedByScore.forEach((u, i) => {
-              if (i > 0 && (scores[u.userId] ?? 0) === (scores[sortedByScore[i-1].userId] ?? 0)) {
-                rankMap[u.userId] = rankMap[sortedByScore[i-1].userId]
-              } else {
-                rankMap[u.userId] = rankCounter
-              }
-              rankCounter++
-            })
+            ;[...users].sort((a, b) => (scores[b.userId] ?? 0) - (scores[a.userId] ?? 0))
+              .forEach((u, i) => { rankMap[u.userId] = i + 1 })
             return (
               <>
-                <ScoreGroupTable matchId={selectedMatchId} users={users} teamA={match.teamA} teamB={match.teamB} adminResult={result} rankMap={rankMap} currentUserId={user?.uid} scoreBreakdown={scoreBreakdown} />
+                <ScoreGroupTable matchId={selectedMatchId} users={users} teamA={match.teamA} teamB={match.teamB} adminResult={result} rankMap={rankMap} currentUserId={user?.uid} />
                 <div className="match-row-view" style={{ marginTop: 20 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                     <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
@@ -1964,7 +1823,6 @@ ${userRows}
               knockoutMatches={knockoutAdminMatches}
               currentUserId={user?.uid}
               getDisplayName={getDisplayName}
-              playerStats={playerStats}
             />
           )}
 
