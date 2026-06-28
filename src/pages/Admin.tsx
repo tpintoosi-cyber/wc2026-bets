@@ -105,22 +105,50 @@ export default function Admin() {
   }, [])
 
   const checkKnockoutApi = async () => {
-    setApiDebug('⏳ מושך מה-API...')
+    setApiDebug('⏳ מושך מ-wc2026api...')
     try {
       const all = await fetchAllMatches()
       const rounds = [...new Set(all.map((m: any) => String(m.round)))]
       const ko = all.filter((m: any) => m.round !== 'group')
-      let debug = `סה"כ משחקים: ${all.length}\nכל ה-rounds: ${rounds.join(', ')}\nמשחקי לא-בתים: ${ko.length}`
-      if (ko.length > 0) {
-        debug += `\n\nדוגמה ראשונה:\n${JSON.stringify(ko[0], null, 2)}`
-      } else {
-        debug += `\n\nדוגמה משחק בתים:\n${JSON.stringify(all[0], null, 2)}`
-      }
+      const completed = ko.filter((m: any) => m.status === 'completed')
+      const scheduled = ko.find((m: any) => m.status !== 'completed')
+      let debug = `=== wc2026api ===\nסה"כ: ${all.length} | נוקאאוט: ${ko.length} | completed: ${completed.length}\nrounds: ${rounds.join(', ')}`
+      if (completed.length > 0) debug += `\n\nדוגמה completed:\n${JSON.stringify(completed[0], null, 2)}`
+      if (scheduled) debug += `\n\nדוגמה scheduled:\n${JSON.stringify(scheduled, null, 2)}`
       setApiDebug(debug)
     } catch (e) {
-      setApiDebug(`שגיאה: ${(e as Error).message}`)
+      setApiDebug(`שגיאה wc2026api: ${(e as Error).message}`)
     }
   }
+
+  const checkApiFootball = async () => {
+    setApiDebug(prev => prev + '\n\n⏳ מושך מ-API-Football...')
+    try {
+      const fixtures = await fetchAllFixtures()
+      const completed = fixtures.filter((f: any) => ['FT', 'AET', 'PEN'].includes(f.fixture.status.short))
+      const koFixtures = completed.filter((f: any) => !((f.league?.round ?? '').toLowerCase().includes('group')))
+      let debug = `=== API-Football ===\nסה"כ fixtures: ${fixtures.length} | completed: ${completed.length} | נוקאאוט: ${koFixtures.length}`
+      if (koFixtures.length > 0) {
+        debug += `\n\nדוגמה נוקאאוט:\n${JSON.stringify({
+          home: koFixtures[0].teams.home.name,
+          away: koFixtures[0].teams.away.name,
+          status: koFixtures[0].fixture.status.short,
+          round: (koFixtures[0] as any).league?.round,
+          score: koFixtures[0].score,
+        }, null, 2)}`
+      } else if (completed.length > 0) {
+        debug += `\n\nאין נוקאאוט. דוגמה בתים:\n${JSON.stringify({
+          home: completed[0].teams.home.name,
+          away: completed[0].teams.away.name,
+          round: (completed[0] as any).league?.round,
+        }, null, 2)}`
+      }
+      setApiDebug(prev => prev + '\n\n' + debug)
+    } catch (e) {
+      setApiDebug(prev => prev + `\n\nשגיאה API-Football: ${(e as Error).message}`)
+    }
+  }
+
 
   const syncFromApi = async () => {
     setSyncing(true)
@@ -173,26 +201,40 @@ export default function Admin() {
         updatedMatches[ourMatch.id] = current as Match
       }
 
+      // Map API round names → our internal round names
+      const API_ROUND_MAP: Record<string, string> = {
+        'R32': 'R32', 'R16': 'R16', 'QF': 'QF', 'SF': 'SF',
+        '3rd': '3P', 'final': 'F',
+      }
+
       let updatedKnockout = { ...knockoutMatches }
       let koUpdated = 0
       let koPenalties = 0
       for (const apiMatch of apiKnockoutMatches) {
         if (apiMatch.status !== 'completed') continue
         if (apiMatch.home_score === null || apiMatch.away_score === null) continue
+
+        // Translate EN team names → Hebrew
         const normHome = API_ALIASES[apiMatch.home_team?.toLowerCase()] ?? apiMatch.home_team?.toLowerCase()
         const normAway = API_ALIASES[apiMatch.away_team?.toLowerCase()] ?? apiMatch.away_team?.toLowerCase()
         const homeHe = EN_TO_HE_MAP[normHome] ?? apiMatch.home_team
         const awayHe = EN_TO_HE_MAP[normAway] ?? apiMatch.away_team
+
         const entry = Object.entries(updatedKnockout).find(([, km]: [string, any]) =>
           (km.teamA === homeHe && km.teamB === awayHe) ||
           (km.teamA === awayHe && km.teamB === homeHe)
         )
-        if (!entry) { log.push(`⚠️ נוקאאוט לא נמצא: ${apiMatch.home_team} vs ${apiMatch.away_team}`); continue }
+        if (!entry) { log.push(`⚠️ נוקאאוט לא נמצא: ${apiMatch.home_team} (${homeHe}) vs ${apiMatch.away_team} (${awayHe})`); continue }
         const km = { ...entry[1] } as any
         if (km.manualScore) continue
         const isReversed = km.teamA === awayHe
         km.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
         km.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
+        // Handle penalties
+        if ((apiMatch as any).home_pen != null && (apiMatch as any).away_pen != null) {
+          km.penA = isReversed ? (apiMatch as any).away_pen : (apiMatch as any).home_pen
+          km.penB = isReversed ? (apiMatch as any).home_pen : (apiMatch as any).away_pen
+        }
         km.isPlayed = true
         if (km.teamA && km.teamB) {
           const ptA = TEAM_FIFA_POINTS[km.teamA] ?? 1500
@@ -201,10 +243,20 @@ export default function Admin() {
           km.fifaPointsB = ptB
           km.category = calcCategoryByRound(ptA, ptB, km.round)
         }
-        if (km.resultA !== km.resultB && !km.advanceTeam) {
-          km.advanceTeam = km.resultA > km.resultB ? km.teamA : km.teamB
-        } else if (km.resultA === km.resultB) {
-          koPenalties++
+        // Determine who advanced (penalties = draw in 90min, winner via pen score)
+        if (!km.advanceTeam) {
+          if ((apiMatch as any).home_pen != null && (apiMatch as any).away_pen != null) {
+            const penHome = (apiMatch as any).home_pen
+            const penAway = (apiMatch as any).away_pen
+            const penWinnerIsHome = penHome > penAway
+            km.advanceTeam = isReversed
+              ? (penWinnerIsHome ? km.teamB : km.teamA)
+              : (penWinnerIsHome ? km.teamA : km.teamB)
+          } else if (km.resultA !== km.resultB) {
+            km.advanceTeam = km.resultA > km.resultB ? km.teamA : km.teamB
+          } else {
+            koPenalties++
+          }
         }
         updatedKnockout[Number(entry[0])] = km
         koUpdated++
@@ -709,8 +761,18 @@ export default function Admin() {
         <h2 style={{ color: '#334' }}>🔍 בדיקת API נוקאאוט</h2>
         <button
           onClick={checkKnockoutApi}
-          style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #667', background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, marginBottom: 10 }}>
-          בדוק מה ה-API מחזיר
+          style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #667', background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+          🌐 בדוק wc2026api
+        </button>
+        <button
+          onClick={checkApiFootball}
+          style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #667', background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
+          ⚽ בדוק API-Football
+        </button>
+        <button
+          onClick={() => setApiDebug('')}
+          style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', color: '#999', marginBottom: 10 }}>
+          נקה
         </button>
         {apiDebug && (
           <pre style={{ fontSize: 11, background: '#fff', padding: 12, borderRadius: 8, border: '1px solid #dde', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 400, overflowY: 'auto' }}>
