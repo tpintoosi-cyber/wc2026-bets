@@ -4,7 +4,7 @@ import { db } from '../firebase'
 import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_BRACKET, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
-import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
+import { fetchGroupStageMatches, fetchKnockoutMatches, fetchAllMatches, toIsraelTime } from '../services/wc2026api'
 import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
 import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
@@ -48,6 +48,7 @@ export default function Admin() {
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
+  const [apiDebug, setApiDebug] = useState('')
   const [syncLog, setSyncLog] = useState<string[]>([])
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, KnockoutMatch>>({})
   const [adminTab, setAdminTab] = useState<'group' | 'knockout' | 'users' | 'test'>('group')
@@ -103,6 +104,24 @@ export default function Admin() {
     })()
   }, [])
 
+  const checkKnockoutApi = async () => {
+    setApiDebug('⏳ מושך מה-API...')
+    try {
+      const all = await fetchAllMatches()
+      const rounds = [...new Set(all.map((m: any) => String(m.round)))]
+      const ko = all.filter((m: any) => m.round !== 'group')
+      let debug = `סה"כ משחקים: ${all.length}\nכל ה-rounds: ${rounds.join(', ')}\nמשחקי לא-בתים: ${ko.length}`
+      if (ko.length > 0) {
+        debug += `\n\nדוגמה ראשונה:\n${JSON.stringify(ko[0], null, 2)}`
+      } else {
+        debug += `\n\nדוגמה משחק בתים:\n${JSON.stringify(all[0], null, 2)}`
+      }
+      setApiDebug(debug)
+    } catch (e) {
+      setApiDebug(`שגיאה: ${(e as Error).message}`)
+    }
+  }
+
   const syncFromApi = async () => {
     setSyncing(true)
     setSyncLog([])
@@ -110,6 +129,7 @@ export default function Admin() {
     try {
       log.push('⏳ מושך נתונים מ-wc2026api.com...')
       setSyncLog([...log])
+
       const [apiGroupMatches, apiKnockoutMatches] = await Promise.all([
         fetchGroupStageMatches(),
         fetchKnockoutMatches(),
@@ -239,7 +259,6 @@ export default function Admin() {
             const teamBen = TEAM_EN[match.teamB] ?? match.teamB
             const fixture = fixtureByTeams[`${teamAen}|${teamBen}`]
             if (!fixture) continue
-
             const ft = fixture.score.fulltime
             if (ft.home !== null && ft.away !== null) {
               const isRev = fixture.teams.home.name !== teamAen
@@ -247,7 +266,6 @@ export default function Admin() {
               updatedMatches[match.id].resultB = isRev ? ft.home : ft.away
               scoresFix++
             }
-
             if (updatedMatches[match.id].hadRedCard === undefined) {
               const events = await fetchFixtureEvents(fixture.fixture.id)
               const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
@@ -262,10 +280,8 @@ export default function Admin() {
             const teamAen = TEAM_EN[kd.teamA] ?? kd.teamA ?? ''
             const teamBen = TEAM_EN[kd.teamB] ?? kd.teamB ?? ''
             if (!teamAen || !teamBen) continue
-
             const fixture = fixtureByTeams[`${teamAen}|${teamBen}`]
             if (!fixture) continue
-
             const result = getKnockoutResult(fixture, kd.teamA, kd.teamB)
             if (result) {
               kd.resultA = result.score90A
@@ -278,7 +294,6 @@ export default function Admin() {
               kd.category = calcCategoryByRound(ptA, ptB, kd.round)
               advanceFix++
             }
-
             if ((km.round === 'R32' || km.round === 'R16') && kd.hadRedCard === undefined) {
               const events = await fetchFixtureEvents(fixture.fixture.id)
               const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
@@ -301,7 +316,6 @@ export default function Admin() {
                 bonus: actualBonus,
               }, { merge: true })
               log.push(`🏅 עודכנו עולות מהבתים (${Object.keys(groupQualifiers).length} בתים)`)
-
               const { updatedKnockout: koWithR32, populated, log: r32Log } =
                 populateR32Teams(groupQualifiers, best8Thirds, updatedKnockout, TEAM_FIFA_POINTS, calcCategoryByRound)
               if (populated > 0) {
@@ -386,7 +400,6 @@ export default function Admin() {
     const usersSnap = await getDocs(collection(db, 'predictions'))
     const playedMatches = MATCHES.map(m => ({ ...m, ...(data[m.id] ?? {}) })).filter(m => m.isPlayed)
 
-    // Read current scores before computing new ones (for delta tracking)
     const currentScoresSnap = await getDocs(collection(db, 'scores'))
     const currentTotals: Record<string, number> = {}
     const currentRanks: Record<string, number> = {}
@@ -403,11 +416,18 @@ export default function Admin() {
       if (s.userName) currentUserNames[s.userId] = s.userName
     })
 
-    // Compute new scores
+    // Read latest knockout state fresh from Firestore
+    const koSnap = await getDoc(doc(db, 'admin', 'knockout'))
+    const freshKnockoutMatches: Record<number, KnockoutMatch> = koSnap.exists()
+      ? (koSnap.data().matches ?? {})
+      : knockoutMatches
+
     const newScores: { userId: string; score: ReturnType<typeof computeUserScore> }[] = []
     for (const userDoc of usersSnap.docs) {
       const d = userDoc.data()
-      const playedKO = KNOCKOUT_MATCHES.map(km => ({ ...km, ...(knockoutMatches[km.id] ?? {}) })).filter(km => km.isPlayed)
+      const playedKO = KNOCKOUT_MATCHES
+        .map(km => ({ ...km, ...(freshKnockoutMatches[km.id] ?? {}) }))
+        .filter((km: any) => km.isPlayed && km.resultA != null && km.resultB != null)
       const score = computeUserScore(
         userDoc.id, d.userName ?? 'Unknown',
         (d.matches ?? {}) as Record<number, MatchPrediction>,
@@ -418,7 +438,6 @@ export default function Admin() {
       newScores.push({ userId: userDoc.id, score })
     }
 
-    // Sort to compute new ranks
     const sorted = [...newScores].sort((a, b) => b.score.total - a.score.total)
 
     const batch = writeBatch(db)
@@ -430,7 +449,6 @@ export default function Admin() {
       const existingPrev = sortedCurrent.find(s => s.userId === userId)
       batch.set(doc(db, 'scores', userId), {
         ...score,
-        // שמור userName קיים מ-scores, אל תדרוס אותו מ-predictions
         userName: currentUserNames[userId] ?? score.userName,
         prevTotal: changed ? prevTotal : (hasNewResults ? score.total : (existingPrev?.prevTotal ?? prevTotal)),
         prevRank:  changed ? prevRank  : (hasNewResults ? newRank     : (existingPrev?.prevRank  ?? newRank)),
@@ -477,6 +495,7 @@ export default function Admin() {
       }
     }
     await setDoc(doc(db, 'admin', 'knockout'), { matches: propagated })
+    setKnockoutMatches(propagated)
     setMsg('✓ נוקאאוט נשמר')
     setTimeout(() => setMsg(''), 3000)
   }
@@ -537,121 +556,61 @@ export default function Admin() {
       <h1>פאנל אדמין</h1>
       {msg && <div className="admin-msg">{msg}</div>}
 
-      {/* Tab switcher */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 16, background: '#f8f9fa', borderRadius: 10, padding: 4 }}>
-        <button onClick={() => setAdminTab('group')} style={{
-          flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
-          fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
-          background: adminTab === 'group' ? '#1a1a2e' : 'transparent',
-          color: adminTab === 'group' ? '#fff' : '#666',
-        }}>⚽ שלב בתים</button>
-        <button onClick={() => setAdminTab('knockout')} style={{
-          flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
-          fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
-          background: adminTab === 'knockout' ? '#1a1a2e' : 'transparent',
-          color: adminTab === 'knockout' ? '#fff' : '#666',
-        }}>🏆 נוקאאוט</button>
-        <button onClick={() => { setAdminTab('users'); loadPendingUsers() }} style={{
-          flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
-          fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
-          background: adminTab === 'users' ? '#1a1a2e' : 'transparent',
-          color: adminTab === 'users' ? '#fff' : '#666',
-        }}>👥 משתמשים</button>
-        <button onClick={() => setAdminTab('test')} style={{
-          flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer',
-          fontFamily: 'inherit', fontWeight: 600, fontSize: 13,
-          background: adminTab === 'test' ? '#1a1a2e' : 'transparent',
-          color: adminTab === 'test' ? '#fff' : '#666',
-        }}>🧪 בדיקות</button>
+        <button onClick={() => setAdminTab('group')} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, fontSize: 13, background: adminTab === 'group' ? '#1a1a2e' : 'transparent', color: adminTab === 'group' ? '#fff' : '#666' }}>⚽ שלב בתים</button>
+        <button onClick={() => setAdminTab('knockout')} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, fontSize: 13, background: adminTab === 'knockout' ? '#1a1a2e' : 'transparent', color: adminTab === 'knockout' ? '#fff' : '#666' }}>🏆 נוקאאוט</button>
+        <button onClick={() => { setAdminTab('users'); loadPendingUsers() }} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, fontSize: 13, background: adminTab === 'users' ? '#1a1a2e' : 'transparent', color: adminTab === 'users' ? '#fff' : '#666' }}>👥 משתמשים</button>
+        <button onClick={() => setAdminTab('test')} style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, fontSize: 13, background: adminTab === 'test' ? '#1a1a2e' : 'transparent', color: adminTab === 'test' ? '#fff' : '#666' }}>🧪 בדיקות</button>
       </div>
 
-      {/* API Sync */}
       {adminTab === 'group' && <>
       <div style={{ display: 'flex', gap: 8, padding: '8px 0', borderBottom: '1px solid #eee', marginBottom: 8 }}>
-        <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ flex: 1 }}>
-          {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
-        </button>
+        <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ flex: 1 }}>{scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}</button>
         <button className="btn-primary" onClick={saveResults} style={{ flex: 1 }}>💾 שמור תוצאות</button>
       </div>
 
       <section className="admin-section api-sync-section">
         <h2>🔄 סנכרון מ-API</h2>
         <p className="hint">מושך שעות ותוצאות אוטומטית מ-wc2026api.com</p>
-        <button className="btn-primary btn-lg btn-sync" onClick={syncFromApi} disabled={syncing}>
-          {syncing ? '⏳ מסנכרן...' : '🔄 סנכרן עכשיו'}
-        </button>
+        <button className="btn-primary btn-lg btn-sync" onClick={syncFromApi} disabled={syncing}>{syncing ? '⏳ מסנכרן...' : '🔄 סנכרן עכשיו'}</button>
         {syncLog.length > 0 && (
-          <div className="sync-log">
-            {syncLog.map((line, i) => <div key={i}>{line}</div>)}
-          </div>
+          <div className="sync-log">{syncLog.map((line, i) => <div key={i}>{line}</div>)}</div>
         )}
       </section>
 
-      {/* Settings */}
       <section className="admin-section">
         <h2>הגדרות</h2>
         <div className="admin-row">
-          <label>
-            <input type="checkbox" checked={settings.isOpen}
-              onChange={e => setSettings(s => ({ ...s, isOpen: e.target.checked }))} />
-            &nbsp;ממשק פתוח להגשות
-          </label>
+          <label><input type="checkbox" checked={settings.isOpen} onChange={e => setSettings(s => ({ ...s, isOpen: e.target.checked }))} />&nbsp;ממשק פתוח להגשות</label>
         </div>
         <div className="admin-row">
           <label style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ position: 'relative', display: 'inline-block' }}>
-              <input type="checkbox" checked={settings.liveMode}
-                onChange={e => setSettings(s => ({ ...s, liveMode: e.target.checked }))}
-                style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} id="liveMode-toggle" />
-              <label htmlFor="liveMode-toggle" style={{
-                display: 'block', width: 48, height: 26, borderRadius: 13, cursor: 'pointer',
-                background: settings.liveMode ? '#2d6a2d' : '#ccc', transition: 'background 0.2s', position: 'relative',
-              }}>
-                <span style={{
-                  position: 'absolute', top: 3, left: settings.liveMode ? 25 : 3, width: 20, height: 20,
-                  background: '#fff', borderRadius: '50%', transition: 'left 0.2s',
-                }} />
+              <input type="checkbox" checked={settings.liveMode} onChange={e => setSettings(s => ({ ...s, liveMode: e.target.checked }))} style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} id="liveMode-toggle" />
+              <label htmlFor="liveMode-toggle" style={{ display: 'block', width: 48, height: 26, borderRadius: 13, cursor: 'pointer', background: settings.liveMode ? '#2d6a2d' : '#ccc', transition: 'background 0.2s', position: 'relative' }}>
+                <span style={{ position: 'absolute', top: 3, left: settings.liveMode ? 25 : 3, width: 20, height: 20, background: '#fff', borderRadius: '50%', transition: 'left 0.2s' }} />
               </label>
             </div>
             <div>
-              <span style={{ fontWeight: 700, fontSize: 14, color: settings.liveMode ? '#2d6a2d' : '#333' }}>
-                {settings.liveMode ? '🟢 ריצה על אמת — פעיל' : '⚪ ריצה על אמת — כבוי'}
-              </span>
-              <p style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-                כשפעיל — גם אדמין לא יראה הימורי משתמשים עד שהדדליין עובר
-              </p>
+              <span style={{ fontWeight: 700, fontSize: 14, color: settings.liveMode ? '#2d6a2d' : '#333' }}>{settings.liveMode ? '🟢 ריצה על אמת — פעיל' : '⚪ ריצה על אמת — כבוי'}</span>
+              <p style={{ fontSize: 11, color: '#888', marginTop: 2 }}>כשפעיל — גם אדמין לא יראה הימורי משתמשים עד שהדדליין עובר</p>
             </div>
           </label>
         </div>
         <div className="admin-row">
-          <label>דדליין שלב בתים:&nbsp;
-            <input type="datetime-local" value={settings.deadline}
-              onChange={e => setSettings(s => ({ ...s, deadline: e.target.value }))} />
-          </label>
+          <label>דדליין שלב בתים:&nbsp;<input type="datetime-local" value={settings.deadline} onChange={e => setSettings(s => ({ ...s, deadline: e.target.value }))} /></label>
         </div>
         <div className="admin-row" style={{ borderTop: '1px dashed #eee', paddingTop: 10, marginTop: 6 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div style={{ position: 'relative', display: 'inline-block' }}>
-              <input type="checkbox" checked={settings.maintenanceMode}
-                onChange={e => setSettings(s => ({ ...s, maintenanceMode: e.target.checked }))}
-                style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} id="maintenance-toggle" />
-              <label htmlFor="maintenance-toggle" style={{
-                display: 'block', width: 48, height: 26, borderRadius: 13, cursor: 'pointer',
-                background: settings.maintenanceMode ? '#c0392b' : '#ccc', transition: 'background 0.2s', position: 'relative',
-              }}>
-                <span style={{
-                  position: 'absolute', top: 3, left: settings.maintenanceMode ? 25 : 3, width: 20, height: 20,
-                  background: '#fff', borderRadius: '50%', transition: 'left 0.2s',
-                }} />
+              <input type="checkbox" checked={settings.maintenanceMode} onChange={e => setSettings(s => ({ ...s, maintenanceMode: e.target.checked }))} style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }} id="maintenance-toggle" />
+              <label htmlFor="maintenance-toggle" style={{ display: 'block', width: 48, height: 26, borderRadius: 13, cursor: 'pointer', background: settings.maintenanceMode ? '#c0392b' : '#ccc', transition: 'background 0.2s', position: 'relative' }}>
+                <span style={{ position: 'absolute', top: 3, left: settings.maintenanceMode ? 25 : 3, width: 20, height: 20, background: '#fff', borderRadius: '50%', transition: 'left 0.2s' }} />
               </label>
             </div>
             <div>
-              <span style={{ fontWeight: 700, fontSize: 14, color: settings.maintenanceMode ? '#c0392b' : '#333' }}>
-                {settings.maintenanceMode ? '🔧 מצב תחזוקה — פעיל' : '⚪ מצב תחזוקה — כבוי'}
-              </span>
-              <p style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
-                כשפעיל — משתמשים רואים דף "אפליקציה בתחזוקה". אדמין נכנס רגיל.
-              </p>
+              <span style={{ fontWeight: 700, fontSize: 14, color: settings.maintenanceMode ? '#c0392b' : '#333' }}>{settings.maintenanceMode ? '🔧 מצב תחזוקה — פעיל' : '⚪ מצב תחזוקה — כבוי'}</span>
+              <p style={{ fontSize: 11, color: '#888', marginTop: 2 }}>כשפעיל — משתמשים רואים דף "אפליקציה בתחזוקה". אדמין נכנס רגיל.</p>
             </div>
           </label>
           {settings.maintenanceMode && <p style={{ fontSize: 11, color: '#c0392b', marginTop: 4, fontWeight: 600 }}>⚠️ המשתמשים חסומים כרגע!</p>}
@@ -659,21 +618,14 @@ export default function Admin() {
         <div className="admin-row" style={{ borderTop: '1px dashed #eee', paddingTop: 10, marginTop: 6 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, color: '#888' }}>🧪 תאריך סימולציה (לבדיקה בלבד):</span>
-            <input type="datetime-local" value={settings.mockNow ?? ''}
-              onChange={e => setSettings(s => ({ ...s, mockNow: e.target.value }))} />
-            {settings.mockNow && (
-              <button onClick={() => setSettings(s => ({ ...s, mockNow: '' }))}
-                style={{ fontSize: 11, padding: '2px 8px', borderRadius: 8, border: '1px solid #ddd', cursor: 'pointer', background: '#fff', fontFamily: 'inherit' }}>
-                ✕ נקה
-              </button>
-            )}
+            <input type="datetime-local" value={settings.mockNow ?? ''} onChange={e => setSettings(s => ({ ...s, mockNow: e.target.value }))} />
+            {settings.mockNow && <button onClick={() => setSettings(s => ({ ...s, mockNow: '' }))} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 8, border: '1px solid #ddd', cursor: 'pointer', background: '#fff', fontFamily: 'inherit' }}>✕ נקה</button>}
           </label>
           {settings.mockNow && <p style={{ fontSize: 11, color: '#e67e22', marginTop: 4 }}>⚠️ פעיל — הדף "הימורי כולם" משתמש בתאריך זה לקביעת המשחק הנוכחי</p>}
         </div>
         <button className="btn-primary" onClick={saveSettings}>שמור הגדרות</button>
       </section>
 
-      {/* Match results */}
       <section className="admin-section">
         <h2>תוצאות משחקים (ידני)</h2>
         <p className="hint">ניתן גם לסנכרן אוטומטית מה-API למעלה</p>
@@ -687,24 +639,12 @@ export default function Admin() {
                 <div key={match.id} className="admin-match-row">
                   <span className={`cat-badge cat-${match.category.toLowerCase()}`}>{match.category}</span>
                   <span className="admin-match-team">{match.teamA}</span>
-                  <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                    value={r.resultA ?? ''}
-                    onChange={e => updateMatchResult(match.id, 'resultA', parseInt(e.target.value) || 0)} />
+                  <input className="score-input" type="number" min="0" max="20" placeholder="0" value={r.resultA ?? ''} onChange={e => updateMatchResult(match.id, 'resultA', parseInt(e.target.value) || 0)} />
                   <span style={{ color: '#aaa', fontWeight: 300 }}>–</span>
-                  <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                    value={r.resultB ?? ''}
-                    onChange={e => updateMatchResult(match.id, 'resultB', parseInt(e.target.value) || 0)} />
+                  <input className="score-input" type="number" min="0" max="20" placeholder="0" value={r.resultB ?? ''} onChange={e => updateMatchResult(match.id, 'resultB', parseInt(e.target.value) || 0)} />
                   <span className="admin-match-team admin-match-team-b">{match.teamB}</span>
-                  <label title="היה כרטיס אדום">
-                    <input type="checkbox" checked={r.hadRedCard ?? false}
-                      onChange={e => updateMatchResult(match.id, 'hadRedCard', e.target.checked)} />
-                    &nbsp;🟥
-                  </label>
-                  <label title="הושלם">
-                    <input type="checkbox" checked={r.isPlayed ?? false}
-                      onChange={e => updateMatchResult(match.id, 'isPlayed', e.target.checked)} />
-                    &nbsp;✓
-                  </label>
+                  <label title="היה כרטיס אדום"><input type="checkbox" checked={r.hadRedCard ?? false} onChange={e => updateMatchResult(match.id, 'hadRedCard', e.target.checked)} />&nbsp;🟥</label>
+                  <label title="הושלם"><input type="checkbox" checked={r.isPlayed ?? false} onChange={e => updateMatchResult(match.id, 'isPlayed', e.target.checked)} />&nbsp;✓</label>
                 </div>
               )
             })}
@@ -713,7 +653,6 @@ export default function Admin() {
         <button className="btn-primary" onClick={saveResults}>שמור תוצאות</button>
       </section>
 
-      {/* Group standings */}
       <section className="admin-section">
         <h2>נבחרות עולות בפועל</h2>
         <div className="groups-grid">
@@ -723,14 +662,7 @@ export default function Admin() {
               {[0, 1, 2].map(idx => (
                 <div key={idx} className="group-slot">
                   <span className="slot-num">{idx + 1}.</span>
-                  <select value={actualGroups[group]?.[idx] ?? ''}
-                    onChange={e => {
-                      setActualGroups(prev => {
-                        const cur = [...(prev[group] ?? ['', '', ''])] as [string, string, string]
-                        cur[idx] = e.target.value
-                        return { ...prev, [group]: cur }
-                      })
-                    }}>
+                  <select value={actualGroups[group]?.[idx] ?? ''} onChange={e => { setActualGroups(prev => { const cur = [...(prev[group] ?? ['', '', ''])] as [string, string, string]; cur[idx] = e.target.value; return { ...prev, [group]: cur } }) }}>
                     <option value="">—</option>
                     {GROUPS_TEAMS[group].map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
@@ -742,7 +674,6 @@ export default function Admin() {
         <button className="btn-primary" onClick={saveResults}>שמור עולות</button>
       </section>
 
-      {/* Bonus answers */}
       <section className="admin-section">
         <h2>תשובות בונוס בפועל</h2>
         <p className="hint">מלא את התשובות הנכונות לאחר סיום הטורניר</p>
@@ -753,13 +684,7 @@ export default function Admin() {
               <span style={{ color: '#888', fontSize: 12, marginRight: 6 }}>({q.points} נק׳)</span>
             </label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end' }}>
-              <input
-                type="text"
-                value={(actualBonus as any)[q.id] ?? ''}
-                onChange={e => setActualBonus(prev => ({ ...prev, [q.id]: e.target.value }))}
-                placeholder="תשובה..."
-                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, width: 200 }}
-              />
+              <input type="text" value={(actualBonus as any)[q.id] ?? ''} onChange={e => setActualBonus(prev => ({ ...prev, [q.id]: e.target.value }))} placeholder="תשובה..." style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, width: 200 }} />
               <span style={{ fontSize: 10, color: '#bbb' }}>מספר תשובות: ספרד,גרמניה</span>
             </div>
           </div>
@@ -767,40 +692,43 @@ export default function Admin() {
         <button className="btn-primary" onClick={saveResults}>שמור בונוס</button>
       </section>
 
-      {/* Recalculate */}
       <section className="admin-section">
         <h2>חישוב ניקוד ידני</h2>
-        <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring}>
-          {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
-        </button>
+        <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring}>{scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}</button>
       </section>
       </>}
 
-      {/* ── KNOCKOUT TAB ─────────────────────────────────── */}
       {adminTab === 'knockout' && <>
       <div style={{ display: 'flex', gap: 8, padding: '8px 0', borderBottom: '1px solid #eee', marginBottom: 8 }}>
-        <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ flex: 1 }}>
-          {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
-        </button>
+        <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ flex: 1 }}>{scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}</button>
         <button className="btn-primary" onClick={saveKnockout} style={{ flex: 1 }}>💾 שמור נוקאאוט</button>
       </div>
 
+      {/* ── API Debug Panel ── */}
+      <section className="admin-section" style={{ background: '#f0f4ff', border: '1px solid #c0d0ff' }}>
+        <h2 style={{ color: '#334' }}>🔍 בדיקת API נוקאאוט</h2>
+        <button
+          onClick={checkKnockoutApi}
+          style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid #667', background: '#fff', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, marginBottom: 10 }}>
+          בדוק מה ה-API מחזיר
+        </button>
+        {apiDebug && (
+          <pre style={{ fontSize: 11, background: '#fff', padding: 12, borderRadius: 8, border: '1px solid #dde', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', maxHeight: 400, overflowY: 'auto' }}>
+            {apiDebug}
+          </pre>
+        )}
+      </section>
+
         <section className="admin-section">
           <h2>הגדרות נוקאאוט</h2>
-
           <div className="admin-row">
-            <label>
-              <input type="checkbox" checked={settings.knockoutOpen}
-                onChange={e => setSettings(s => ({ ...s, knockoutOpen: e.target.checked }))} />
-              &nbsp;חלון נוקאאוט פתוח (משתמשים יכולים למלא)
-            </label>
+            <label><input type="checkbox" checked={settings.knockoutOpen} onChange={e => setSettings(s => ({ ...s, knockoutOpen: e.target.checked }))} />&nbsp;חלון נוקאאוט פתוח (משתמשים יכולים למלא)</label>
           </div>
-
           <table style={{ borderCollapse: 'collapse', width: '100%', marginTop: 10 }}>
             <thead>
               <tr style={{ background: '#f5f5f5' }}>
                 <th style={{ textAlign: 'right', padding: '6px 10px', fontSize: 12, fontWeight: 700, borderBottom: '1px solid #e0e0e0' }}>שלב</th>
-                <th style={{ textAlign: 'right', padding: '6px 10px', fontSize: 12, fontWeight: 700, borderBottom: '1px solid #e0e0e0' }}>דדליין (נועל לפני תחילת השלב)</th>
+                <th style={{ textAlign: 'right', padding: '6px 10px', fontSize: 12, fontWeight: 700, borderBottom: '1px solid #e0e0e0' }}>דדליין</th>
               </tr>
             </thead>
             <tbody>
@@ -815,48 +743,24 @@ export default function Admin() {
                 <tr key={key} style={{ borderBottom: '1px solid #f0f0f0' }}>
                   <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: key === 'knockoutDeadline' ? 700 : 400 }}>{label}</td>
                   <td style={{ padding: '6px 10px' }}>
-                    <input type="datetime-local" value={settings[key] as string}
-                      onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))}
-                      style={{ fontSize: 13, padding: '3px 6px', borderRadius: 6, border: '1px solid #ddd' }} />
+                    <input type="datetime-local" value={settings[key] as string} onChange={e => setSettings(s => ({ ...s, [key]: e.target.value }))} style={{ fontSize: 13, padding: '3px 6px', borderRadius: 6, border: '1px solid #ddd' }} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-
           <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'center' }}>
             <button className="btn-primary" onClick={saveSettings}>שמור הגדרות</button>
             <button
               onClick={async () => {
                 if (!confirm('לאפס את כל הדדליינים ולסגור את חלון הנוקאאוט?')) return
-                const reset = {
-                  knockoutOpen: false,
-                  knockoutDeadline: null,
-                  r16Deadline: null,
-                  qfDeadline: null,
-                  sfDeadline: null,
-                  p3Deadline: null,
-                  finalDeadline: null,
-                }
+                const reset = { knockoutOpen: false, knockoutDeadline: null, r16Deadline: null, qfDeadline: null, sfDeadline: null, p3Deadline: null, finalDeadline: null }
                 const { doc: fbDoc, setDoc: fbSet } = await import('firebase/firestore')
                 const { db: fbDb } = await import('../firebase')
                 await fbSet(fbDoc(fbDb, 'admin', 'settings'), reset, { merge: true })
-                setSettings(s => ({
-                  ...s,
-                  knockoutOpen: false,
-                  knockoutDeadline: '',
-                  r16Deadline: '',
-                  qfDeadline: '',
-                  sfDeadline: '',
-                  p3Deadline: '',
-                  finalDeadline: '',
-                }))
+                setSettings(s => ({ ...s, knockoutOpen: false, knockoutDeadline: '', r16Deadline: '', qfDeadline: '', sfDeadline: '', p3Deadline: '', finalDeadline: '' }))
               }}
-              style={{
-                padding: '8px 16px', borderRadius: 8, border: '1.5px solid #c0392b',
-                background: '#fff5f5', color: '#c0392b', fontWeight: 600, fontSize: 13,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>
+              style={{ padding: '8px 16px', borderRadius: 8, border: '1.5px solid #c0392b', background: '#fff5f5', color: '#c0392b', fontWeight: 600, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
               🔄 אפס לוחות זמנים
             </button>
           </div>
@@ -876,54 +780,28 @@ export default function Admin() {
                   <div key={km.id} className="admin-match-row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                     <span className={`cat-badge cat-${dynCat.toLowerCase()}`}>{dynCat}</span>
                     <span className="match-num">#{km.id}</span>
-
-                    <select value={r.teamA ?? ''}
-                      onChange={e => updateKnockoutMatch(km.id, 'teamA', e.target.value)}
-                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}>
+                    <select value={r.teamA ?? ''} onChange={e => updateKnockoutMatch(km.id, 'teamA', e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}>
                       <option value="">— נבחרת A —</option>
                       {ALL_TEAMS.sort().map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
-
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ fontSize: 10, color: '#aaa' }}>90′</span>
-                      <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                        value={r.resultA ?? ''}
-                        onChange={e => updateKnockoutMatch(km.id, 'resultA', parseInt(e.target.value) || 0)}
-                        style={{ width: 46, height: 38, fontSize: 18 }} />
+                      <input className="score-input" type="number" min="0" max="20" placeholder="0" value={r.resultA ?? ''} onChange={e => updateKnockoutMatch(km.id, 'resultA', parseInt(e.target.value) || 0)} style={{ width: 46, height: 38, fontSize: 18 }} />
                       <span>–</span>
-                      <input className="score-input" type="number" min="0" max="20" placeholder="0"
-                        value={r.resultB ?? ''}
-                        onChange={e => updateKnockoutMatch(km.id, 'resultB', parseInt(e.target.value) || 0)}
-                        style={{ width: 46, height: 38, fontSize: 18 }} />
+                      <input className="score-input" type="number" min="0" max="20" placeholder="0" value={r.resultB ?? ''} onChange={e => updateKnockoutMatch(km.id, 'resultB', parseInt(e.target.value) || 0)} style={{ width: 46, height: 38, fontSize: 18 }} />
                     </div>
-
-                    <select value={r.teamB ?? ''}
-                      onChange={e => updateKnockoutMatch(km.id, 'teamB', e.target.value)}
-                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}>
+                    <select value={r.teamB ?? ''} onChange={e => updateKnockoutMatch(km.id, 'teamB', e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }}>
                       <option value="">— נבחרת B —</option>
                       {ALL_TEAMS.sort().map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
-
-                    <select value={r.advanceTeam ?? ''}
-                      onChange={e => updateKnockoutMatch(km.id, 'advanceTeam', e.target.value)}
-                      style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, background: '#EAF3DE' }}>
+                    <select value={r.advanceTeam ?? ''} onChange={e => updateKnockoutMatch(km.id, 'advanceTeam', e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, background: '#EAF3DE' }}>
                       <option value="">— מי עלה? —</option>
                       {[r.teamA, r.teamB].filter(Boolean).map(t => <option key={t} value={t!}>{t}</option>)}
                     </select>
-
                     {(round === 'R32' || round === 'R16') && (
-                      <label title="כרטיס אדום">
-                        <input type="checkbox" checked={r.hadRedCard ?? false}
-                          onChange={e => updateKnockoutMatch(km.id, 'hadRedCard', e.target.checked)} />
-                        &nbsp;🟥
-                      </label>
+                      <label title="כרטיס אדום"><input type="checkbox" checked={r.hadRedCard ?? false} onChange={e => updateKnockoutMatch(km.id, 'hadRedCard', e.target.checked)} />&nbsp;🟥</label>
                     )}
-
-                    <label title="הושלם">
-                      <input type="checkbox" checked={r.isPlayed ?? false}
-                        onChange={e => updateKnockoutMatch(km.id, 'isPlayed', e.target.checked)} />
-                      &nbsp;✓
-                    </label>
+                    <label title="הושלם"><input type="checkbox" checked={r.isPlayed ?? false} onChange={e => updateKnockoutMatch(km.id, 'isPlayed', e.target.checked)} />&nbsp;✓</label>
                   </div>
                 )
               })}
@@ -934,9 +812,7 @@ export default function Admin() {
         <section className="admin-section">
           <button className="btn-primary" onClick={saveKnockout}>💾 שמור נוקאאוט</button>
           &nbsp;
-          <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ marginTop: 8 }}>
-            {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
-          </button>
+          <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ marginTop: 8 }}>{scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}</button>
         </section>
       </>}
 
@@ -944,15 +820,9 @@ export default function Admin() {
         <section className="admin-section">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <h3 style={{ margin: 0 }}>👥 ניהול משתמשים</h3>
-            <button className="btn-secondary" onClick={loadPendingUsers} disabled={usersLoading}>
-              {usersLoading ? 'טוען...' : '🔄 רענן'}
-            </button>
+            <button className="btn-secondary" onClick={loadPendingUsers} disabled={usersLoading}>{usersLoading ? 'טוען...' : '🔄 רענן'}</button>
           </div>
-
-          {pendingUsers.length === 0 && !usersLoading && (
-            <p style={{ color: '#888', textAlign: 'center', padding: 24 }}>אין בקשות כרגע</p>
-          )}
-
+          {pendingUsers.length === 0 && !usersLoading && <p style={{ color: '#888', textAlign: 'center', padding: 24 }}>אין בקשות כרגע</p>}
           {['pending', 'approved', 'rejected'].map(status => {
             const group = pendingUsers.filter(u => u.status === status)
             if (group.length === 0) return null
@@ -962,56 +832,24 @@ export default function Admin() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, color: '#888' }}>{label}</div>
                   {status === 'rejected' && group.length > 1 && (
-                    <button onClick={removeAllRejected} style={{
-                      fontSize: 11, padding: '3px 10px', borderRadius: 6,
-                      border: '1px solid #e0a0a0', background: '#fff5f5',
-                      color: '#c0392b', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600,
-                    }}>🗑 הסר כל הנדחים ({group.length})</button>
+                    <button onClick={removeAllRejected} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 6, border: '1px solid #e0a0a0', background: '#fff5f5', color: '#c0392b', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>🗑 הסר כל הנדחים ({group.length})</button>
                   )}
                 </div>
                 {group.map(u => (
-                  <div key={u.uid} style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 14px', borderRadius: 10,
-                    background: status === 'pending' ? '#fffdf0' : status === 'approved' ? '#f0faf4' : '#fff5f5',
-                    border: `1px solid ${status === 'pending' ? '#f0e68c' : status === 'approved' ? '#b7e4c7' : '#ffc0b5'}`,
-                    marginBottom: 8,
-                  }}>
+                  <div key={u.uid} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, background: status === 'pending' ? '#fffdf0' : status === 'approved' ? '#f0faf4' : '#fff5f5', border: `1px solid ${status === 'pending' ? '#f0e68c' : status === 'approved' ? '#b7e4c7' : '#ffc0b5'}`, marginBottom: 8 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{u.displayName || 'ללא שם'}</div>
                       <div style={{ fontSize: 12, color: '#888' }}>{u.email}</div>
-                      <div style={{ fontSize: 11, color: '#aaa' }}>
-                        {new Date(u.requestedAt).toLocaleString('he-IL')}
-                      </div>
+                      <div style={{ fontSize: 11, color: '#aaa' }}>{new Date(u.requestedAt).toLocaleString('he-IL')}</div>
                     </div>
                     {status === 'pending' && (
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          onClick={() => approveUser(u.uid, u.displayName, u.email)}
-                          style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#1a7a44', color: '#fff', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                          אשר
-                        </button>
-                        <button
-                          onClick={() => rejectUser(u.uid)}
-                          style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                          דחה
-                        </button>
+                        <button onClick={() => approveUser(u.uid, u.displayName, u.email)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#1a7a44', color: '#fff', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>אשר</button>
+                        <button onClick={() => rejectUser(u.uid)} style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#c0392b', color: '#fff', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>דחה</button>
                       </div>
                     )}
-                    {status === 'approved' && (
-                      <button
-                        onClick={() => rejectUser(u.uid)}
-                        style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#888', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
-                        בטל אישור
-                      </button>
-                    )}
-                    {status === 'rejected' && (
-                      <button
-                        onClick={() => removeUser(u.uid)}
-                        style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #e0a0a0', background: '#fff5f5', color: '#c0392b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-                        🗑 הסר
-                      </button>
-                    )}
+                    {status === 'approved' && <button onClick={() => rejectUser(u.uid)} style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#fff', color: '#888', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>בטל אישור</button>}
+                    {status === 'rejected' && <button onClick={() => removeUser(u.uid)} style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #e0a0a0', background: '#fff5f5', color: '#c0392b', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>🗑 הסר</button>}
                   </div>
                 ))}
               </div>
