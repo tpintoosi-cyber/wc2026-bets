@@ -201,7 +201,10 @@ export function calcBonusPoints(
     const pred = predictions[key]
     const actual = actuals[key]
     if (!pred || !actual) continue
-    if (pred.trim().toLowerCase() !== actual.trim().toLowerCase()) continue
+    // Support multiple correct answers separated by comma: "Spain,Germany"
+    const actualValues = actual.split(',').map(v => v.trim().toLowerCase())
+    const predNorm = pred.trim().toLowerCase()
+    if (!actualValues.includes(predNorm)) continue
     let base = BONUS_POINTS[key]
     if (key === 'q105') {
       if (REDUCED_CHAMPION.includes(pred)) base = 20
@@ -365,4 +368,3 @@ function findAdvancePrediction(
   }
   return null
 }
-
