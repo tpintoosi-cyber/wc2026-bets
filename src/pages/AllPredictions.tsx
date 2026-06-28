@@ -618,8 +618,21 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   useEffect(() => {
     const fullSchedule = { ...MATCH_SCHEDULE, ...adminSchedule }
     const best = getBestMatchId(fullSchedule, mockNow)
+    // If the best match is a KO match whose round isn't visible yet, fall back to group stage
+    if (best > 72) {
+      const km = KNOCKOUT_MATCHES.find(m => m.id === best)
+      if (km && !isRoundVisible(km.round)) {
+        // Fall back to the last played group stage match
+        const lastPlayed = MATCHES.filter(m => adminResults[m.id]?.isPlayed)
+          .sort((a, b) => (MATCH_SCHEDULE[b.id] ?? '').localeCompare(MATCH_SCHEDULE[a.id] ?? ''))
+        if (lastPlayed.length > 0) {
+          setSelectedMatchId(lastPlayed[0].id)
+          return
+        }
+      }
+    }
     setSelectedMatchId(best)
-  }, [adminSchedule, mockNow])
+  }, [adminSchedule, mockNow, koDeadlines])
 
   // Live scores listener — updates ranks whenever Admin recalculates
   useEffect(() => {
@@ -1391,6 +1404,16 @@ ${userRows}
             const isKO = selectedMatchId > 72
             if (isKO) {
               const km = KNOCKOUT_MATCHES.find(m => m.id === selectedMatchId)
+              // Block predictions if round deadline hasn't passed yet
+              if (km && !isRoundVisible(km.round)) {
+                return (
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#888' }}>
+                    <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>הימורים עדיין פתוחים</div>
+                    <div style={{ fontSize: 13 }}>ההימורים לשלב זה יוצגו לאחר סגירת המועד</div>
+                  </div>
+                )
+              }
               const actual = knockoutAdminMatches[selectedMatchId]
               const tA = actual?.teamA ?? km?.teamA ?? '?'
               const tB = actual?.teamB ?? km?.teamB ?? '?'
