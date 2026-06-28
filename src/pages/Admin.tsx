@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react'
 import { doc, getDoc, setDoc, collection, getDocs, writeBatch, query, where, updateDoc, deleteDoc } from 'firebase/firestore'
 import { db } from '../firebase'
-import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_BRACKET, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound, MATCH_SCHEDULE } from '../data/matches'
+import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOCKOUT_BRACKET, KNOCKOUT_ROUND_LABELS, ALL_TEAMS, TEAM_FIFA_POINTS, calcCategory, calcCategoryByRound } from '../data/matches'
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, toIsraelTime } from '../services/wc2026api'
-import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, fetchTopScorers, fetchTopAssists, getKnockoutResult, parseStandings, computeStandingsFromMatches, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
-import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards as countZafronixRedCards, ZAFRONIX_TO_HE } from '../services/zafronix'
+import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
 import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
 
@@ -49,9 +48,6 @@ export default function Admin() {
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
-  const [manualAssists, setManualAssists] = useState<{ name: string; assists: number; team: string }[]>([])
-  const [assistsInput, setAssistsInput] = useState('')
-  const [savingAssists, setSavingAssists] = useState(false)
   const [syncLog, setSyncLog] = useState<string[]>([])
   const [knockoutMatches, setKnockoutMatches] = useState<Record<number, KnockoutMatch>>({})
   const [adminTab, setAdminTab] = useState<'group' | 'knockout' | 'users' | 'test'>('group')
@@ -60,19 +56,11 @@ export default function Admin() {
 
   useEffect(() => {
     ;(async () => {
-      const [resultsSnap, settingsSnap, koSnap, playerStatsSnap] = await Promise.all([
+      const [resultsSnap, settingsSnap, koSnap] = await Promise.all([
         getDoc(doc(db, 'admin', 'results')),
         getDoc(doc(db, 'settings', 'app')),
         getDoc(doc(db, 'admin', 'knockout')),
-        getDoc(doc(db, 'admin', 'playerstats')),
       ])
-      if (playerStatsSnap.exists()) {
-        const manualList = playerStatsSnap.data().manualAssists ?? []
-        setManualAssists(manualList)
-        if (manualList.length > 0) {
-          setAssistsInput(manualList.map((a: any) => `${a.name} (${a.team}) ${a.assists}`).join('\n'))
-        }
-      }
       if (resultsSnap.exists()) {
         const stored = resultsSnap.data().matches ?? {}
         // Always use fresh category + fifaPoints from MATCHES array
@@ -160,14 +148,10 @@ export default function Admin() {
           if ((matches[ourMatch.id] as any)?.manualScore) {
             log.push(`🔒 #${ourMatch.id} — נשמר ידנית, לא הוחלף`)
           } else {
-            const newA = isReversed ? apiMatch.away_score : apiMatch.home_score
-            const newB = isReversed ? apiMatch.home_score : apiMatch.away_score
-            const wasPlayed = current.isPlayed === true
-            const scoresChanged = wasPlayed && (current.resultA !== newA || current.resultB !== newB)
-            current.resultA = newA
-            current.resultB = newB
+            current.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
+            current.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
             current.isPlayed = true
-            if (!wasPlayed || scoresChanged) updatedResults++
+            updatedResults++
           }
         }
         updatedMatches[ourMatch.id] = current as Match
@@ -230,101 +214,14 @@ export default function Admin() {
       await setDoc(doc(db, 'admin', 'schedule'), { schedule: scheduleMap })
       log.push('💾 נשמר ב-Firestore')
 
-      // ── Compute group qualifiers from match results (no API needed) ──
-      const { groupQualifiers: localQualifiers, best8Thirds: localBest8 } =
-        computeStandingsFromMatches(MATCHES, updatedMatches)
-
-      if (Object.keys(localQualifiers).length > 0) {
-        const savedGroups = { ...actualGroups, ...localQualifiers }
-        await setDoc(doc(db, 'admin', 'results'), {
-          matches: sanitizeMatches(updatedMatches),
-          groups: savedGroups,
-          bonus: actualBonus,
-        }, { merge: true })
-        setActualGroups(savedGroups)
-        log.push(`🏅 עולות מהבתים: ${Object.keys(localQualifiers).length} בתים`)
-
-        // Auto-populate R32 teams
-        const { updatedKnockout: koWithR32, populated, log: r32Log } =
-          populateR32Teams(localQualifiers, localBest8, updatedKnockout, TEAM_FIFA_POINTS, calcCategoryByRound)
-        if (populated > 0) {
-          updatedKnockout = koWithR32
-          r32Log.forEach(l => log.push(l))
-        }
-
-        // Pass savedGroups directly so recalcAllScores doesn't use stale React state
-        if (updatedResults > 0 || koUpdated > 0 || redCardsUpdated > 0) {
-          log.push('🔄 מחשב ניקוד...')
-          setSyncLog([...log])
-          await recalcAllScores(updatedMatches, savedGroups)
-          log.push('🏆 ניקוד עודכן!')
-          setSyncLog([...log])
-        }
-      } else if (updatedResults > 0 || koUpdated > 0 || redCardsUpdated > 0) {
-        // No group updates — call recalcAllScores with current actualGroups
-        log.push('🔄 מחשב ניקוד...')
-        setSyncLog([...log])
-        await recalcAllScores(updatedMatches)
-        log.push('🏆 ניקוד עודכן!')
-      }
-
-      // ── Zafronix: top scorers + red card counts from match goals/cards ──
-      try {
-        log.push('⚽ מושך סטטיסטיקות שחקנים מ-Zafronix...')
-        setSyncLog([...log])
-        const zafronixMatches = await fetchZafronixMatches()
-        const topScorersZ = buildTopScorers(zafronixMatches).slice(0, 10)
-        const topAssistsZ = buildTopAssists(zafronixMatches).slice(0, 10)
-        const totalRedCardsZ = countZafronixRedCards(zafronixMatches)
-
-        // Update hadRedCard + redCardCount from Zafronix cards data (match by team names, not matchNo)
-        for (const zm of zafronixMatches) {
-          if (!zm.cards || zm.cards.length === 0) continue
-          const heHome = ZAFRONIX_TO_HE[zm.homeTeam ?? ''] ?? zm.homeTeam
-          const heAway = ZAFRONIX_TO_HE[zm.awayTeam ?? ''] ?? zm.awayTeam
-          // Find matching match in our data by team names
-          const ourMatchId = MATCHES.find(m =>
-            (m.teamA === heHome && m.teamB === heAway) ||
-            (m.teamA === heAway && m.teamB === heHome)
-          )?.id
-          if (!ourMatchId || !updatedMatches[ourMatchId]) continue
-          const reds = zm.cards.filter((c: any) => c.color === 'red')
-          if (reds.length > 0) {
-            // Only count as "updated" if this is newly detected
-            if (!updatedMatches[ourMatchId].hadRedCard) redCardsUpdated++
-            updatedMatches[ourMatchId].hadRedCard = true
-            ;(updatedMatches[ourMatchId] as any).redCardCount = reds.length
-            log.push(`🟥 משחק ${ourMatchId} (${heHome} - ${heAway}): ${reds.length} אדום/ים`)
-          } else if (updatedMatches[ourMatchId].hadRedCard !== true) {
-            updatedMatches[ourMatchId].hadRedCard = false
-            ;(updatedMatches[ourMatchId] as any).redCardCount = 0
-          }
-        }
-
-        await setDoc(doc(db, 'admin', 'playerstats'), {
-          topScorers: topScorersZ,
-          topAssists: topAssistsZ,
-          totalRedCards: totalRedCardsZ,
-          updatedAt: new Date().toISOString(),
-        })
-        log.push(`⚽ מלך שערים: ${topScorersZ[0]?.name ?? '—'} (${topScorersZ[0]?.goals ?? 0} שערים)`)
-        log.push(`🎯 מלך בישולים: ${topAssistsZ[0]?.name ?? '—'} (${topAssistsZ[0]?.assists ?? 0} בישולים)`)
-        log.push(`🟥 סה״כ אדומים בטורניר: ${totalRedCardsZ}`)
-        setSyncLog([...log])
-      } catch (e) {
-        log.push(`⚠️ Zafronix: ${(e as Error).message}`)
-      }
-
       // ── API-Football: red cards + 90-min scores + standings + advanceTeam ──
       if (isApiFootballConfigured()) {
         log.push('🔄 מושך נתונים מ-API-Football...')
         setSyncLog([...log])
         try {
-          const [fixtures, standings, topScorers, topAssists] = await Promise.all([
+          const [fixtures, standings] = await Promise.all([
             fetchAllFixtures(),
             fetchStandings(),
-            fetchTopScorers(),
-            fetchTopAssists(),
           ])
 
           // Build name → fixture map for completed matches
@@ -362,13 +259,12 @@ export default function Admin() {
               scoresFix++
             }
 
-            // Red cards from events — skip only if already confirmed true
-            if (updatedMatches[match.id].hadRedCard !== true) {
+            // Red cards from events — only fetch if not already determined
+            if (updatedMatches[match.id].hadRedCard === undefined) {
               const events = await fetchFixtureEvents(fixture.fixture.id)
-              const redCards = events.filter(e => e.type === 'Card' && e.detail === 'Red Card')
-              updatedMatches[match.id].hadRedCard = redCards.length > 0
-              updatedMatches[match.id].redCardCount = redCards.length
-              if (redCards.length > 0) redCardsUpdated++
+              const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
+              updatedMatches[match.id].hadRedCard = hasRed
+              if (hasRed) redCardsUpdated++
             }
           }
 
@@ -397,13 +293,12 @@ export default function Admin() {
               advanceFix++
             }
 
-            // Red cards (R32 + R16 only) — skip only if already confirmed true
-            if ((km.round === 'R32' || km.round === 'R16') && kd.hadRedCard !== true) {
+            // Red cards (R32 + R16 only) — only fetch if not already determined
+            if ((km.round === 'R32' || km.round === 'R16') && kd.hadRedCard === undefined) {
               const events = await fetchFixtureEvents(fixture.fixture.id)
-              const redCards = events.filter(e => e.type === 'Card' && e.detail === 'Red Card')
-              kd.hadRedCard = redCards.length > 0
-              kd.redCardCount = redCards.length
-              if (redCards.length > 0) redCardsUpdated++
+              const hasRed = events.some(e => e.type === 'Card' && e.detail === 'Red Card')
+              kd.hadRedCard = hasRed
+              if (hasRed) redCardsUpdated++
             }
             updatedKnockout[km.id] = kd
           }
@@ -413,7 +308,24 @@ export default function Admin() {
             const { groupQualifiers, best8Thirds } = parseStandings(standings, enToHe)
             const hasData = Object.keys(groupQualifiers).length > 0
             if (hasData) {
-              log.push(`📊 API-Football standings: ${Object.keys(groupQualifiers).length} בתים (לבדיקה בלבד)`)
+              // Merge with existing — don't overwrite if already set
+              for (const [g, teams] of Object.entries(groupQualifiers)) {
+                if (teams[0]) setActualGroups(prev => ({ ...prev, [g]: teams }))
+              }
+              await setDoc(doc(db, 'admin', 'results'), {
+                matches: sanitizeMatches(updatedMatches),
+                groups: { ...actualGroups, ...groupQualifiers },
+                bonus: actualBonus,
+              }, { merge: true })
+              log.push(`🏅 עודכנו עולות מהבתים (${Object.keys(groupQualifiers).length} בתים)`)
+
+              // Auto-populate R32 teams from group results
+              const { updatedKnockout: koWithR32, populated, log: r32Log } =
+                populateR32Teams(groupQualifiers, best8Thirds, updatedKnockout, TEAM_FIFA_POINTS, calcCategoryByRound)
+              if (populated > 0) {
+                updatedKnockout = koWithR32
+                r32Log.forEach(l => log.push(l))
+              }
             }
           }
 
@@ -427,33 +339,17 @@ export default function Admin() {
           log.push(`🟥 כרטיסים אדומים: ${redCardsUpdated}`)
           log.push(`🏆 מי עלה הלאה: ${advanceFix} משחקים`)
 
-          // Save top scorers & assists to Firestore
-          log.push(`⚽ topScorers: ${topScorers.length}, topAssists: ${topAssists.length}`)
-          setSyncLog([...log])
-          if (topScorers.length > 0 || topAssists.length > 0) {
-            const scorersList = topScorers.slice(0, 10).map(s => ({
-              name: s.player.name,
-              goals: s.statistics[0]?.goals?.total ?? 0,
-              team: s.statistics[0]?.team?.name ?? '',
-            }))
-            const assistsList = topAssists.slice(0, 10).map(s => ({
-              name: s.player.name,
-              assists: s.statistics[0]?.goals?.assists ?? 0,
-              team: s.statistics[0]?.team?.name ?? '',
-            }))
-            await setDoc(doc(db, 'admin', 'playerstats'), {
-              topScorers: scorersList,
-              topAssists: assistsList,
-              updatedAt: new Date().toISOString(),
-            })
-            log.push(`⚽ סטטיסטיקות שחקנים עודכנו`)
-          }
-
         } catch (e) {
           log.push(`⚠️ API-Football: ${(e as Error).message}`)
         }
       } else {
         log.push('ℹ️ API-Football לא מוגדר')
+      }
+      if (updatedResults > 0 || koUpdated > 0 || redCardsUpdated > 0) {
+        log.push('🔄 מחשב ניקוד...')
+        setSyncLog([...log])
+        await recalcAllScores(updatedMatches, true)
+        log.push('🏆 ניקוד עודכן!')
       }
       log.push('✅ סנכרון הושלם!')
       setMsg(`✓ סנכרון הצליח — ${updatedResults} תוצאות בתים, ${koUpdated} נוקאאוט`)
@@ -464,36 +360,6 @@ export default function Admin() {
     setSyncLog([...log])
     setSyncing(false)
     setTimeout(() => setMsg(''), 5000)
-  }
-
-  const saveManualAssists = async () => {
-    setSavingAssists(true)
-    try {
-      // Parse input: each line "Name (Team) N" or "Name N"
-      const lines = assistsInput.split('\n').map(l => l.trim()).filter(Boolean)
-      const parsed = lines.map(line => {
-        const match = line.match(/^(.+?)\s*\(([^)]+)\)\s*(\d+)$/) || line.match(/^(.+?)\s+(\d+)$/)
-        if (!match) return null
-        if (match.length === 4) return { name: match[1].trim(), team: match[2].trim(), assists: Number(match[3]) }
-        return { name: match[1].trim(), team: '', assists: Number(match[2]) }
-      }).filter(Boolean) as { name: string; team: string; assists: number }[]
-      parsed.sort((a, b) => b.assists - a.assists)
-      setManualAssists(parsed)
-      // Merge with existing playerstats doc
-      const snap = await getDoc(doc(db, 'admin', 'playerstats'))
-      const existing = snap.exists() ? snap.data() : {}
-      await setDoc(doc(db, 'admin', 'playerstats'), {
-        ...existing,
-        manualAssists: parsed,
-        topAssists: parsed,
-        updatedAt: new Date().toISOString(),
-      })
-      setMsg('✓ מלך הבישולים נשמר')
-    } catch (e) {
-      setMsg('שגיאה: ' + (e as Error).message)
-    }
-    setSavingAssists(false)
-    setTimeout(() => setMsg(''), 3000)
   }
 
   const loadPendingUsers = async () => {
@@ -534,67 +400,57 @@ export default function Admin() {
     setPendingUsers(prev => prev.filter(u => u.status !== 'rejected'))
   }
 
-  const recalcAllScores = async (matchData?: Record<number, Match>, groupsOverride?: Record<string, [string, string, string]>) => {
+  const recalcAllScores = async (matchData?: Record<number, Match>, hasNewResults = false) => {
     const data = matchData ?? matches
-    const effectiveGroups = groupsOverride ?? actualGroups
     const usersSnap = await getDocs(collection(db, 'predictions'))
     const playedMatches = MATCHES.map(m => ({ ...m, ...(data[m.id] ?? {}) })).filter(m => m.isPlayed)
-    const playedKO = KNOCKOUT_MATCHES.map(km => ({ ...km, ...(knockoutMatches[km.id] ?? {}) })).filter(km => km.isPlayed)
 
-    // Snapshot current scores BEFORE computing new ones → these become prevTotal/prevRank
+    // Read current scores before computing new ones (for delta tracking)
     const currentScoresSnap = await getDocs(collection(db, 'scores'))
-    const snapshotTotals: Record<string, number> = {}
-    const snapshotScores = currentScoresSnap.docs.map(d => ({
-      userId: d.id,
-      total: (d.data().total ?? 0) as number,
-    })).sort((a, b) => b.total - a.total || a.userId.localeCompare(b.userId))
-    snapshotScores.forEach(s => { snapshotTotals[s.userId] = s.total })
-
-    // Compute tied ranks for snapshot
-    const snapshotTiedRanks: Record<string, number> = {}
-    let snapCounter = 1
-    snapshotScores.forEach((s, i) => {
-      if (i > 0 && s.total === snapshotScores[i - 1].total) {
-        snapshotTiedRanks[s.userId] = snapshotTiedRanks[snapshotScores[i - 1].userId]
-      } else {
-        snapshotTiedRanks[s.userId] = snapCounter
-      }
-      snapCounter++
+    const currentTotals: Record<string, number> = {}
+    const currentRanks: Record<string, number> = {}
+    const sortedCurrent = currentScoresSnap.docs
+      .map(d => ({ userId: d.id, total: (d.data().total ?? 0) as number,
+        prevTotal: d.data().prevTotal as number | undefined,
+        prevRank:  d.data().prevRank  as number | undefined }))
+      .sort((a, b) => b.total - a.total)
+    sortedCurrent.forEach((s, i) => {
+      currentTotals[s.userId] = s.total
+      currentRanks[s.userId] = i + 1
     })
 
     // Compute new scores
     const newScores: { userId: string; score: ReturnType<typeof computeUserScore> }[] = []
     for (const userDoc of usersSnap.docs) {
       const d = userDoc.data()
+      const playedKO = KNOCKOUT_MATCHES.map(km => ({ ...km, ...(knockoutMatches[km.id] ?? {}) })).filter(km => km.isPlayed)
       const score = computeUserScore(
         userDoc.id, d.userName ?? 'Unknown',
         (d.matches ?? {}) as Record<number, MatchPrediction>,
         (d.groups ?? {}) as Record<Group, GroupPrediction>,
-        d.bonus ?? {}, playedMatches, effectiveGroups, actualBonus,
+        d.bonus ?? {}, playedMatches, actualGroups, actualBonus,
         d.knockout ?? {}, playedKO, d.knockoutRedCards ?? { R32: [], R16: [], QF: [] }
       )
       newScores.push({ userId: userDoc.id, score })
     }
 
-    // Sort by new score → tied ranks
-    const sorted = [...newScores].sort((a, b) => b.score.total - a.score.total || a.userId.localeCompare(b.userId))
-    const newTiedRanks: Record<string, number> = {}
-    let rankCounter = 1
-    sorted.forEach(({ userId, score }, i) => {
-      if (i > 0 && score.total === sorted[i - 1].score.total) {
-        newTiedRanks[userId] = newTiedRanks[sorted[i - 1].userId]
-      } else {
-        newTiedRanks[userId] = rankCounter
-      }
-      rankCounter++
-    })
+    // Sort to compute new ranks
+    const sorted = [...newScores].sort((a, b) => b.score.total - a.score.total)
 
     const batch = writeBatch(db)
-    sorted.forEach(({ userId, score }) => {
+    sorted.forEach(({ userId, score }, i) => {
+      const newRank = i + 1
+      const prevTotal = currentTotals[userId] ?? score.total
+      const prevRank  = currentRanks[userId]  ?? newRank
+      const changed   = score.total !== prevTotal
+      const existingPrev = sortedCurrent.find(s => s.userId === userId)
       batch.set(doc(db, 'scores', userId), {
         ...score,
-        prevTotal: snapshotTotals[userId] ?? score.total,
-        prevRank:  snapshotTiedRanks[userId] ?? newTiedRanks[userId],
+        // changed=true: save old prev so delta shows gain
+        // changed=false + hasNewResults: reset to current (delta=0, user gained nothing this round)
+        // changed=false + !hasNewResults: keep old prev (manual recalc / double-click — preserve delta)
+        prevTotal: changed ? prevTotal : (hasNewResults ? score.total : (existingPrev?.prevTotal ?? prevTotal)),
+        prevRank:  changed ? prevRank  : (hasNewResults ? newRank     : (existingPrev?.prevRank  ?? newRank)),
       })
     })
     await batch.commit()
@@ -679,19 +535,6 @@ export default function Admin() {
     setScoring(false)
   }
 
-  const recalcWithDeltaBtn = async () => {
-    setScoring(true)
-    setMsg('מחשב ניקוד + מעדכן דלתא...')
-    try {
-      await recalcAllScores()
-      const usersSnap = await getDocs(collection(db, 'predictions'))
-      setMsg(`✓ ניקוד + דלתא עודכנו ל-${usersSnap.size} משתמשים`)
-    } catch (e) {
-      setMsg('שגיאה: ' + (e as Error).message)
-    }
-    setScoring(false)
-  }
-
   const updateMatchResult = (id: number, field: string, value: unknown) => {
     setMatches(prev => ({ ...prev, [id]: { ...(prev[id] ?? MATCHES.find(m => m.id === id)!), [field]: value } as Match }))
   }
@@ -752,9 +595,6 @@ export default function Admin() {
         <button className="btn-primary btn-lg" onClick={recalcScoresBtn} disabled={scoring} style={{ flex: 1 }}>
           {scoring ? 'מחשב...' : '⚡ חשב ניקוד לכולם'}
         </button>
-        <button className="btn-primary btn-lg" onClick={recalcWithDeltaBtn} disabled={scoring} style={{ flex: 1, background: '#7c3aed' }}>
-          {scoring ? 'מחשב...' : '🔄 חשב + עדכן דלתא'}
-        </button>
         <button className="btn-primary" onClick={saveResults} style={{ flex: 1 }}>💾 שמור תוצאות</button>
       </div>
 
@@ -764,27 +604,6 @@ export default function Admin() {
         <button className="btn-primary btn-lg btn-sync" onClick={syncFromApi} disabled={syncing}>
           {syncing ? '⏳ מסנכרן...' : '🔄 סנכרן עכשיו'}
         </button>
-
-      <section className="admin-section" style={{ marginTop: 16 }}>
-        <h2>🎯 מלך הבישולים — הזנה ידנית</h2>
-        <p className="hint">הזן שורה לכל שחקן בפורמט: שם (נבחרת) מספר<br/>לדוגמה: Pedri (ספרד) 3</p>
-        <textarea
-          value={assistsInput}
-          onChange={e => setAssistsInput(e.target.value)}
-          rows={6}
-          style={{ width: '100%', fontFamily: 'monospace', fontSize: 13, padding: 8, borderRadius: 6, border: '1px solid #ddd', direction: 'ltr', boxSizing: 'border-box' }}
-          placeholder={'Pedri (ספרד) 3\nOdegaard (נורווגיה) 2\nMbappé (צרפת) 2'}
-        />
-        <button className="btn-primary" onClick={saveManualAssists} disabled={savingAssists} style={{ marginTop: 8 }}>
-          {savingAssists ? 'שומר...' : '💾 שמור מלך בישולים'}
-        </button>
-        {manualAssists.length > 0 && (
-          <div style={{ marginTop: 8, fontSize: 12, color: '#555' }}>
-            נשמר: {manualAssists.slice(0, 3).map(a => `${a.name} (${a.assists})`).join(', ')}
-            {manualAssists.length > 3 ? ` +${manualAssists.length - 3}` : ''}
-          </div>
-        )}
-      </section>
         {syncLog.length > 0 && (
           <div className="sync-log">
             {syncLog.map((line, i) => <div key={i}>{line}</div>)}
@@ -957,13 +776,16 @@ export default function Admin() {
               <span style={{ fontWeight: 600 }}>{q.label}</span>
               <span style={{ color: '#888', fontSize: 12, marginRight: 6 }}>({q.points} נק׳)</span>
             </label>
-            <input
-              type="text"
-              value={(actualBonus as any)[q.id] ?? ''}
-              onChange={e => setActualBonus(prev => ({ ...prev, [q.id]: e.target.value }))}
-              placeholder="תשובה..."
-              style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, width: 160 }}
-            />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end' }}>
+              <input
+                type="text"
+                value={(actualBonus as any)[q.id] ?? ''}
+                onChange={e => setActualBonus(prev => ({ ...prev, [q.id]: e.target.value }))}
+                placeholder="תשובה..."
+                style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, width: 200 }}
+              />
+              <span style={{ fontSize: 10, color: '#bbb' }}>מספר תשובות: ספרד,גרמניה</span>
+            </div>
           </div>
         ))}
         <button className="btn-primary" onClick={saveResults}>שמור בונוס</button>
