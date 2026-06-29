@@ -299,6 +299,10 @@ export default function Admin() {
         }
         if (topAssists.length > 0) newLiveStats.topAssist = topAssists[0].name
         if (totalReds > 0) newLiveStats.totalRedCards = String(totalReds)
+        // Also save full arrays for StatsCharts display
+        ;(newLiveStats as any).topScorers = topScorers.slice(0, 10)
+        ;(newLiveStats as any).topAssists = topAssists.slice(0, 10)
+        ;(newLiveStats as any).totalRedCards_num = totalReds
 
         log.push(`🟥 כרטיסים אדומים: ${redCardsUpdated} משחקים עודכנו`)
         log.push(`⚽ מלך שערים (לייב): ${topScorers[0]?.name ?? '—'} (${topScorers[0]?.goals ?? 0})`)
@@ -343,7 +347,16 @@ export default function Admin() {
       await Promise.all([
         setDoc(doc(db, 'admin', 'results'), { matches: sanitizeMatches(updatedMatches), groups: actualGroups, bonus: actualBonus }, { merge: true }),
         setDoc(doc(db, 'admin', 'knockout'), { matches: updatedKnockout }),
-        setDoc(doc(db, 'admin', 'liveStats'), { ...newLiveStats, updatedAt: Date.now() }),
+        setDoc(doc(db, 'admin', 'liveStats'), {
+          topScorer: newLiveStats.topScorer ?? null,
+          topScorerGoals: newLiveStats.topScorerGoals ?? null,
+          topAssist: newLiveStats.topAssist ?? null,
+          totalRedCards: newLiveStats.totalRedCards ?? null,
+          topScorers: (newLiveStats as any).topScorers ?? [],
+          topAssists: (newLiveStats as any).topAssists ?? [],
+          totalRedCards_num: (newLiveStats as any).totalRedCards_num ?? 0,
+          updatedAt: Date.now(),
+        }),
       ])
 
       const scheduleMap: Record<number, string> = {}
