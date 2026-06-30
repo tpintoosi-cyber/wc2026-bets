@@ -238,83 +238,143 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
   )
 }
 
-// Knockout score distribution — same 3-col layout as ScoreGroupTable
-function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, lang = 'he' as Lang }: {
-  matchId: number; users: UserData[]; teamA: string; teamB: string; lang?: Lang; adminResult?: any
+// Knockout score distribution — identical design to ScoreGroupTable
+function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = 'he' as Lang }: {
+  matchId: number; users: UserData[]; teamA: string; teamB: string
+  lang?: Lang; adminResult?: any; rankMap?: Record<string, number>; currentUserId?: string
 }) {
   const t = T[lang]
   const played = adminResult?.isPlayed ?? false
   const rA = played ? Number(adminResult.resultA ?? 0) : null
   const rB = played ? Number(adminResult.resultB ?? 0) : null
+
   const groups: Record<string, UserData[]> = {}
   users.forEach(u => {
     const p = u.knockout?.[matchId]
     if (!p || p.scoreA == null || p.scoreB == null) {
-      groups[t.notFilled] = groups[t.notFilled] ?? []; groups[t.notFilled].push(u)
+      groups[t.notFilled] = groups[t.notFilled] ?? []
+      groups[t.notFilled].push(u)
     } else {
       const key = `${p.scoreA}-${p.scoreB}`
-      groups[key] = groups[key] ?? []; groups[key].push(u)
+      groups[key] = groups[key] ?? []
+      groups[key].push(u)
     }
   })
+
   const sorted = Object.entries(groups).sort(([a], [b]) => {
-    if (a === t.notFilled) return 1; if (b === t.notFilled) return -1
-    const [aA, aB] = a.split('-').map(Number); const [bA, bB] = b.split('-').map(Number)
+    if (a === t.notFilled) return 1
+    if (b === t.notFilled) return -1
+    const [aA, aB] = a.split('-').map(Number)
+    const [bA, bB] = b.split('-').map(Number)
     return (bA + bB) - (aA + aB) || aA - bA
   })
-  const advanceCounts: Record<string, string[]> = {}
-  users.forEach(u => {
-    const adv = u.knockout?.[matchId]?.advance
-    if (adv) { advanceCounts[adv] = advanceCounts[adv] ?? []; advanceCounts[adv].push(getDisplayName(u)) }
-  })
-  const totalUsers = users.filter(u => u.knockout?.[matchId]?.prediction1X2).length || 1
+
+  const rankBadge = (userId: string) => {
+    const r = rankMap[userId]
+    if (!r) return null
+    const medal = r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : null
+    return medal
+      ? <span style={{ fontSize: 13 }}>{medal}</span>
+      : <span style={{ fontSize: 11, fontWeight: 700, color: '#999', background: '#f0f0f0', borderRadius: 10, padding: '1px 6px' }}>#{r}</span>
+  }
+
+  const cols = [
+    { label: teamB, flag: FLAGS[teamB] ?? '', x2: '2' as const },
+    { label: t.draw, flag: '', x2: 'X' as const },
+    { label: teamA, flag: FLAGS[teamA] ?? '', x2: '1' as const },
+  ]
+
   return (
-    <div style={{ marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: '#1a1a2e', borderBottom: '2px solid #1a1a2e', paddingBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
-        <span>פילוח לפי ניחוש — {teamB} נגד {teamA}</span>
+    <div style={{ marginTop: 0 }}>
+      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: '#1a1a2e',
+        borderBottom: '2px solid #1a1a2e', paddingBottom: 8,
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span>
+          <Flag emoji={FLAGS[teamA] ?? ''} size={18} /> {teamA} נגד <Flag emoji={FLAGS[teamB] ?? ''} size={18} /> {teamB}
+        </span>
         <span style={{ fontSize: 12, fontWeight: 400, color: '#888' }}>{Object.values(groups).reduce((s, a) => s + a.length, 0)} הימורים</span>
       </div>
-      <div className="score-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-        {[{ label: teamA, x2: '1' }, { label: t.draw, x2: 'X' }, { label: teamB, x2: '2' }].map(col => {
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        {cols.map(col => {
           const colScores = sorted.filter(([score]) => {
             if (score === t.notFilled) return col.x2 === 'X'
             const [sA, sB] = score.split('-').map(Number)
-            if (col.x2 === '1') return sA > sB; if (col.x2 === '2') return sB > sA; return sA === sB
+            if (col.x2 === '1') return sA > sB
+            if (col.x2 === '2') return sB > sA
+            return sA === sB
           })
           const total = colScores.reduce((s, [, u]) => s + u.length, 0)
+          const isTeamCol = col.x2 !== 'X'
+
           return (
-            <div key={col.x2}>
-              <div style={{ background: '#f0f0f0', color: '#444', fontWeight: 700, fontSize: 13, padding: '6px 10px', borderRadius: '8px 8px 0 0', textAlign: 'center', borderBottom: '2px solid #444' }}>
-                {col.label} <span style={{ fontWeight: 400, fontSize: 11, opacity: 0.8 }}>({total})</span>
+            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
+              <div style={{
+                background: isTeamCol ? '#1a1a2e' : '#f0f0f0',
+                color: isTeamCol ? '#fff' : '#555',
+                padding: '8px 10px', textAlign: 'center',
+              }}>
+                {col.flag && <span style={{ fontSize: 16 }}>{col.flag} </span>}
+                <span style={{ fontWeight: 700, fontSize: 13 }}>{col.label}</span>
+                <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.7, marginRight: 4 }}> ({total})</span>
               </div>
-              <div style={{ border: '1px solid rgba(68,68,68,0.18)', borderTop: 'none', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
-                {colScores.length === 0 && <div style={{ padding: 10, fontSize: 12, color: '#ccc', textAlign: 'center' }}>{t.noPredictions}</div>}
+
+              <div style={{ background: '#fff' }}>
+                {colScores.length === 0 && (
+                  <div style={{ padding: 12, fontSize: 12, color: '#ccc', textAlign: 'center' }}>—</div>
+                )}
                 {colScores.map(([score, scoreUsers], idx) => {
                   const [sA, sB] = score === t.notFilled ? [null, null] : score.split('-').map(Number)
+                  const displayScore = sA !== null && sB !== null
+                    ? (col.x2 === '2' ? `${sB}-${sA}` : `${sA}-${sB}`)
+                    : '—'
                   const isExact = played && sA !== null && sA === rA && sB === rB
-                  const isMargin = played && sA !== null && !isExact && (sA! - sB!) === (rA! - rB!)
+                  const isMargin = played && !isExact && sA !== null && (sA! - sB!) === (rA! - rB!)
+
                   return (
-                    <div key={score} style={{ borderBottom: idx < colScores.length - 1 ? '1px solid #f0f0f0' : 'none', background: isExact ? '#f0fbf4' : isMargin ? '#f0f6fb' : idx % 2 === 0 ? '#fafafa' : '#fff', padding: '7px 10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                        <span style={{ fontSize: 15, fontWeight: 800, direction: 'ltr', display: 'inline-block', color: isExact ? '#3B6D11' : isMargin ? '#185FA5' : '#1a1a2e' }}>
-                          {score === t.notFilled ? '—' : `${sA}-${sB}`}
+                    <div key={score} style={{
+                      padding: '10px 10px 8px',
+                      borderTop: idx > 0 ? '1px solid #f0f0f0' : 'none',
+                      background: isExact ? '#f0fbf4' : isMargin ? '#f0f6fb' : '#fff',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                        <span style={{
+                          fontSize: 20, fontWeight: 900, direction: 'ltr', display: 'inline-block',
+                          color: isExact ? '#1a7a44' : isMargin ? '#185FA5' : '#1a1a2e',
+                          letterSpacing: 1,
+                        }}>
+                          {displayScore}
                         </span>
-                        {isExact && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#EAF3DE', color: '#3B6D11' }}>✓</span>}
-                        {isMargin && <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 5px', borderRadius: 8, background: '#E6F1FB', color: '#185FA5' }}>~</span>}
-                        <span style={{ fontSize: 11, color: '#aaa', marginRight: 'auto' }}>({scoreUsers.length})</span>
+                        {isExact && <span style={{ fontSize: 10, background: '#EAF3DE', color: '#3B6D11', padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>✓ מדויק</span>}
+                        {isMargin && <span style={{ fontSize: 10, background: '#E6F1FB', color: '#185FA5', padding: '2px 6px', borderRadius: 8, fontWeight: 700 }}>~ הפרש</span>}
+                        <span style={{ fontSize: 11, color: '#bbb', marginRight: 'auto' }}>({scoreUsers.length})</span>
                       </div>
-                      <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
-                        {scoreUsers.map((u, i) => {
+
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {scoreUsers.map(u => {
+                          const isMe = u.userId === currentUserId
                           const adv = u.knockout?.[matchId]?.advance
                           const advCorrect = played && adminResult?.advanceTeam && adv === adminResult.advanceTeam
                           return (
-                            <span key={u.userId} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, marginLeft: 2 }}>
+                            <span key={u.userId} style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4,
+                              background: isMe ? '#1a1a2e' : '#f5f5f5',
+                              color: isMe ? '#fff' : '#333',
+                              borderRadius: 20,
+                              padding: '3px 9px', fontSize: 12, fontWeight: isMe ? 700 : 600,
+                              boxShadow: isMe ? '0 2px 6px rgba(26,26,46,0.25)' : 'none',
+                            }}>
+                              {rankBadge(u.userId)}
                               {getDisplayName(u)}
                               {adv && (
-                                <span title={adv} style={{ fontSize: 10, padding: '0 2px', borderRadius: 3, background: advCorrect ? '#EAF3DE' : '#f0f0f0', color: advCorrect ? '#3B6D11' : '#888', display: 'inline-flex', alignItems: 'center' }}>
-                                  <Flag emoji={FLAGS[adv]??''} size={11}/>
+                                <span title={adv} style={{ fontSize: 11, display: 'inline-flex', alignItems: 'center',
+                                  padding: '0 2px', borderRadius: 4,
+                                  background: advCorrect ? '#EAF3DE' : 'rgba(0,0,0,0.06)',
+                                }}>
+                                  <Flag emoji={FLAGS[adv]??''} size={12}/>
                                 </span>
                               )}
-                              {i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 3px' }}>·</span>}
+                              {isMe && <span style={{ fontSize: 10, opacity: 0.7 }}> ✦</span>}
                             </span>
                           )
                         })}
@@ -327,65 +387,10 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, lang = 
           )
         })}
       </div>
-      {Object.keys(advanceCounts).length > 0 && (
-        <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: '#888', marginBottom: 6 }}>{t.koWhoAdvanceQ}</div>
-          {[teamA, teamB].map(team => {
-            const names = advanceCounts[team] ?? []
-            const isCorrect = played && adminResult?.advanceTeam === team
-            return (
-              <div key={team} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                <span style={{ fontSize: 13, minWidth: 100, display: 'flex', alignItems: 'center', gap: 5, fontWeight: isCorrect ? 700 : 400, color: isCorrect ? '#1a7a44' : '#444' }}>
-                  <Flag emoji={FLAGS[team]??''} size={20} /> {team} {isCorrect && '✓'}
-                </span>
-                <div style={{ flex: 1, background: '#f0f0f0', borderRadius: 4, height: 10, overflow: 'hidden' }}>
-                  <div style={{ height: 10, borderRadius: 4, width: `${Math.round(names.length / totalUsers * 100)}%`, background: isCorrect ? '#1a7a44' : '#b3d4f0' }} />
-                </div>
-                <span style={{ fontSize: 12, minWidth: 60, color: isCorrect ? '#1a7a44' : '#888' }}>{Math.round(names.length / totalUsers * 100)}% ({names.length})</span>
-                <span style={{ fontSize: 12, color: '#aaa' }}>{names.join(' · ')}</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
     </div>
   )
 }
 
-// Group predictions table for Groups tab
-function GroupPredTable({ group, users, actualResult, lang = "he" as Lang }: {
-  group: Group; users: UserData[]; lang?: Lang; actualResult?: [string, string, string]
-}) {
-  const t = T[lang]
-  const teams = GROUPS_TEAMS[group]
-  const total = users.filter(u => u.groups[group]).length
-
-  // Build matrix: team → position → users[]
-  const matrix: Record<string, UserData[][]> = {}
-  teams.forEach(team => { matrix[team] = [[], [], []] })
-  users.forEach(u => {
-    const gp = u.groups[group]
-    if (!gp) return
-    gp.advancing.forEach((team, idx) => {
-      if (team && matrix[team] && idx < 3) matrix[team][idx].push(u)
-    })
-  })
-
-  // Sort teams by total picks descending
-  const sortedTeams = [...teams].sort((a, b) =>
-    (matrix[b][0].length + matrix[b][1].length + matrix[b][2].length) -
-    (matrix[a][0].length + matrix[a][1].length + matrix[a][2].length)
-  )
-
-  const maxCount = Math.max(1, ...teams.flatMap(t => [0, 1, 2].map(i => matrix[t][i].length)))
-
-  const cellBg = (count: number, pos: number, team: string) => {
-    const isActual = actualResult?.[pos] === team
-    if (isActual) return '#c8f0d0'
-    if (count === 0) return '#fafafa'
-    const intensity = Math.round(30 + (count / maxCount) * 160)
-    return `rgba(26, 122, 68, ${(count / maxCount) * 0.55 + 0.05})`
-  }
 
   return (
     <div style={{ marginTop: 10, overflowX: 'auto' }}>
@@ -1453,6 +1458,8 @@ ${userRows}
 
               return (
                 <>
+                  {/* Distribution stats — at top like group stage */}
+                  <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} rankMap={koRankMap} currentUserId={user?.uid} />
                   <div className="match-row-view">
                     {/* Header — same style as group stage */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -1650,9 +1657,7 @@ ${userRows}
                   </div>
 
                   {/* Distribution stats — below the table */}
-                  <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} />
-                </>
-              )
+
             }
             const match = MATCHES.find(m => m.id === selectedMatchId)
             if (!match) return null
