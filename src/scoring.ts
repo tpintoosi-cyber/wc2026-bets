@@ -100,10 +100,6 @@ export function calcOUPoints(
   const predType = getOUType(predA + predB)
   const actType  = getOUType(actualA + actualB)
   if (!predType || predType !== actType) return 0
-  // O/U point requires matching 1X2: same winner/draw direction
-  const pred1X2   = predA   > predB   ? '1' : predA   < predB   ? '2' : 'X'
-  const actual1X2 = actualA > actualB ? '1' : actualA < actualB ? '2' : 'X'
-  if (pred1X2 !== actual1X2) return 0
   return round && ['QF', 'SF', 'F'].includes(round) ? 2 : 1
 }
 
