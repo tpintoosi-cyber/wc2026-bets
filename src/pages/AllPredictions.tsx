@@ -1656,8 +1656,8 @@ ${userRows}
                     </div>
                   </div>
 
-                  {/* Distribution stats — below the table */}
-
+                </>
+              )
             }
             const match = MATCHES.find(m => m.id === selectedMatchId)
             if (!match) return null
