@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { collection, onSnapshot, query, orderBy, getDocs } from 'firebase/firestore'
+import { collection, onSnapshot, query, orderBy, getDocs, getDoc, doc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
 import { UserScore } from '../types'
@@ -39,6 +39,18 @@ export default function Leaderboard() {
   }
 
   useEffect(() => {
+    getDoc(doc(db, 'settings', 'app')).then(snap => {
+      if (snap.exists()) {
+        const d = snap.data()
+        setKoDeadlines({
+          koR32: d.knockoutDeadline ?? null,
+          koR16: d.r16Deadline     ?? null,
+          koQF:  d.qfDeadline      ?? null,
+          koSF:  d.sfDeadline      ?? null,
+          koF:   d.finalDeadline   ?? null,
+        })
+      }
+    })
     getDocs(collection(db, 'predictions')).then(snap => {
       const nicks: Record<string, string> = {}
       const bonus: Record<string, Record<string, string>> = {}
@@ -63,6 +75,7 @@ export default function Leaderboard() {
 
   const lbRef = useRef<HTMLDivElement>(null)
   const [exporting, setExporting] = useState(false)
+  const [koDeadlines, setKoDeadlines] = useState<Record<string, number | null>>({})
 
   if (loading) return <div className="center-screen">טוען טבלה...</div>
   if (!scores.length) return (
@@ -99,7 +112,17 @@ export default function Leaderboard() {
         koF:   { label:'גמר',   header:'#FF5E00', body:'#FFE6D0' },
         bonus: { label:'בונוס', header:'#9B59B6', body:'#F0E6FA' },
       }
-      const SCORE_COLS = ['match','group','koR32','koR16','koQF','koSF','koF','bonus'].filter(k => filteredScores.some(s => colVal(s,k) > 0))
+      // Determine active knockout stage: last deadline that has passed
+      const KO_STAGES = ['koR32','koR16','koQF','koSF','koF']
+      const now = Date.now()
+      const activeKoStage = KO_STAGES.slice().reverse().find(k => {
+        const dl = koDeadlines[k]
+        return dl != null && now > dl
+      }) ?? null
+
+      // In PNG: show only the active KO stage (not all KO columns)
+      const SCORE_COLS = ['match','group',...(activeKoStage ? [activeKoStage] : KO_STAGES),'bonus']
+        .filter(k => filteredScores.some(s => colVal(s,k) > 0))
       const dateStr = new Date().toLocaleDateString('he-IL', { day:'numeric', month:'long' })
 
       const buildTable = (users: typeof filteredScores) => {
