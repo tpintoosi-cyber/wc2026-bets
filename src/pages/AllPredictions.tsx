@@ -1395,7 +1395,9 @@ ${userRows}
                                       const ouType = (t: number) => t <= 1 ? 'אנדר' : t >= 4 ? 'אובר' : null
                                       const predOuType = pred.scoreA != null ? ouType(pA + pB) : null
                                       const actOuType  = ouType((rA ?? 0) + (rB ?? 0))
-                                      const ouBonus = predOuType && predOuType === actOuType
+                                      const pred1X2ko = pA > pB ? '1' : pA < pB ? '2' : 'X'
+                                      const act1X2ko  = rA! > rB! ? '1' : rA! < rB! ? '2' : 'X'
+                                      const ouBonus = predOuType && predOuType === actOuType && pred1X2ko === act1X2ko
                                         ? ({ R32: 1, R16: 1, QF: 2, SF: 2, '3P': 1, F: 2 } as Record<string,number>)[km.round] : 0
                                       return <>
                                         <span style={{ color: (isExact||isDiff)?'#1a7a44':'#cc3333', fontWeight: 600 }}>
@@ -1554,7 +1556,9 @@ ${userRows}
                         const ouOf = (s: number) => s <= 1 ? 'אנדר' : s >= 4 ? 'אובר' : null
                         const predOU = pA != null ? ouOf(pA + pB!) : null
                         const actOU = (played && rA != null) ? ouOf(rA + rB!) : null
-                        const ouHit = played && predOU === actOU && predOU != null
+                        const pred1X2ou = pA != null ? (pA > pB! ? '1' : pA < pB! ? '2' : 'X') : null
+                        const act1X2ou  = (played && rA != null) ? (rA > rB! ? '1' : rA < rB! ? '2' : 'X') : null
+                        const ouHit = played && predOU === actOU && predOU != null && pred1X2ou === act1X2ou
 
                         // Advance
                         const correctAdv = played && p?.advance && p.advance === actual?.advanceTeam
@@ -1766,7 +1770,9 @@ ${userRows}
                       const ouOf = (s: number) => s <= 1 ? 'אנדר' : s >= 4 ? 'אובר' : null
                       const predOU = pA != null ? ouOf(pA + (pB ?? 0)) : null
                       const actOU  = (played && rA != null) ? ouOf(rA + (rB ?? 0)) : null
-                      const ouHit  = !!(predOU && predOU === actOU)
+                      const pred1X2ouM = pA != null ? (pA > (pB ?? 0) ? '1' : pA < (pB ?? 0) ? '2' : 'X') : null
+                      const act1X2ouM  = (played && rA != null) ? (rA > (rB ?? 0) ? '1' : rA < (rB ?? 0) ? '2' : 'X') : null
+                      const ouHit  = !!(predOU && predOU === actOU && pred1X2ouM === act1X2ouM)
 
                       return (
                         <div key={u.userId} style={{
