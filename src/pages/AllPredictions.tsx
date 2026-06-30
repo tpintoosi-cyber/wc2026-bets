@@ -303,9 +303,21 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, lang = 
                         <span style={{ fontSize: 11, color: '#aaa', marginRight: 'auto' }}>({scoreUsers.length})</span>
                       </div>
                       <div style={{ fontSize: 12, color: '#555', lineHeight: 1.6 }}>
-                        {scoreUsers.map((u, i) => (
-                          <span key={u.userId}>{getDisplayName(u)}{i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 5px' }}>·</span>}</span>
-                        ))}
+                        {scoreUsers.map((u, i) => {
+                          const adv = u.knockout?.[matchId]?.advance
+                          const advCorrect = played && adminResult?.advanceTeam && adv === adminResult.advanceTeam
+                          return (
+                            <span key={u.userId} style={{ display: 'inline-flex', alignItems: 'center', gap: 2, marginLeft: 2 }}>
+                              {getDisplayName(u)}
+                              {adv && (
+                                <span title={adv} style={{ fontSize: 10, padding: '0 2px', borderRadius: 3, background: advCorrect ? '#EAF3DE' : '#f0f0f0', color: advCorrect ? '#3B6D11' : '#888', display: 'inline-flex', alignItems: 'center' }}>
+                                  <Flag emoji={FLAGS[adv]??''} size={11}/>
+                                </span>
+                              )}
+                              {i < scoreUsers.length - 1 && <span style={{ color: '#ddd', margin: '0 3px' }}>·</span>}
+                            </span>
+                          )
+                        })}
                       </div>
                     </div>
                   )

@@ -559,6 +559,7 @@ export default function Predict({ lang }: { lang: Lang }) {
         const bonusFilled = BONUS_QUESTIONS.filter(q => bonus[q.id as keyof BonusPredictions]).length
         const koOpen = KNOCKOUT_MATCHES.filter(km => (knockoutMatches[km.id] as any)?.teamA && (knockoutMatches[km.id] as any)?.teamB)
         const koMissing1x2 = koOpen.filter(km => !knockoutPreds[km.id]?.prediction1X2).length
+        const koMissingAdvance = koOpen.filter(km => !knockoutPreds[km.id]?.advance).length
         const koRoundDls: Record<string, number | null> = { R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline }
         const koRedCardMissing = (Object.entries({ R32: 3, R16: 2, QF: 1 }) as [string, number][])
           .filter(([round, quota]) => { const dl = koRoundDls[round]; return dl && Date.now() > dl && (knockoutRedCards[round as 'R32'|'R16'|'QF']?.length ?? 0) < quota })
@@ -572,6 +573,7 @@ export default function Predict({ lang }: { lang: Lang }) {
         ].filter(Boolean) as {icon:string;label:string;go:()=>void}[] : []
         const koItems = tab === 'knockout' ? [
           koMissing1x2 > 0 && { icon: '1X2', label: `${koMissing1x2} משחקים ללא 1X2`, go: null },
+          koMissingAdvance > 0 && { icon: '🏆', label: `${koMissingAdvance} משחקים ללא "מי עולה"`, go: null },
           koRedCardMissing.length > 0 && { icon: '🟥', label: `כרטיסים: ${koRedCardMissing.join(' | ')}`, go: null },
         ].filter(Boolean) as {icon:string;label:string;go:null|(()=>void)}[] : []
         const items = [...groupItems, ...koItems]

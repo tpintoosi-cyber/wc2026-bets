@@ -92,13 +92,14 @@ export default function Leaderboard() {
       const COL_CFG: Record<string, { label: string; header: string; body: string }> = {
         match: { label:'בתים',   header:'#5B9BD5', body:'#DDEEFF' },
         group: { label:'עולות',  header:'#70AD47', body:'#E2EFDA' },
+        koR32: { label:'×32',    header:'#FF8C42', body:'#FFE8D6' },
         koR16: { label:'שמינית', header:'#ED7D31', body:'#FCE4D6' },
         koQF:  { label:'רבע',   header:'#E2473E', body:'#FFD7D4' },
         koSF:  { label:'חצי',   header:'#FFC000', body:'#FFF2CC' },
         koF:   { label:'גמר',   header:'#FF5E00', body:'#FFE6D0' },
         bonus: { label:'בונוס', header:'#9B59B6', body:'#F0E6FA' },
       }
-      const SCORE_COLS = ['match','group','koR16','koQF','koSF','koF','bonus'].filter(k => filteredScores.some(s => colVal(s,k) > 0))
+      const SCORE_COLS = ['match','group','koR32','koR16','koQF','koSF','koF','bonus'].filter(k => filteredScores.some(s => colVal(s,k) > 0))
       const dateStr = new Date().toLocaleDateString('he-IL', { day:'numeric', month:'long' })
 
       const buildTable = (users: typeof filteredScores) => {
@@ -139,8 +140,8 @@ export default function Leaderboard() {
             <td style="text-align:right;padding:4px 5px;border:1px solid #eee;background:${bg};width:68px;white-space:nowrap">
               <div style="font-size:${i<3?'13':'11'}px;font-weight:${i<3?'800':'600'};color:#1a1a2e">${s.userName}</div>
             </td>
-            <td style="text-align:left;padding:4px 4px;border:1px solid #eee;background:${bg};direction:ltr;white-space:nowrap">
-              <span style="font-size:11px;color:#555">${picks}</span>
+            <td style="text-align:left;padding:4px 4px;border:1px solid #eee;background:${bg};direction:ltr;max-width:80px;width:80px;overflow:hidden">
+              <span style="font-size:10px;color:#555;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;max-width:78px">${picks}</span>
             </td>
             ${tdScore}
             <td style="text-align:center;font-size:${i<3?'14':'12'}px;font-weight:900;color:${i<3?'#B8860B':'#1a1a2e'};padding:4px 2px;border:1px solid #eee;width:30px;background:${bg}">${s.total}</td>
@@ -153,7 +154,7 @@ export default function Leaderboard() {
             <th style="background:#1a1a2e;color:#fff;font-size:9px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:24px">#</th>
             <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:28px">±</th>
             <th style="background:#1a1a2e;color:#fff;font-size:9px;padding:5px 5px;text-align:right;border:1px solid #2d2d5e;width:68px">שם</th>
-            <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 4px;text-align:left;border:1px solid #2d2d5e;direction:ltr">הימורים</th>
+            <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 4px;text-align:left;border:1px solid #2d2d5e;direction:ltr;max-width:80px;width:80px">הימורים</th>
             ${thScore}
             <th style="background:#1a1a2e;color:#fff;font-size:10px;font-weight:800;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:30px">סה"כ</th>
             <th style="background:#1a1a2e;color:#aac4ff;font-size:9px;padding:5px 2px;text-align:center;border:1px solid #2d2d5e;width:28px">±נק׳</th>

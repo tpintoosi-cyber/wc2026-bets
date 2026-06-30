@@ -58,6 +58,8 @@ export default function Admin() {
   const [adminTab, setAdminTab] = useState<'group' | 'knockout' | 'users' | 'test'>('group')
   const [pendingUsers, setPendingUsers] = useState<{ uid: string; displayName: string; email: string; requestedAt: number; status: string }[]>([])
   const [usersLoading, setUsersLoading] = useState(false)
+  const [koCompletion, setKoCompletion] = useState<{ userId: string; userName: string; missing1x2: number; missingAdvance: number; missingTotal: number }[]>([])
+  const [koCompLoading, setKoCompLoading] = useState(false)
 
   useEffect(() => {
     ;(async () => {
@@ -392,6 +394,37 @@ export default function Admin() {
     users.sort((a, b) => a.requestedAt - b.requestedAt)
     setPendingUsers(users)
     setUsersLoading(false)
+  }
+
+  const loadKoCompletion = async () => {
+    setKoCompLoading(true)
+    try {
+      const [predsSnap, koSnap] = await Promise.all([
+        getDocs(collection(db, 'predictions')),
+        getDoc(doc(db, 'admin', 'knockout')),
+      ])
+      const koMatches = koSnap.exists() ? (koSnap.data().matches ?? {}) : {}
+      const openKoIds = KNOCKOUT_MATCHES
+        .filter(km => (koMatches[km.id] as any)?.teamA && (koMatches[km.id] as any)?.teamB)
+        .map(km => km.id)
+
+      const completion = predsSnap.docs.map(d => {
+        const data = d.data()
+        const koPreds = data.knockout ?? {}
+        const missing1x2 = openKoIds.filter(id => !koPreds[id]?.prediction1X2).length
+        const missingAdvance = openKoIds.filter(id => !koPreds[id]?.advance).length
+        return {
+          userId: d.id,
+          userName: data.userName ?? d.id,
+          missing1x2,
+          missingAdvance,
+          missingTotal: missing1x2 + missingAdvance,
+        }
+      }).filter(u => u.missingTotal > 0)
+        .sort((a, b) => b.missingTotal - a.missingTotal)
+      setKoCompletion(completion)
+    } catch (e) { console.error(e) }
+    setKoCompLoading(false)
   }
 
   const approveUser = async (uid: string, displayName: string, email: string) => {
@@ -854,7 +887,30 @@ export default function Admin() {
         </section>
       )}
 
-      {/* ── TEST TAB ── */}
+      {/* ── KNOCKOUT COMPLETION (in users tab) ── */}
+      {adminTab === 'users' && (
+        <section className="admin-section" style={{ marginTop: 24, background: '#fff9f0', border: '1px solid #f0d080' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>📋 מילוי הימורי נוקאאוט</h3>
+            <button className="btn-secondary" onClick={loadKoCompletion} disabled={koCompLoading}>
+              {koCompLoading ? 'טוען...' : '🔄 בדוק'}
+            </button>
+          </div>
+          {koCompletion.length === 0 && !koCompLoading && (
+            <p style={{ color: '#888', fontSize: 13 }}>לחץ "בדוק" לראות מי לא מילא</p>
+          )}
+          {koCompletion.map(u => (
+            <div key={u.userId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: '#fff', border: '1px solid #f0e0a0', marginBottom: 6 }}>
+              <div style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{u.userName}</div>
+              {u.missing1x2 > 0 && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#fde8a0', color: '#856404', fontWeight: 700 }}>1X2: {u.missing1x2} חסרים</span>}
+              {u.missingAdvance > 0 && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 6, background: '#e0f0ff', color: '#1a5c96', fontWeight: 700 }}>🏆: {u.missingAdvance} חסרים</span>}
+            </div>
+          ))}
+          {koCompletion.length > 0 && <p style={{ fontSize: 12, color: '#888', marginTop: 8 }}>✓ שאר המשתמשים מילאו הכל</p>}
+        </section>
+      )}
+
+      {/* ── TEST TAB ── */}}
       {adminTab === 'test' && (
         <section className="admin-section">
           <h3>🧪 פאנל בדיקות</h3>

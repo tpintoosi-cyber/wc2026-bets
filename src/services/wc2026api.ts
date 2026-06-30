@@ -41,7 +41,7 @@ export async function fetchGroupStageMatches(): Promise<ApiMatch[]> {
 
 export async function fetchKnockoutMatches(): Promise<ApiMatch[]> {
   const all = await fetchAllMatches()
-  return all.filter(m => m.round === 'knockout')
+  return all.filter(m => m.round !== 'group')  // API uses 'R32','R16','QF','SF','3rd','final' not 'knockout'
 }
 
 // Convert UTC ISO string to Israel time string "d/M HH:MM"
