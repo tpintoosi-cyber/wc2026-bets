@@ -235,7 +235,6 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
         })}
       </div>
     </div>
-    </div>
   )
 }
 
@@ -421,6 +420,7 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
           )
         })}
       </div>
+    </div>
     </div>
   )
 }
