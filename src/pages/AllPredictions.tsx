@@ -1,5 +1,5 @@
 import Flag from '../components/Flag'
-import { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { collection, getDocs, doc, getDoc, onSnapshot } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../hooks/useAuth'
@@ -235,6 +235,7 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
         })}
       </div>
     </div>
+    </div>
   )
 }
 
@@ -284,15 +285,48 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
     { label: teamA, flag: FLAGS[teamA] ?? '', x2: '1' as const },
   ]
 
+  const tableRef = React.useRef<HTMLDivElement>(null)
+  const [exporting, setExporting] = React.useState(false)
+
+  const downloadImage = async () => {
+    if (!tableRef.current) return
+    setExporting(true)
+    try {
+      if (!(window as any).html2canvas) {
+        await new Promise<void>((res, rej) => {
+          const s = document.createElement('script')
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+          s.onload = () => res(); s.onerror = () => rej(); document.head.appendChild(s)
+        })
+      }
+      const canvas = await (window as any).html2canvas(tableRef.current, {
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 380, windowWidth: 380,
+      })
+      const link = document.createElement('a')
+      link.download = `${teamA}-vs-${teamB}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+    } catch { alert('שגיאה בייצוא תמונה') }
+    setExporting(false)
+  }
+
   return (
     <div style={{ marginTop: 0 }}>
+      <div ref={tableRef} style={{ background: '#fff', padding: 8, borderRadius: 10 }}>
+      {/* Header for image */}
+      <div style={{ fontSize: 11, color: '#aaa', textAlign: 'center', marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+        <span>{Object.values(groups).reduce((s, a) => s + a.length, 0)} הימורים</span>
+        <span style={{ fontWeight: 700, color: '#1a1a2e' }}>WC2026 Bets</span>
+      </div>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12, color: '#1a1a2e',
         borderBottom: '2px solid #1a1a2e', paddingBottom: 8,
         display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>
           <Flag emoji={FLAGS[teamA] ?? ''} size={18} /> {teamA} נגד <Flag emoji={FLAGS[teamB] ?? ''} size={18} /> {teamB}
         </span>
-        <span style={{ fontSize: 12, fontWeight: 400, color: '#888' }}>{Object.values(groups).reduce((s, a) => s + a.length, 0)} הימורים</span>
+        <button onClick={downloadImage} disabled={exporting} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontFamily: 'inherit' }}>
+          {exporting ? '⏳' : '📸'}
+        </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
