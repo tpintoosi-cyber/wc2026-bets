@@ -341,6 +341,10 @@ export default function Admin() {
         } catch (e) { log.push(`⚠️ API-Football: ${(e as Error).message}`) }
       }
 
+      // ── Propagate bracket (winners → next round) ─────────────────
+      updatedKnockout = propagateBracket(updatedKnockout)
+      log.push('🔗 נבחרות מנצחות הועברו לסיבוב הבא')
+
       // ── Save all ─────────────────────────────────────────────────
       setMatches({ ...updatedMatches })
       setKnockoutMatches({ ...updatedKnockout })
@@ -530,8 +534,10 @@ export default function Admin() {
     setTimeout(() => setMsg(''), 3000)
   }
 
-  const saveKnockout = async () => {
-    const propagated: Record<number, any> = { ...knockoutMatches }
+  // ── Bracket propagation helper ────────────────────────────────────────────
+  // Cascades advanceTeam winners (and 3rd-place losers) into the next round's teamA/teamB slots.
+  const propagateBracket = (matches: Record<number, any>): Record<number, any> => {
+    const propagated: Record<number, any> = { ...matches }
     for (const [id] of Object.entries(propagated)) {
       const m = propagated[Number(id)] as any
       if (!m?.advanceTeam) continue
@@ -546,6 +552,11 @@ export default function Admin() {
         if (nb.feederB === -Number(id)) { const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA; if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: loser, fifaPointsB: TEAM_FIFA_POINTS[loser] ?? 1500 } }
       }
     }
+    return propagated
+  }
+
+  const saveKnockout = async () => {
+    const propagated = propagateBracket({ ...knockoutMatches })
     await setDoc(doc(db, 'admin', 'knockout'), { matches: propagated })
     setKnockoutMatches(propagated)
     setMsg('✓ נוקאאוט נשמר')
