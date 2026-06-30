@@ -910,7 +910,7 @@ export default function Admin() {
         </section>
       )}
 
-      {/* ── TEST TAB ── */}}
+      {/* ── TEST TAB ── */}
       {adminTab === 'test' && (
         <section className="admin-section">
           <h3>🧪 פאנל בדיקות</h3>
