@@ -359,20 +359,21 @@ export const KNOCKOUT_BRACKET: Record<number, { feederA: number | null; feederB:
   86: { feederA: null, feederB: null },
   87: { feederA: null, feederB: null },
   88: { feederA: null, feederB: null },
-  // R16 — actual FIFA 2026 bracket crossings
-  89: { feederA: 73, feederB: 75 },  // W73(קנדה/דר"א) vs W75(הולנד/מרוקו) — יולי 4, יוסטון
-  90: { feederA: 76, feederB: 78 },  // W76(ברזיל/יפן) vs W78(חוף השנהב/נורווגיה) — יולי 5, NJ
-  91: { feederA: 74, feederB: 77 },  // W74(גרמניה/פרגוואי) vs W77(צרפת/שוודיה) — יולי 4, פילדלפיה
-  92: { feederA: 79, feederB: 80 },  // W79(מקסיקו/אקוודור) vs W80(אנגליה/קונגו) — יולי 5, מכסיקו סיטי
-  93: { feederA: 81, feederB: 82 },  // W81(ארה"ב/בוסניה) vs W82(בלגיה/סנגל) — יולי 6, סיאטל
-  94: { feederA: 83, feederB: 85 },  // W83(פורטוגל/קרואטיה) vs W85(ספרד/אוסטריה) — יולי 6, דאלס
-  95: { feederA: 86, feederB: 88 },  // W86(ארגנטינה/כף ורדה) vs W88(אוסטרליה/מצרים) — יולי 7, אטלנטה
-  96: { feederA: 84, feederB: 87 },  // W84(שווייץ/אלג׳יריה) vs W87(קולומביה/גאנה) — יולי 7, ונקובר
-  // QF — winners of R16 pairs
-  97:  { feederA: 89, feederB: 90 },
-  98:  { feederA: 91, feederB: 92 },
-  99:  { feederA: 93, feederB: 94 },
-  100: { feederA: 95, feederB: 96 },
+  // R16 TOP HALF (89-92) — צד שמאל בברקט פיפ"א → QF 97-98 → SF 101
+  89: { feederA: 74, feederB: 77 },  // פרגוואי/גרמניה vs צרפת/שוודיה
+  90: { feederA: 73, feederB: 75 },  // קנדה/דר"א vs הולנד/מרוקו
+  91: { feederA: 83, feederB: 85 },  // פורטוגל/קרואטיה vs ספרד/אוסטריה
+  92: { feederA: 81, feederB: 82 },  // ארה"ב/בוסניה vs בלגיה/סנגל
+  // R16 BOTTOM HALF (93-96) — צד ימין בברקט פיפ"א → QF 99-100 → SF 102
+  93: { feederA: 76, feederB: 78 },  // ברזיל/יפן vs חוף השנהב/נורווגיה
+  94: { feederA: 79, feederB: 80 },  // מקסיקו/אקוודור vs אנגליה/קונגו
+  95: { feederA: 86, feederB: 88 },  // ארגנטינה/כף ורדה vs אוסטרליה/מצרים
+  96: { feederA: 84, feederB: 87 },  // שווייץ/אלג׳יריה vs קולומביה/גאנה
+  // QF
+  97:  { feederA: 89, feederB: 90 },  // TOP left:  פרגוואי/צרפת vs קנדה/מרוקו
+  98:  { feederA: 91, feederB: 92 },  // TOP right: פורטוגל/ספרד vs ארה"ב/בלגיה
+  99:  { feederA: 93, feederB: 94 },  // BOTTOM left:  ברזיל vs מקסיקו/אנגליה
+  100: { feederA: 95, feederB: 96 },  // BOTTOM right: ארגנטינה vs שווייץ
   // SF — winners of QF pairs
   101: { feederA: 97,  feederB: 98  },
   102: { feederA: 99,  feederB: 100 },
