@@ -469,6 +469,118 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
   )
 }
 
+// Group predictions table for Groups tab
+function GroupPredTable({ group, users, actualResult, lang = "he" as Lang }: {
+  group: Group; users: UserData[]; lang?: Lang; actualResult?: [string, string, string]
+}) {
+  const t = T[lang]
+  const teams = GROUPS_TEAMS[group]
+  const total = users.filter(u => u.groups[group]).length
+
+  // Build matrix: team → position → users[]
+  const matrix: Record<string, UserData[][]> = {}
+  teams.forEach(team => { matrix[team] = [[], [], []] })
+  users.forEach(u => {
+    const gp = u.groups[group]
+    if (!gp) return
+    gp.advancing.forEach((team, idx) => {
+      if (team && matrix[team] && idx < 3) matrix[team][idx].push(u)
+    })
+  })
+
+  // Sort teams by total picks descending
+  const sortedTeams = [...teams].sort((a, b) =>
+    (matrix[b][0].length + matrix[b][1].length + matrix[b][2].length) -
+    (matrix[a][0].length + matrix[a][1].length + matrix[a][2].length)
+  )
+
+  const maxCount = Math.max(1, ...teams.flatMap(t => [0, 1, 2].map(i => matrix[t][i].length)))
+
+  const cellBg = (count: number, pos: number, team: string) => {
+    const isActual = actualResult?.[pos] === team
+    if (isActual) return '#c8f0d0'
+    if (count === 0) return '#fafafa'
+    const intensity = Math.round(30 + (count / maxCount) * 160)
+    return `rgba(26, 122, 68, ${(count / maxCount) * 0.55 + 0.05})`
+  }
+
+  return (
+    <div style={{ marginTop: 10, overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+        <thead>
+          <tr>
+            <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#888', fontSize: 11, borderBottom: '2px solid #eee' }}>
+              נבחרת
+            </th>
+            {['🥇 1', '🥈 2', '🥉 3'].map((label, i) => (
+              <th key={i} style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 600, color: '#888', fontSize: 11, borderBottom: '2px solid #eee', minWidth: 90 }}>
+                {label}
+                {actualResult?.[i] && (
+                  <div style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>({actualResult[i]})</div>
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sortedTeams.map((team, rowIdx) => {
+            const actualPos = actualResult?.indexOf(team)
+            const inActual = actualPos !== undefined && actualPos >= 0
+            return (
+              <tr key={team} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                <td style={{ padding: '6px 10px', fontWeight: 600, whiteSpace: 'nowrap',
+                  background: inActual ? '#f0faf4' : rowIdx % 2 === 0 ? '#fafafa' : '#fff' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <Flag emoji={FLAGS[team] ?? ''} size={16} />
+                    {team}
+                    {inActual && <span style={{ fontSize: 10, background: '#EAF3DE', color: '#3B6D11', padding: '1px 5px', borderRadius: 8 }}>#{actualPos! + 1}</span>}
+                  </span>
+                </td>
+                {[0, 1, 2].map(pos => {
+                  const cellUsers = matrix[team][pos]
+                  const count = cellUsers.length
+                  const bg = cellBg(count, pos, team)
+                  const isActual = actualResult?.[pos] === team
+                  return (
+                    <td key={pos} style={{ padding: '5px 8px', textAlign: 'center', background: bg,
+                      border: isActual ? '2px solid #1a7a44' : '1px solid #f0f0f0' }}>
+                      {count > 0 ? (
+                        <>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: isActual ? '#1a7a44' : '#1a1a2e' }}>{count}</div>
+                          <div style={{ fontSize: 10, color: '#555', lineHeight: 1.3, marginTop: 2 }}>
+                            {cellUsers.map(u => getDisplayName(u)).join(', ')}
+                          </div>
+                        </>
+                      ) : (
+                        <span style={{ color: '#ddd', fontSize: 12 }}>—</span>
+                      )}
+                    </td>
+                  )
+                })}
+              </tr>
+            )
+          })}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td style={{ padding: '4px 10px', fontSize: 11, color: '#aaa' }}>סה״כ {total} הימורים</td>
+            {[0, 1, 2].map(pos => {
+              const topTeam = sortedTeams.reduce((best, t) =>
+                matrix[t][pos].length > matrix[best][pos].length ? t : best, sortedTeams[0])
+              const topCount = matrix[topTeam]?.[pos]?.length ?? 0
+              return (
+                <td key={pos} style={{ padding: '4px 8px', textAlign: 'center', fontSize: 11, color: '#888' }}>
+                  {topCount > 0 ? `${topTeam} (${topCount})` : '—'}
+                </td>
+              )
+            })}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )
+}
+
 // Group bonus answers table
 function BonusPredTable({ qId, users, actualVal, lang = "he" as Lang }: {
   qId: string; users: UserData[]; lang?: Lang; actualVal?: string
@@ -1458,7 +1570,6 @@ ${userRows}
 
               return (
                 <>
-                  {/* Distribution stats — at top like group stage */}
                   <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} rankMap={koRankMap} currentUserId={user?.uid} />
                   <div className="match-row-view">
                     {/* Header — same style as group stage */}
@@ -1655,6 +1766,8 @@ ${userRows}
                       })}
                     </div>
                   </div>
+
+                  {/* Distribution stats — below the table */}
 
                 </>
               )
