@@ -359,15 +359,15 @@ export const KNOCKOUT_BRACKET: Record<number, { feederA: number | null; feederB:
   86: { feederA: null, feederB: null },
   87: { feederA: null, feederB: null },
   88: { feederA: null, feederB: null },
-  // R16 — winners of R32 pairs
-  89: { feederA: 73, feederB: 74 },
-  90: { feederA: 75, feederB: 76 },
-  91: { feederA: 77, feederB: 78 },
-  92: { feederA: 79, feederB: 80 },
-  93: { feederA: 81, feederB: 82 },
-  94: { feederA: 83, feederB: 84 },
-  95: { feederA: 85, feederB: 86 },
-  96: { feederA: 87, feederB: 88 },
+  // R16 — actual FIFA 2026 bracket crossings
+  89: { feederA: 73, feederB: 75 },  // W73(קנדה/דר"א) vs W75(הולנד/מרוקו) — יולי 4, יוסטון
+  90: { feederA: 76, feederB: 78 },  // W76(ברזיל/יפן) vs W78(חוף השנהב/נורווגיה) — יולי 5, NJ
+  91: { feederA: 74, feederB: 77 },  // W74(גרמניה/פרגוואי) vs W77(צרפת/שוודיה) — יולי 4, פילדלפיה
+  92: { feederA: 79, feederB: 80 },  // W79(מקסיקו/אקוודור) vs W80(אנגליה/קונגו) — יולי 5, מכסיקו סיטי
+  93: { feederA: 81, feederB: 82 },  // W81(ארה"ב/בוסניה) vs W82(בלגיה/סנגל) — יולי 6, סיאטל
+  94: { feederA: 83, feederB: 85 },  // W83(פורטוגל/קרואטיה) vs W85(ספרד/אוסטריה) — יולי 6, דאלס
+  95: { feederA: 86, feederB: 88 },  // W86(ארגנטינה/כף ורדה) vs W88(אוסטרליה/מצרים) — יולי 7, אטלנטה
+  96: { feederA: 84, feederB: 87 },  // W84(שווייץ/אלג׳יריה) vs W87(קולומביה/גאנה) — יולי 7, ונקובר
   // QF — winners of R16 pairs
   97:  { feederA: 89, feederB: 90 },
   98:  { feederA: 91, feederB: 92 },
