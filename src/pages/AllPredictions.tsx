@@ -371,7 +371,7 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
                                   padding: '0 2px', borderRadius: 4,
                                   background: advCorrect ? '#EAF3DE' : 'rgba(0,0,0,0.06)',
                                 }}>
-                                  <Flag emoji={FLAGS[adv]??''} size={12}/>
+                                  <Flag emoji={FLAGS[adv] ?? ''} size={12}/>
                                 </span>
                               )}
                               {isMe && <span style={{ fontSize: 10, opacity: 0.7 }}> ✦</span>}
@@ -387,84 +387,6 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
           )
         })}
       </div>
-    </div>
-  )
-}
-
-
-  return (
-    <div style={{ marginTop: 10, overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-        <thead>
-          <tr>
-            <th style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600, color: '#888', fontSize: 11, borderBottom: '2px solid #eee' }}>
-              נבחרת
-            </th>
-            {['🥇 1', '🥈 2', '🥉 3'].map((label, i) => (
-              <th key={i} style={{ padding: '6px 10px', textAlign: 'center', fontWeight: 600, color: '#888', fontSize: 11, borderBottom: '2px solid #eee', minWidth: 90 }}>
-                {label}
-                {actualResult?.[i] && (
-                  <div style={{ fontSize: 10, color: '#1a7a44', fontWeight: 700 }}>({actualResult[i]})</div>
-                )}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedTeams.map((team, rowIdx) => {
-            const actualPos = actualResult?.indexOf(team)
-            const inActual = actualPos !== undefined && actualPos >= 0
-            return (
-              <tr key={team} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                <td style={{ padding: '6px 10px', fontWeight: 600, whiteSpace: 'nowrap',
-                  background: inActual ? '#f0faf4' : rowIdx % 2 === 0 ? '#fafafa' : '#fff' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <Flag emoji={FLAGS[team] ?? ''} size={16} />
-                    {team}
-                    {inActual && <span style={{ fontSize: 10, background: '#EAF3DE', color: '#3B6D11', padding: '1px 5px', borderRadius: 8 }}>#{actualPos! + 1}</span>}
-                  </span>
-                </td>
-                {[0, 1, 2].map(pos => {
-                  const cellUsers = matrix[team][pos]
-                  const count = cellUsers.length
-                  const bg = cellBg(count, pos, team)
-                  const isActual = actualResult?.[pos] === team
-                  return (
-                    <td key={pos} style={{ padding: '5px 8px', textAlign: 'center', background: bg,
-                      border: isActual ? '2px solid #1a7a44' : '1px solid #f0f0f0' }}>
-                      {count > 0 ? (
-                        <>
-                          <div style={{ fontWeight: 700, fontSize: 14, color: isActual ? '#1a7a44' : '#1a1a2e' }}>{count}</div>
-                          <div style={{ fontSize: 10, color: '#555', lineHeight: 1.3, marginTop: 2 }}>
-                            {cellUsers.map(u => getDisplayName(u)).join(', ')}
-                          </div>
-                        </>
-                      ) : (
-                        <span style={{ color: '#ddd', fontSize: 12 }}>—</span>
-                      )}
-                    </td>
-                  )
-                })}
-              </tr>
-            )
-          })}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td style={{ padding: '4px 10px', fontSize: 11, color: '#aaa' }}>סה״כ {total} הימורים</td>
-            {[0, 1, 2].map(pos => {
-              const topTeam = sortedTeams.reduce((best, t) =>
-                matrix[t][pos].length > matrix[best][pos].length ? t : best, sortedTeams[0])
-              const topCount = matrix[topTeam]?.[pos]?.length ?? 0
-              return (
-                <td key={pos} style={{ padding: '4px 8px', textAlign: 'center', fontSize: 11, color: '#888' }}>
-                  {topCount > 0 ? `${topTeam} (${topCount})` : '—'}
-                </td>
-              )
-            })}
-          </tr>
-        </tfoot>
-      </table>
     </div>
   )
 }
@@ -1428,7 +1350,6 @@ ${userRows}
                             const p1x2 = isPlayed ? calc1X2KnockoutPoints(pred.prediction1X2, rA!, rB!, ptA, ptB, cat, km.round) : 0
                             const pScore = (isPlayed && pred.scoreA != null)
                                     ? calcScoreKnockoutPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round)
-                                      + calcOUPoints(Number(pred.scoreA), Number(pred.scoreB ?? 0), rA!, rB!, cat, km.round)
                                     : 0
                             const pAdv = (isPlayed && pred.advance && adminKm?.advanceTeam) ? calcAdvancePoints(pred.advance, adminKm.advanceTeam, km.round, cat, ptA, ptB, actualTeamA ?? '', actualTeamB ?? '') : 0
                             // Knockout red card — stored as array of match IDs per round
@@ -1650,7 +1571,7 @@ ${userRows}
                         const ptB = TEAM_FIFA_POINTS[tB] ?? 1500
                         const pts = played && p ? (() => {
                           const p1x2 = p.prediction1X2 ? calc1X2KnockoutPoints(p.prediction1X2, Number(rA), Number(rB), ptA, ptB, cat as any, km!.round) : 0
-                          const pSc = pA != null ? calcScoreKnockoutPoints(pA, pB??0, Number(rA), Number(rB), cat as any, km!.round) + calcOUPoints(pA, pB??0, Number(rA), Number(rB), cat as any, km!.round) : 0
+                          const pSc = pA != null ? calcScoreKnockoutPoints(pA, pB??0, Number(rA), Number(rB), cat as any, km!.round) : 0
                           const pAdv = p.advance ? calcAdvancePoints(p.advance, actual.advanceTeam, km!.round, cat as any, ptA, ptB, tA, tB) : 0
                           const pRed = redCorrect ? 2 : 0
                           return p1x2 + pSc + pAdv + pRed
