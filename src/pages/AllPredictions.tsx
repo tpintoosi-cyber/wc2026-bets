@@ -161,7 +161,7 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
           const isTeamCol = col.x2 !== 'X'
 
           return (
-            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
+            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8', minWidth: 0 }}>
               {/* Column header */}
               <div style={{
                 background: isTeamCol ? '#1a1a2e' : '#f0f0f0',
@@ -299,7 +299,7 @@ function ScoreKnockoutTable({ matchId, round, users, teamA, teamB, adminResult, 
         })
       }
       const canvas = await (window as any).html2canvas(tableRef.current, {
-        backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 420, windowWidth: 420,
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 540, windowWidth: 540,
       })
       const link = document.createElement('a')
       link.download = `${teamA}-vs-${teamB}.png`
@@ -341,7 +341,7 @@ function ScoreKnockoutTable({ matchId, round, users, teamA, teamB, adminResult, 
           const isTeamCol = col.x2 !== 'X'
 
           return (
-            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
+            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8', minWidth: 0 }}>
               <div style={{
                 background: isTeamCol ? '#1a1a2e' : '#f0f0f0',
                 color: isTeamCol ? '#fff' : '#555',
@@ -1410,6 +1410,7 @@ ${userRows}
                                     {pred1x2Flag && <Flag emoji={pred1x2Flag} size={14} />} {pred1x2Label}
                                   </span>
                                   {adminSchedule[km.id] && <span style={{ fontSize: 10, color: '#aaa' }}>📅 {adminSchedule[km.id]}</span>}
+                                  {pickedRedCard && <span style={{ fontSize: 13 }}>🟥</span>}
                                   {isPlayed && <span style={{ fontSize: 12, fontWeight: 700, color: total > 0 ? '#1a7a44' : '#999', background: total > 0 ? '#EAF3DE' : '#f5f5f5', padding: '1px 6px', borderRadius: 8 }}>{total > 0 ? `+${total}` : '0'} נק׳</span>}
                                 </div>
                                 {isPlayed && rA != null && (
