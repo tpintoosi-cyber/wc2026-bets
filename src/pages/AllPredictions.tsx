@@ -91,7 +91,7 @@ function HoverTooltip({ names, children }: { names: string[]; children: React.Re
 
 // Group predictions by score table (like the image)
 function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = "he" as Lang }: {
-  matchId: number; users: UserData[]; teamA: string; teamB: string
+  matchId: number; round?: string; users: UserData[]; teamA: string; teamB: string
   lang?: Lang; adminResult?: Match; rankMap?: Record<string, number>; currentUserId?: string
 }) {
   const t = T[lang]
@@ -239,8 +239,8 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
 }
 
 // Knockout score distribution — identical design to ScoreGroupTable
-function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = 'he' as Lang }: {
-  matchId: number; users: UserData[]; teamA: string; teamB: string
+function ScoreKnockoutTable({ matchId, round, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = 'he' as Lang }: {
+  matchId: number; round?: string; users: UserData[]; teamA: string; teamB: string
   lang?: Lang; adminResult?: any; rankMap?: Record<string, number>; currentUserId?: string
 }) {
   const t = T[lang]
@@ -299,7 +299,7 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
         })
       }
       const canvas = await (window as any).html2canvas(tableRef.current, {
-        backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 380, windowWidth: 380,
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 420, windowWidth: 420,
       })
       const link = document.createElement('a')
       link.download = `${teamA}-vs-${teamB}.png`
@@ -407,6 +407,10 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
                                   <Flag emoji={FLAGS[adv] ?? ''} size={12}/>
                                 </span>
                               )}
+                              {round && ['R32','R16','QF'].includes(round) &&
+                                (u.knockoutRedCards?.[round as 'R32'|'R16'|'QF'] ?? []).includes(matchId) &&
+                                <span style={{ fontSize: 10 }}>🟥</span>
+                              }
                               {isMe && <span style={{ fontSize: 10, opacity: 0.7 }}> ✦</span>}
                             </span>
                           )
@@ -1442,8 +1446,8 @@ ${userRows}
                                       </>
                                     })()}
                                     {pred.advance && <><span style={{ color: '#ddd' }}>|</span><span style={{ display:'flex', alignItems:'center', gap:2, color: pAdv>0?'#1a7a44':'#cc3333', fontWeight:600 }}>{pAdv>0?'✓':'✗'} עולה:<Flag emoji={FLAGS[pred.advance]??''} size={13}/>{pAdv>0?` +${pAdv}`:''}{!correctAdvance && adminKm?.advanceTeam && <span style={{color:'#aaa',fontWeight:400}}> (עלה: {adminKm.advanceTeam})</span>}</span></>}
-                                    {pickedRedCard && isPlayed && <><span style={{ color: '#ddd' }}>|</span>
-                                      <span style={{ color: pRed>0?'#A32D2D':'#cc3333', fontWeight:600 }}>{pRed>0?'✓':'✗'} 🟥{pRed>0?` +${pRed}`:''}</span></>}
+                                    {pickedRedCard && <><span style={{ color: '#ddd' }}>|</span>
+                                      <span style={{ color: pRed>0?'#A32D2D':'#cc3333', fontWeight:600 }}>{isPlayed ? (pRed>0?'✓':'✗') : ''} 🟥{pRed>0?` +${pRed}`:''}</span></>}
                                   </div>
                                 )}
                               </div>
@@ -1527,7 +1531,7 @@ ${userRows}
 
               return (
                 <>
-                  <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} rankMap={koRankMap} currentUserId={user?.uid} />
+                  <ScoreKnockoutTable matchId={selectedMatchId} round={km?.round} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} rankMap={koRankMap} currentUserId={user?.uid} />
                   <div className="match-row-view">
                     {/* Header — same style as group stage */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
