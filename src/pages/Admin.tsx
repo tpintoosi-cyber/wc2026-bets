@@ -269,7 +269,7 @@ export default function Admin() {
             (m.teamA === homeHe && m.teamB === awayHe) || (m.teamA === awayHe && m.teamB === homeHe)
           )
           if (groupMatch) {
-            if (updatedMatches[groupMatch.id]?.hadRedCard === undefined) {
+            if (!updatedMatches[groupMatch.id]?.hadRedCard) {
               updatedMatches[groupMatch.id].hadRedCard = true
               redCardsUpdated++
             }
@@ -282,7 +282,7 @@ export default function Admin() {
           )
           if (koEntry) {
             const km = koEntry[1] as any
-            if (km.isPlayed && km.hadRedCard === undefined) {
+            if (km.isPlayed && !km.hadRedCard) {
               km.hadRedCard = true
               redCardsUpdated++
               updatedKnockout[Number(koEntry[0])] = km
@@ -293,7 +293,11 @@ export default function Admin() {
         // Live stats — saved separately, NOT used for scoring yet
         const topScorers = buildTopScorers(zMatches)
         const topAssists = buildTopAssists(zMatches)
-        const totalReds = countRedCards(zMatches)
+        const apiReds = countRedCards(zMatches)
+        // גם ספור אדומים שהוגדרו ידנית ב-Firestore (אם Zafronix פספס)
+        const manualGroupReds = Object.values(updatedMatches).filter((m: any) => m.hadRedCard === true).length
+        const manualKoReds = Object.values(updatedKnockout).filter((km: any) => km.hadRedCard === true).length
+        const totalReds = Math.max(apiReds, manualGroupReds + manualKoReds)
 
         if (topScorers.length > 0) {
           newLiveStats.topScorer = topScorers[0].name
@@ -340,10 +344,6 @@ export default function Admin() {
           }
         } catch (e) { log.push(`⚠️ API-Football: ${(e as Error).message}`) }
       }
-
-      // ── Propagate bracket (winners → next round) ─────────────────
-      updatedKnockout = propagateBracket(updatedKnockout)
-      log.push('🔗 נבחרות מנצחות הועברו לסיבוב הבא')
 
       // ── Save all ─────────────────────────────────────────────────
       setMatches({ ...updatedMatches })
@@ -534,10 +534,8 @@ export default function Admin() {
     setTimeout(() => setMsg(''), 3000)
   }
 
-  // ── Bracket propagation helper ────────────────────────────────────────────
-  // Cascades advanceTeam winners (and 3rd-place losers) into the next round's teamA/teamB slots.
-  const propagateBracket = (matches: Record<number, any>): Record<number, any> => {
-    const propagated: Record<number, any> = { ...matches }
+  const saveKnockout = async () => {
+    const propagated: Record<number, any> = { ...knockoutMatches }
     for (const [id] of Object.entries(propagated)) {
       const m = propagated[Number(id)] as any
       if (!m?.advanceTeam) continue
@@ -552,11 +550,6 @@ export default function Admin() {
         if (nb.feederB === -Number(id)) { const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA; if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: loser, fifaPointsB: TEAM_FIFA_POINTS[loser] ?? 1500 } }
       }
     }
-    return propagated
-  }
-
-  const saveKnockout = async () => {
-    const propagated = propagateBracket({ ...knockoutMatches })
     await setDoc(doc(db, 'admin', 'knockout'), { matches: propagated })
     setKnockoutMatches(propagated)
     setMsg('✓ נוקאאוט נשמר')
