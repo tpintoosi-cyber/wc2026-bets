@@ -198,7 +198,11 @@ export default function Admin() {
       }
 
       // ── Knockout results ─────────────────────────────────────────
-      let updatedKnockout = { ...knockoutMatches }
+      // קרא נוקאאוט ישירות מ-Firestore — לא מה-state שעלול להיות stale
+      const freshKoForSync = await getDoc(doc(db, 'admin', 'knockout'))
+      let updatedKnockout: Record<number, any> = freshKoForSync.exists()
+        ? { ...freshKoForSync.data().matches }
+        : { ...knockoutMatches }
       let koUpdated = 0, koPenalties = 0
       for (const apiMatch of apiKnockoutMatches) {
         if (apiMatch.status !== 'completed') continue
