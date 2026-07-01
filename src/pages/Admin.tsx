@@ -5,7 +5,7 @@ import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOC
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, fetchAllMatches, toIsraelTime } from '../services/wc2026api'
-import { fetchAllFixtures, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
+import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
 import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards, ZAFRONIX_TO_HE } from '../services/zafronix'
 import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
@@ -340,6 +340,36 @@ export default function Admin() {
         log.push(`ℹ️ סטטיסטיקות לייב נשמרות בנפרד — ניקוד בונוס יחושב רק בסוף הטורניר`)
       } catch (e) {
         log.push(`⚠️ Zafronix: ${(e as Error).message}`)
+      }
+
+      // ── API-Football: fallback red cards for knockout ─────────────
+      if (isApiFootballConfigured()) {
+        try {
+          const allFixtures = await fetchAllFixtures()
+          let apiFbRedCards = 0
+          for (const [id, km] of Object.entries(updatedKnockout) as [string, any][]) {
+            if (!km.isPlayed || km.hadRedCard === true || !km.teamA || !km.teamB) continue
+            // מצא fixture מתאים לפי שמות קבוצות
+            const fixture = allFixtures.find(f => {
+              const normHome = API_ALIASES[f.teams.home.name.toLowerCase()] ?? f.teams.home.name.toLowerCase()
+              const normAway = API_ALIASES[f.teams.away.name.toLowerCase()] ?? f.teams.away.name.toLowerCase()
+              const homeHe = EN_TO_HE_MAP[normHome] ?? f.teams.home.name
+              const awayHe = EN_TO_HE_MAP[normAway] ?? f.teams.away.name
+              return (homeHe === km.teamA && awayHe === km.teamB) || (homeHe === km.teamB && awayHe === km.teamA)
+            })
+            if (!fixture) continue
+            const events = await fetchFixtureEvents(fixture.fixture.id)
+            const hasRed = events.some((e: any) => e.type === 'Card' && e.detail === 'Red Card')
+            if (hasRed) {
+              km.hadRedCard = true
+              updatedKnockout[Number(id)] = km
+              apiFbRedCards++
+            }
+          }
+          if (apiFbRedCards > 0) log.push(`🟥 API-Football: ${apiFbRedCards} אדומים נוקאאוט נוספו`)
+        } catch (e) {
+          log.push(`⚠️ API-Football events: ${(e as Error).message}`)
+        }
       }
 
       // ── API-Football: standings ──────────────────────────────────
