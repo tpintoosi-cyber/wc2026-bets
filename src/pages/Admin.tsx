@@ -294,10 +294,29 @@ export default function Admin() {
         const topScorers = buildTopScorers(zMatches)
         const topAssists = buildTopAssists(zMatches)
         const apiReds = countRedCards(zMatches)
-        // גם ספור אדומים שהוגדרו ידנית ב-Firestore (אם Zafronix פספס)
-        const manualGroupReds = Object.values(updatedMatches).filter((m: any) => m.hadRedCard === true).length
-        const manualKoReds = Object.values(updatedKnockout).filter((km: any) => km.hadRedCard === true).length
-        const totalReds = Math.max(apiReds, manualGroupReds + manualKoReds)
+
+        // מצא אילו משחקים כבר נספרו ע"י Zafronix (לפי שמות קבוצות)
+        const apiMatchesWithRed = new Set<string>()
+        for (const zm of zMatches) {
+          if (!zm.cards?.some((c: any) => c.color === 'red')) continue
+          const homeHe = ZAFRONIX_TO_HE[zm.homeTeam ?? ''] ?? zm.homeTeam ?? ''
+          const awayHe = ZAFRONIX_TO_HE[zm.awayTeam ?? ''] ?? zm.awayTeam ?? ''
+          apiMatchesWithRed.add(`${homeHe}|${awayHe}`)
+          apiMatchesWithRed.add(`${awayHe}|${homeHe}`)
+        }
+
+        // ספור משחקים עם hadRedCard=true ב-Firestore שZafronix פספס
+        const missedGroupReds = Object.values(updatedMatches).filter((m: any) => {
+          if (!m.hadRedCard) return false
+          return !apiMatchesWithRed.has(`${m.teamA}|${m.teamB}`) && !apiMatchesWithRed.has(`${m.teamB}|${m.teamA}`)
+        }).length
+        const missedKoReds = Object.values(updatedKnockout).filter((km: any) => {
+          if (!km.hadRedCard) return false
+          return !apiMatchesWithRed.has(`${km.teamA}|${km.teamB}`) && !apiMatchesWithRed.has(`${km.teamB}|${km.teamA}`)
+        }).length
+
+        // סה"כ = ספירת Zafronix + משחקים ידניים שלא נספרו
+        const totalReds = apiReds + missedGroupReds + missedKoReds
 
         if (topScorers.length > 0) {
           newLiveStats.topScorer = topScorers[0].name
