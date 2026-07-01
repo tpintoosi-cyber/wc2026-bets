@@ -8,6 +8,7 @@ export function useAuth() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isApproved, setIsApproved] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [firestoreName, setFirestoreName] = useState<string | null>(null)
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (u) => {
@@ -22,6 +23,9 @@ export function useAuth() {
         if (admin) {
           // Admins are always approved
           setIsApproved(true)
+          // Read admin's Firestore name too
+          const userSnap = await getDoc(doc(db, 'users', u.uid))
+          if (userSnap.exists()) setFirestoreName(userSnap.data().name ?? null)
         } else {
           // Check approval status
           const pendingRef = doc(db, 'pendingUsers', u.uid)
@@ -43,18 +47,23 @@ export function useAuth() {
             setIsApproved(status === 'approved')
           }
 
-          // Create user doc only once approved
+          // Create user doc only once approved — then read Firestore name
           if (pendingSnap.data()?.status === 'approved') {
             const userRef = doc(db, 'users', u.uid)
             const userSnap = await getDoc(userRef)
             if (!userSnap.exists()) {
               await setDoc(userRef, { name: u.displayName, email: u.email, joinedAt: Date.now() })
+              setFirestoreName(u.displayName)
+            } else {
+              // ✅ Use the stored short name — never overwrite with Google display name
+              setFirestoreName(userSnap.data().name ?? u.displayName)
             }
           }
         }
       } else {
         setIsAdmin(false)
         setIsApproved(false)
+        setFirestoreName(null)
       }
       setLoading(false)
     })
@@ -63,7 +72,7 @@ export function useAuth() {
   const login = () => signInWithPopup(auth, googleProvider)
   const logout = () => signOut(auth)
 
-  return { user, isAdmin, isApproved, loading, login, logout }
+  return { user, isAdmin, isApproved, loading, login, logout, firestoreName }
 }
 
 export async function isAppOpen(): Promise<boolean> {

@@ -112,7 +112,7 @@ function RankingGap({ teamA, teamB, fifaA, fifaB, category, t, tn }: {
 }
 
 export default function Predict({ lang }: { lang: Lang }) {
-  const { user } = useAuth()
+  const { user, firestoreName } = useAuth()
   const t = T[lang]
   const [tab, setTab] = useState<Tab>('matches')
   // Auto-switch to knockout tab on first load once knockout window opens
@@ -307,7 +307,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     saveTimer.current = setTimeout(async () => {
       setSaving(true)
       await setDoc(doc(db, 'predictions', user.uid), {
-        userId: user.uid, userName: user.displayName,
+        userId: user.uid, userName: firestoreName ?? user.displayName,
         matches: mp, groups: gp, bonus: bn,
         ...(ko !== undefined ? { knockout: ko } : {}),
         ...(koRed !== undefined ? { knockoutRedCards: koRed } : {}),
