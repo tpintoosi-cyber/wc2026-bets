@@ -217,7 +217,7 @@ export default function Admin() {
         )
         if (!entry) { log.push(`⚠️ נוקאאוט לא נמצא: ${homeHe} vs ${awayHe}`); continue }
         const km = { ...entry[1] } as any
-        if (km.manualScore) continue
+        if (km.isPlayed) continue  // דלג על משחקים שכבר מסומנים — הורד ✓ כחול כדי לאפשר עדכון
         const isReversed = km.teamA === awayHe
         km.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
         km.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
@@ -632,11 +632,6 @@ export default function Admin() {
         if (nb.feederA === -Number(id)) { const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA; if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamA: loser, fifaPointsA: TEAM_FIFA_POINTS[loser] ?? 1500 } }
         if (nb.feederB === -Number(id)) { const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA; if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: loser, fifaPointsB: TEAM_FIFA_POINTS[loser] ?? 1500 } }
       }
-    }
-    // סמן משחקים שנגמרו כ-manualScore כדי שסנכרון לא ידרוס
-    for (const [id] of Object.entries(propagated)) {
-      const km = propagated[Number(id)] as any
-      if (km?.isPlayed) propagated[Number(id)] = { ...km, manualScore: true }
     }
     await setDoc(doc(db, 'admin', 'knockout'), { matches: propagated })
     setKnockoutMatches(propagated)
