@@ -226,19 +226,6 @@ export default function Admin() {
           km.penB = isReversed ? (apiMatch as any).home_pen : (apiMatch as any).away_pen
         }
         km.isPlayed = true
-        if (km.teamA && km.teamB) {
-          const ptA = TEAM_FIFA_POINTS[km.teamA] ?? 1500
-          const ptB = TEAM_FIFA_POINTS[km.teamB] ?? 1500
-          km.fifaPointsA = ptA; km.fifaPointsB = ptB
-          km.category = calcCategoryByRound(ptA, ptB, km.round)
-        }
-        // אם זה משחק עם הארכה — שמור תוצאת API כ-resultFull (כולל הארכה)
-        // ו-resultA/resultB יתעדכנו מ-Zafronix (90 דקות) בהמשך
-        const isET = (apiMatch as any).phase === 'AET' || (apiMatch as any).phase === 'PEN' || (apiMatch as any).home_pen != null
-        if (isET) {
-          km.resultAFull = km.resultA
-          km.resultBFull = km.resultB
-        }
         if (!km.advanceTeam) {
           if ((apiMatch as any).home_pen != null && (apiMatch as any).away_pen != null) {
             const penWinnerIsHome = (apiMatch as any).home_pen > (apiMatch as any).away_pen
@@ -255,30 +242,6 @@ export default function Admin() {
       log.push(`⚽ עודכנו ${updatedResults} תוצאות שלב בתים`)
       log.push(`🏆 עודכנו ${koUpdated} תוצאות נוקאאוט`)
       if (koPenalties > 0) log.push(`⚠️ ${koPenalties} תיקו — יש להגדיר "מי עלה" ידנית`)
-
-      // ── תיקון תוצאות 90 דקות ממשחקי הארכה (Zafronix) ───────────
-      try {
-        const zForScore = await fetchZafronixMatches()
-        let etFixed = 0
-        for (const [id, km] of Object.entries(updatedKnockout) as [string, any][]) {
-          if (!('resultAFull' in km)) continue  // לא משחק הארכה — דלג
-          const zm = zForScore.find(z => z.status === 'finished' &&
-            ((ZAFRONIX_TO_HE[z.homeTeam ?? ''] === km.teamA && ZAFRONIX_TO_HE[z.awayTeam ?? ''] === km.teamB) ||
-             (ZAFRONIX_TO_HE[z.homeTeam ?? ''] === km.teamB && ZAFRONIX_TO_HE[z.awayTeam ?? ''] === km.teamA))
-          )
-          if (!zm || !zm.goals) continue
-          const isReversed = ZAFRONIX_TO_HE[zm.homeTeam ?? ''] === km.teamB
-          const goalsAt90A = zm.goals.filter((g: any) => g.minute <= 90 && g.team === (isReversed ? 'away' : 'home')).length
-          const goalsAt90B = zm.goals.filter((g: any) => g.minute <= 90 && g.team === (isReversed ? 'home' : 'away')).length
-          if (km.resultA !== goalsAt90A || km.resultB !== goalsAt90B) {
-            updatedKnockout[Number(id)] = { ...km, resultA: goalsAt90A, resultB: goalsAt90B }
-            etFixed++
-          }
-        }
-        if (etFixed > 0) log.push(`⏱ תוקנו ${etFixed} תוצאות ל-90 דקות`)
-      } catch (e) {
-        log.push(`⚠️ תיקון 90 דקות: ${(e as Error).message}`)
-      }
 
       // ── Zafronix: red cards + live stats ────────────────────────
       // NOTE: stats go to admin/liveStats only — NOT to actualBonus.
@@ -365,6 +328,31 @@ export default function Admin() {
         ;(newLiveStats as any).totalRedCards_num = totalReds
 
         log.push(`🟥 כרטיסים אדומים: ${redCardsUpdated} משחקים עודכנו`)
+
+        // ── תיקון תוצאות 90 דקות לפי Zafronix extraTime ────────────
+        let etFixed = 0
+        for (const [id, km] of Object.entries(updatedKnockout) as [string, any][]) {
+          if (!km.isPlayed || !km.teamA || !km.teamB) continue
+          const zm = zMatches.find(z => z.status === 'finished' &&
+            ((ZAFRONIX_TO_HE[z.homeTeam ?? ''] === km.teamA && ZAFRONIX_TO_HE[z.awayTeam ?? ''] === km.teamB) ||
+             (ZAFRONIX_TO_HE[z.homeTeam ?? ''] === km.teamB && ZAFRONIX_TO_HE[z.awayTeam ?? ''] === km.teamA))
+          )
+          if (!zm || !zm.extraTime || !zm.goals) continue  // רק משחקי הארכה
+          const isReversed = ZAFRONIX_TO_HE[zm.homeTeam ?? ''] === km.teamB
+          const goalsAt90A = zm.goals.filter((g: any) => g.minute <= 90 && g.team === (isReversed ? 'away' : 'home')).length
+          const goalsAt90B = zm.goals.filter((g: any) => g.minute <= 90 && g.team === (isReversed ? 'home' : 'away')).length
+          if (km.resultA !== goalsAt90A || km.resultB !== goalsAt90B) {
+            updatedKnockout[Number(id)] = {
+              ...km,
+              resultA: goalsAt90A,
+              resultB: goalsAt90B,
+              resultAFull: isReversed ? zm.awayScore : zm.homeScore,
+              resultBFull: isReversed ? zm.homeScore : zm.awayScore,
+            }
+            etFixed++
+          }
+        }
+        if (etFixed > 0) log.push(`⏱ תוקנו ${etFixed} תוצאות ל-90 דקות (הארכה)`)
         log.push(`⚽ מלך שערים (לייב): ${topScorers[0]?.name ?? '—'} (${topScorers[0]?.goals ?? 0})`)
         log.push(`🎯 מלך בישולים (לייב): ${topAssists[0]?.name ?? '—'} (${topAssists[0]?.assists ?? 0})`)
         log.push(`🟥 סה"כ אדומים (לייב): ${totalReds}`)
