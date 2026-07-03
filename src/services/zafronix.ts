@@ -32,6 +32,7 @@ export interface ZafronixMatch {
   awayScore: number | null
   status: string      // "finished", "scheduled", etc.
   goals?: ZafronixGoal[]
+  extraTime?: boolean
   cards?: ZafronixCard[]
 }
 
