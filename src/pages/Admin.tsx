@@ -232,9 +232,10 @@ export default function Admin() {
           km.fifaPointsA = ptA; km.fifaPointsB = ptB
           km.category = calcCategoryByRound(ptA, ptB, km.round)
         }
-        // אם זה משחק עם הארכה/פנדלים — שמור תוצאת API כ-resultFull
+        // אם זה משחק עם הארכה — שמור תוצאת API כ-resultFull (כולל הארכה)
         // ו-resultA/resultB יתעדכנו מ-Zafronix (90 דקות) בהמשך
-        if ((apiMatch as any).home_pen != null) {
+        const isET = (apiMatch as any).phase === 'AET' || (apiMatch as any).phase === 'PEN' || (apiMatch as any).home_pen != null
+        if (isET) {
           km.resultAFull = km.resultA
           km.resultBFull = km.resultB
         }
@@ -260,7 +261,7 @@ export default function Admin() {
         const zForScore = await fetchZafronixMatches()
         let etFixed = 0
         for (const [id, km] of Object.entries(updatedKnockout) as [string, any][]) {
-          if (!km.resultAFull && km.resultAFull !== 0) continue  // אין הארכה
+          if (!('resultAFull' in km)) continue  // לא משחק הארכה — דלג
           const zm = zForScore.find(z => z.status === 'finished' &&
             ((ZAFRONIX_TO_HE[z.homeTeam ?? ''] === km.teamA && ZAFRONIX_TO_HE[z.awayTeam ?? ''] === km.teamB) ||
              (ZAFRONIX_TO_HE[z.homeTeam ?? ''] === km.teamB && ZAFRONIX_TO_HE[z.awayTeam ?? ''] === km.teamA))
