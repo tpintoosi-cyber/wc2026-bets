@@ -234,7 +234,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     if (!user) return
     ;(async () => {
       const open = await isAppOpen()
-      setIsOpen(open)
+      setIsOpen(open)  // יעודכן שוב אחרי טעינת settings
       const snap = await getDoc(doc(db, 'predictions', user.uid))
       if (snap.exists()) {
         const data = snap.data()
@@ -276,7 +276,11 @@ export default function Predict({ lang }: { lang: Lang }) {
         }
         if (settingsSnap.exists()) {
           const d = settingsSnap.data()
-          setKnockoutOpen(d.knockoutOpen ?? false)
+          const blindfoldList: string[] = d.blindfoldUsers ?? []
+          const isBlindfolded = !!user && blindfoldList.includes(user.uid)
+          // משתמש חסום מצפייה — מותר לו להמר גם אחרי הדד-ליין
+          if (isBlindfolded) { setIsOpen(true) }
+          setKnockoutOpen((d.knockoutOpen ?? false) || isBlindfolded)
           setKnockoutDeadline(d.knockoutDeadline ?? null)
           setGroupDeadline(d.deadline ?? null)
           setR16Deadline(d.r16Deadline ?? null)
