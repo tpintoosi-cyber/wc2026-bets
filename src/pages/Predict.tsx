@@ -112,7 +112,7 @@ function RankingGap({ teamA, teamB, fifaA, fifaB, category, t, tn }: {
 }
 
 export default function Predict({ lang }: { lang: Lang }) {
-  const { user, firestoreName } = useAuth()
+  const { user } = useAuth()
   const t = T[lang]
   const [tab, setTab] = useState<Tab>('matches')
   // Auto-switch to knockout tab on first load once knockout window opens
@@ -307,7 +307,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     saveTimer.current = setTimeout(async () => {
       setSaving(true)
       await setDoc(doc(db, 'predictions', user.uid), {
-        userId: user.uid, userName: firestoreName ?? user.displayName,
+        userId: user.uid, userName: user.displayName,
         matches: mp, groups: gp, bonus: bn,
         ...(ko !== undefined ? { knockout: ko } : {}),
         ...(koRed !== undefined ? { knockoutRedCards: koRed } : {}),
@@ -1715,6 +1715,7 @@ export default function Predict({ lang }: { lang: Lang }) {
                     let actPts1x2 = 0, actPtsScore = 0, actPtsAdv = 0, actPtsRC = 0
 
                     for (const km of KNOCKOUT_MATCHES) {
+                      if (km.round === 'R32') continue  // R32 לא מוצג בעץ
                       const pred = knockoutPreds[km.id]
                       const tA = getTeamSafe(km.id, 'A')
                       const tB = getTeamSafe(km.id, 'B')
