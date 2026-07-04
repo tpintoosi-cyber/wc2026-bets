@@ -587,6 +587,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [isOpen, setIsOpen] = useState(true)
   const [liveMode, setLiveMode] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [blindfoldUsers, setBlindfoldUsers] = useState<string[]>([])
   const [koDeadlines, setKoDeadlines] = useState<Record<string, number | null>>({})
   const now = Date.now()
   const [mainTab, setMainTab] = useState<MainTab>('match')
@@ -645,6 +646,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
       const live = settings.exists() ? (settings.data().liveMode ?? false) : false
       setIsOpen(!isClosed)
       setLiveMode(live)
+      setBlindfoldUsers(settings.exists() ? (settings.data().blindfoldUsers ?? []) : [])
 
       // Load knockout round deadlines for visibility filtering
       if (settings.exists()) {
@@ -997,6 +999,19 @@ ${userRows}
     { id: 'match', label: '⚽ לפי משחק' },
     { id: 'stats', label: '📊 סטטיסטיקות' },
   ]
+
+  // 🙈 בדוק אם המשתמש הנוכחי חסום מצפייה בהימורים
+  const isBlindfolded = !isAdmin && user && blindfoldUsers.includes(user.uid)
+
+  if (isBlindfolded) return (
+    <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16, textAlign: 'center' }}>
+      <div style={{ fontSize: 64 }}>🙈</div>
+      <h2 style={{ margin: 0, color: '#333' }}>הצפייה בהימורים חסומה זמנית</h2>
+      <p style={{ color: '#666', fontSize: 14, maxWidth: 320 }}>
+        כדי לשמור על הוגנות, אינך יכול לראות הימורי אחרים עד שתסיים למלא את ההימורים שלך.
+      </p>
+    </div>
+  )
 
   return (
     <div className="page">

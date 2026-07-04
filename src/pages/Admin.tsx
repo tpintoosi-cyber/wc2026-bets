@@ -5,7 +5,7 @@ import { MATCHES, GROUPS_TEAMS, TEAM_EN, BONUS_QUESTIONS, KNOCKOUT_MATCHES, KNOC
 import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, fetchAllMatches, toIsraelTime } from '../services/wc2026api'
-import { fetchAllFixtures, fetchFixtureEvents, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
+import { fetchAllFixtures, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
 import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards, ZAFRONIX_TO_HE } from '../services/zafronix'
 import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
@@ -49,6 +49,8 @@ export default function Admin() {
     r16Deadline: '', qfDeadline: '', sfDeadline: '', p3Deadline: '', finalDeadline: '',
     mockNow: '', liveMode: false, maintenanceMode: false,
   })
+  const [blindfoldUsers, setBlindfoldUsers] = useState<string[]>([])
+  const [allUsersList, setAllUsersList] = useState<{uid: string, name: string}[]>([])
   const [scoring, setScoring] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [msg, setMsg] = useState('')
@@ -96,7 +98,11 @@ export default function Admin() {
           liveMode: d.liveMode ?? false,
           maintenanceMode: d.maintenanceMode ?? false,
         })
+        setBlindfoldUsers(d.blindfoldUsers ?? [])
       }
+      // טען רשימת משתמשים
+      const usersListSnap = await getDocs(collection(db, 'users'))
+      setAllUsersList(usersListSnap.docs.map(d => ({ uid: d.id, name: d.data().name ?? d.id })))
       if (koSnap.exists()) setKnockoutMatches(koSnap.data().matches ?? {})
       if (liveSnap.exists()) setLiveStats(liveSnap.data() ?? {})
     })()
@@ -198,11 +204,7 @@ export default function Admin() {
       }
 
       // ── Knockout results ─────────────────────────────────────────
-      // קרא נוקאאוט ישירות מ-Firestore — לא מה-state שעלול להיות stale
-      const freshKoForSync = await getDoc(doc(db, 'admin', 'knockout'))
-      let updatedKnockout: Record<number, any> = freshKoForSync.exists()
-        ? { ...freshKoForSync.data().matches }
-        : { ...knockoutMatches }
+      let updatedKnockout = { ...knockoutMatches }
       let koUpdated = 0, koPenalties = 0
       for (const apiMatch of apiKnockoutMatches) {
         if (apiMatch.status !== 'completed') continue
@@ -217,7 +219,7 @@ export default function Admin() {
         )
         if (!entry) { log.push(`⚠️ נוקאאוט לא נמצא: ${homeHe} vs ${awayHe}`); continue }
         const km = { ...entry[1] } as any
-        if (km.isPlayed) continue  // דלג על משחקים שכבר מסומנים — הורד ✓ כחול כדי לאפשר עדכון
+        if (km.manualScore) continue
         const isReversed = km.teamA === awayHe
         km.resultA = isReversed ? apiMatch.away_score : apiMatch.home_score
         km.resultB = isReversed ? apiMatch.home_score : apiMatch.away_score
@@ -226,6 +228,12 @@ export default function Admin() {
           km.penB = isReversed ? (apiMatch as any).home_pen : (apiMatch as any).away_pen
         }
         km.isPlayed = true
+        if (km.teamA && km.teamB) {
+          const ptA = TEAM_FIFA_POINTS[km.teamA] ?? 1500
+          const ptB = TEAM_FIFA_POINTS[km.teamB] ?? 1500
+          km.fifaPointsA = ptA; km.fifaPointsB = ptB
+          km.category = calcCategoryByRound(ptA, ptB, km.round)
+        }
         if (!km.advanceTeam) {
           if ((apiMatch as any).home_pen != null && (apiMatch as any).away_pen != null) {
             const penWinnerIsHome = (apiMatch as any).home_pen > (apiMatch as any).away_pen
@@ -267,7 +275,7 @@ export default function Admin() {
             (m.teamA === homeHe && m.teamB === awayHe) || (m.teamA === awayHe && m.teamB === homeHe)
           )
           if (groupMatch) {
-            if (!updatedMatches[groupMatch.id]?.hadRedCard) {
+            if (updatedMatches[groupMatch.id]?.hadRedCard === undefined) {
               updatedMatches[groupMatch.id].hadRedCard = true
               redCardsUpdated++
             }
@@ -280,7 +288,7 @@ export default function Admin() {
           )
           if (koEntry) {
             const km = koEntry[1] as any
-            if (km.isPlayed && !km.hadRedCard) {
+            if (km.isPlayed && km.hadRedCard === undefined) {
               km.hadRedCard = true
               redCardsUpdated++
               updatedKnockout[Number(koEntry[0])] = km
@@ -291,30 +299,7 @@ export default function Admin() {
         // Live stats — saved separately, NOT used for scoring yet
         const topScorers = buildTopScorers(zMatches)
         const topAssists = buildTopAssists(zMatches)
-        const apiReds = countRedCards(zMatches)
-
-        // מצא אילו משחקים כבר נספרו ע"י Zafronix (לפי שמות קבוצות)
-        const apiMatchesWithRed = new Set<string>()
-        for (const zm of zMatches) {
-          if (!zm.cards?.some((c: any) => c.color === 'red')) continue
-          const homeHe = ZAFRONIX_TO_HE[zm.homeTeam ?? ''] ?? zm.homeTeam ?? ''
-          const awayHe = ZAFRONIX_TO_HE[zm.awayTeam ?? ''] ?? zm.awayTeam ?? ''
-          apiMatchesWithRed.add(`${homeHe}|${awayHe}`)
-          apiMatchesWithRed.add(`${awayHe}|${homeHe}`)
-        }
-
-        // ספור משחקים עם hadRedCard=true ב-Firestore שZafronix פספס
-        const missedGroupReds = Object.values(updatedMatches).filter((m: any) => {
-          if (!m.hadRedCard) return false
-          return !apiMatchesWithRed.has(`${m.teamA}|${m.teamB}`) && !apiMatchesWithRed.has(`${m.teamB}|${m.teamA}`)
-        }).length
-        const missedKoReds = Object.values(updatedKnockout).filter((km: any) => {
-          if (!km.hadRedCard) return false
-          return !apiMatchesWithRed.has(`${km.teamA}|${km.teamB}`) && !apiMatchesWithRed.has(`${km.teamB}|${km.teamA}`)
-        }).length
-
-        // סה"כ = ספירת Zafronix + משחקים ידניים שלא נספרו
-        const totalReds = apiReds + missedGroupReds + missedKoReds
+        const totalReds = countRedCards(zMatches)
 
         if (topScorers.length > 0) {
           newLiveStats.topScorer = topScorers[0].name
@@ -328,67 +313,12 @@ export default function Admin() {
         ;(newLiveStats as any).totalRedCards_num = totalReds
 
         log.push(`🟥 כרטיסים אדומים: ${redCardsUpdated} משחקים עודכנו`)
-
-        // ── תיקון תוצאות 90 דקות לפי Zafronix extraTime ────────────
-        let etFixed = 0
-        for (const [id, km] of Object.entries(updatedKnockout) as [string, any][]) {
-          if (!km.isPlayed || !km.teamA || !km.teamB) continue
-          const zm = zMatches.find(z => z.status === 'finished' &&
-            ((ZAFRONIX_TO_HE[z.homeTeam ?? ''] === km.teamA && ZAFRONIX_TO_HE[z.awayTeam ?? ''] === km.teamB) ||
-             (ZAFRONIX_TO_HE[z.homeTeam ?? ''] === km.teamB && ZAFRONIX_TO_HE[z.awayTeam ?? ''] === km.teamA))
-          )
-          if (!zm || !zm.extraTime || !zm.goals) continue  // רק משחקי הארכה
-          const isReversed = ZAFRONIX_TO_HE[zm.homeTeam ?? ''] === km.teamB
-          const goalsAt90A = zm.goals.filter((g: any) => g.minute <= 90 && g.team === (isReversed ? 'away' : 'home')).length
-          const goalsAt90B = zm.goals.filter((g: any) => g.minute <= 90 && g.team === (isReversed ? 'home' : 'away')).length
-          if (km.resultA !== goalsAt90A || km.resultB !== goalsAt90B) {
-            updatedKnockout[Number(id)] = {
-              ...km,
-              resultA: goalsAt90A,
-              resultB: goalsAt90B,
-              resultAFull: isReversed ? zm.awayScore : zm.homeScore,
-              resultBFull: isReversed ? zm.homeScore : zm.awayScore,
-            }
-            etFixed++
-          }
-        }
-        if (etFixed > 0) log.push(`⏱ תוקנו ${etFixed} תוצאות ל-90 דקות (הארכה)`)
         log.push(`⚽ מלך שערים (לייב): ${topScorers[0]?.name ?? '—'} (${topScorers[0]?.goals ?? 0})`)
         log.push(`🎯 מלך בישולים (לייב): ${topAssists[0]?.name ?? '—'} (${topAssists[0]?.assists ?? 0})`)
         log.push(`🟥 סה"כ אדומים (לייב): ${totalReds}`)
         log.push(`ℹ️ סטטיסטיקות לייב נשמרות בנפרד — ניקוד בונוס יחושב רק בסוף הטורניר`)
       } catch (e) {
         log.push(`⚠️ Zafronix: ${(e as Error).message}`)
-      }
-
-      // ── API-Football: fallback red cards for knockout ─────────────
-      if (isApiFootballConfigured()) {
-        try {
-          const allFixtures = await fetchAllFixtures()
-          let apiFbRedCards = 0
-          for (const [id, km] of Object.entries(updatedKnockout) as [string, any][]) {
-            if (!km.isPlayed || km.hadRedCard === true || !km.teamA || !km.teamB) continue
-            // מצא fixture מתאים לפי שמות קבוצות
-            const fixture = allFixtures.find(f => {
-              const normHome = API_ALIASES[f.teams.home.name.toLowerCase()] ?? f.teams.home.name.toLowerCase()
-              const normAway = API_ALIASES[f.teams.away.name.toLowerCase()] ?? f.teams.away.name.toLowerCase()
-              const homeHe = EN_TO_HE_MAP[normHome] ?? f.teams.home.name
-              const awayHe = EN_TO_HE_MAP[normAway] ?? f.teams.away.name
-              return (homeHe === km.teamA && awayHe === km.teamB) || (homeHe === km.teamB && awayHe === km.teamA)
-            })
-            if (!fixture) continue
-            const events = await fetchFixtureEvents(fixture.fixture.id)
-            const hasRed = events.some((e: any) => e.type === 'Card' && e.detail === 'Red Card')
-            if (hasRed) {
-              km.hadRedCard = true
-              updatedKnockout[Number(id)] = km
-              apiFbRedCards++
-            }
-          }
-          if (apiFbRedCards > 0) log.push(`🟥 API-Football: ${apiFbRedCards} אדומים נוקאאוט נוספו`)
-        } catch (e) {
-          log.push(`⚠️ API-Football events: ${(e as Error).message}`)
-        }
       }
 
       // ── API-Football: standings ──────────────────────────────────
@@ -642,6 +572,7 @@ export default function Admin() {
       mockNow:       settings.mockNow       ? new Date(settings.mockNow).getTime()       : null,
       liveMode: settings.liveMode ?? false,
       maintenanceMode: settings.maintenanceMode ?? false,
+      blindfoldUsers: blindfoldUsers,
     }, { merge: true })
     setMsg('✓ הגדרות נשמרו')
     setTimeout(() => setMsg(''), 3000)
@@ -759,6 +690,27 @@ export default function Admin() {
             {settings.mockNow && <p style={{ fontSize: 11, color: '#e67e22', marginTop: 4 }}>⚠️ פעיל</p>}
           </div>
           <button className="btn-primary" onClick={saveSettings}>שמור הגדרות</button>
+        </section>
+
+        <section className="admin-section">
+          <h3 style={{ marginBottom: 10 }}>🙈 חסימת צפייה בהימורים</h3>
+          <p style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>משתמשים ברשימה יוכלו להמר אך לא יראו הימורי אחרים</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {allUsersList.sort((a,b) => a.name.localeCompare(b.name)).map(u => {
+              const isBlind = blindfoldUsers.includes(u.uid)
+              return (
+                <label key={u.uid} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20, border: `1px solid ${isBlind ? '#c0392b' : '#ddd'}`, background: isBlind ? '#FCEBEB' : '#fafafa', cursor: 'pointer', fontSize: 13 }}>
+                  <input type="checkbox" checked={isBlind} onChange={e => {
+                    if (e.target.checked) setBlindfoldUsers(prev => [...prev, u.uid])
+                    else setBlindfoldUsers(prev => prev.filter(id => id !== u.uid))
+                  }} />
+                  {u.name}
+                </label>
+              )
+            })}
+          </div>
+          {blindfoldUsers.length > 0 && <p style={{ fontSize: 12, color: '#c0392b', marginTop: 8, fontWeight: 600 }}>🚫 {blindfoldUsers.length} משתמשים חסומים מצפייה</p>}
+          <button className="btn-primary" style={{ marginTop: 10 }} onClick={saveSettings}>שמור</button>
         </section>
 
         <section className="admin-section">
