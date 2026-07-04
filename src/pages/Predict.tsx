@@ -116,6 +116,7 @@ export default function Predict({ lang }: { lang: Lang }) {
   const t = T[lang]
   const [tab, setTab] = useState<Tab>('matches')
   const [shortName, setShortName] = useState<string | null>(null)
+  const [isBlindfolded, setIsBlindfolded] = useState(false)
 
   // טען שם קצר מ-users collection — המקור האמין
   useEffect(() => {
@@ -278,6 +279,7 @@ export default function Predict({ lang }: { lang: Lang }) {
           const d = settingsSnap.data()
           const blindfoldList: string[] = d.blindfoldUsers ?? []
           const isBlindfolded = !!user && blindfoldList.includes(user.uid)
+          setIsBlindfolded(isBlindfolded)
           // משתמש חסום מצפייה — מותר לו להמר גם אחרי הדד-ליין
           if (isBlindfolded) { setIsOpen(true) }
           setKnockoutOpen((d.knockoutOpen ?? false) || isBlindfolded)
@@ -384,7 +386,7 @@ export default function Predict({ lang }: { lang: Lang }) {
       ? (round === 'R32' ? knockoutDeadline : r16Deadline)
       : ({ R32: knockoutDeadline, R16: r16Deadline, QF: qfDeadline,
            SF: sfDeadline, '3P': p3Deadline ?? finalDeadline, F: finalDeadline } as Record<string, number|null>)[round] ?? null
-    if (effectiveDeadline && Date.now() > effectiveDeadline) return
+    if (effectiveDeadline && Date.now() > effectiveDeadline && !isBlindfolded) return
 
     setKnockoutPreds(prev => {
       const base = prev[id] ?? { matchId: id, scoreA: 0, scoreB: 0 }
@@ -1009,11 +1011,12 @@ export default function Predict({ lang }: { lang: Lang }) {
             const now = Date.now()
             // Bracket is locked when r16Deadline passes (tree filled during R16 window)
             // R32 advance picks locked when knockoutDeadline passes
-            const isLocked = !knockoutOpen || (r16Deadline != null && now > r16Deadline)
+            const isLocked = !knockoutOpen || (!isBlindfolded && r16Deadline != null && now > r16Deadline)
 
             // Per-round locking: bracket+R32 use isLocked; later rounds have own deadlines
             const isRoundLocked = (round: string): boolean => {
               if (!knockoutOpen) return true
+              if (isBlindfolded) return false  // חסומי צפייה תמיד יכולים להמר
               switch (round) {
                 case 'R32': return knockoutDeadline == null || now > knockoutDeadline
                 case 'R16': return r16Deadline == null  || now > r16Deadline
