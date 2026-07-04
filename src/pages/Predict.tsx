@@ -115,6 +115,15 @@ export default function Predict({ lang }: { lang: Lang }) {
   const { user } = useAuth()
   const t = T[lang]
   const [tab, setTab] = useState<Tab>('matches')
+  const [shortName, setShortName] = useState<string | null>(null)
+
+  // טען שם קצר מ-users collection — המקור האמין
+  useEffect(() => {
+    if (!user?.uid) return
+    getDoc(doc(db, 'users', user.uid)).then(d => {
+      if (d.exists() && d.data().name) setShortName(d.data().name)
+    }).catch(() => {})
+  }, [user?.uid])
   // Auto-switch to knockout tab on first load once knockout window opens
   const tabInitializedRef = useRef(false)
   const [showGroupSummary, setShowGroupSummary] = useState(false)
@@ -307,7 +316,7 @@ export default function Predict({ lang }: { lang: Lang }) {
     saveTimer.current = setTimeout(async () => {
       setSaving(true)
       await setDoc(doc(db, 'predictions', user.uid), {
-        userId: user.uid, userName: user.displayName,
+        userId: user.uid, userName: shortName || user.displayName,
         matches: mp, groups: gp, bonus: bn,
         ...(ko !== undefined ? { knockout: ko } : {}),
         ...(koRed !== undefined ? { knockoutRedCards: koRed } : {}),

@@ -25,7 +25,9 @@ type MainTab = 'user' | 'match' | 'stats'
 type UserTab = 'matches' | 'groups' | 'bonus'
 
 // Module-level helper — usable in all sub-components
-function getDisplayName(u: UserData) { return u.userName }
+function getDisplayName(u: UserData, nameMap?: Record<string, string>) {
+  return (nameMap && nameMap[u.userId]) || u.userName
+}
 
 // ── Helpers ──────────────────────────────────────────────────────
 function getBestMatchId(fullSchedule: Record<number | string, string>, mockNow?: number): number {
@@ -582,6 +584,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const t = T[lang]
   const { user, isAdmin, loading: authLoading } = useAuth()
   const [users, setUsers] = useState<UserData[]>([])
+  const [usersNameMap, setUsersNameMap] = useState<Record<string, string>>({})
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [selectedMatchId, setSelectedMatchId] = useState<number>(() => getNextMatchId())
   const [isOpen, setIsOpen] = useState(true)
@@ -701,8 +704,17 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
       }
 
       if (predsSnap) {
+        // בנה מפת שמות מ-users collection (המקור האמין לשמות קצרים)
+        try {
+          const usersSnap = await getDocs(collection(db, 'users'))
+          const nameMap: Record<string, string> = {}
+          usersSnap.docs.forEach(d => { if (d.data().name) nameMap[d.id] = d.data().name })
+          setUsersNameMap(nameMap)
+        } catch (e) { /* silent */ }
+
         const data: UserData[] = predsSnap.docs.map(d => ({
-          userId: d.id, userName: d.data().userName ?? 'משתמש',
+          userId: d.id,
+          userName: nameMap[d.id] || d.data().userName || 'משתמש',  // ← שם קצר מ-users collection
           nickname: d.data().nickname ?? '',
           matches: d.data().matches ?? {}, groups: d.data().groups ?? {}, bonus: d.data().bonus ?? {},
           knockout: d.data().knockout ?? {},
@@ -835,8 +847,8 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   }
 
   // Display name: always use userName
-  const displayName = (u: UserData) => u.userName
-  const adminDisplayName = (u: UserData) => u.userName
+  const displayName = (u: UserData) => usersNameMap[u.userId] || u.userName
+  const adminDisplayName = (u: UserData) => usersNameMap[u.userId] || u.userName
 
   const downloadReport = () => {
     const now = new Date()
