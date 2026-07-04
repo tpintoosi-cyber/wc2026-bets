@@ -705,9 +705,9 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
 
       if (predsSnap) {
         // בנה מפת שמות מ-users collection (המקור האמין לשמות קצרים)
+        let nameMap: Record<string, string> = {}
         try {
           const usersSnap = await getDocs(collection(db, 'users'))
-          const nameMap: Record<string, string> = {}
           usersSnap.docs.forEach(d => { if (d.data().name) nameMap[d.id] = d.data().name })
           setUsersNameMap(nameMap)
         } catch (e) { /* silent */ }
