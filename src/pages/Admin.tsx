@@ -146,7 +146,7 @@ export default function Admin() {
       const scorers = buildTopScorers(zMatches).slice(0, 3)
       const assists = buildTopAssists(zMatches).slice(0, 3)
       const reds = countRedCards(zMatches)
-      let debug = `=== Zafronix ===\nסה"כ: ${zMatches.length} | finished: ${finished.length} | אדומים: ${reds}`
+      let debug = `=== Zafronix ===\nסה"כ: ${zMatches.length} | finished: ${finished.length} | אדומים (גולמי, כל 2026): ${reds}`
       debug += `\n\nמלך שערים: ${scorers.map(s => `${s.name} (${s.goals})`).join(', ')}`
       debug += `\nמלך בישולים: ${assists.map(a => `${a.name} (${a.assists})`).join(', ')}`
       // Show sample finished match with cards
@@ -261,37 +261,50 @@ export default function Admin() {
       try {
         const zMatches = await fetchZafronixMatches()
 
-        // Red cards — match by team names (not matchNo, which differs between APIs)
+        // Red cards — match by team names (not matchNo, which differs between APIs).
+        // Store the COUNT per match (a single match can have several reds, e.g. 3), not
+        // just a boolean. The tournament-wide total is summed from these per-match counts
+        // so the total and the per-match data can never disagree. Only finished matches
+        // that map to OUR tournament are counted (the raw Zafronix feed also contains
+        // friendlies/qualifiers under year=2026).
+        let totalReds = 0
         for (const zm of zMatches) {
           if (zm.status !== 'finished' || !zm.cards) continue
-          const hasRed = zm.cards.some(c => c.color === 'red')
-          if (!hasRed) continue
+          const redCount = zm.cards.filter(c => c.color === 'red').length
+          if (redCount === 0) continue
 
           const homeHe = ZAFRONIX_TO_HE[zm.homeTeam ?? ''] ?? zm.homeTeam ?? ''
           const awayHe = ZAFRONIX_TO_HE[zm.awayTeam ?? ''] ?? zm.awayTeam ?? ''
 
-          // Try group stage first (match by team names)
+          // Group stage (match by team names)
           const groupMatch = MATCHES.find(m =>
             (m.teamA === homeHe && m.teamB === awayHe) || (m.teamA === awayHe && m.teamB === homeHe)
           )
           if (groupMatch) {
-            if (updatedMatches[groupMatch.id]?.hadRedCard === undefined) {
-              updatedMatches[groupMatch.id].hadRedCard = true
+            const cur = updatedMatches[groupMatch.id]
+            if (cur && (cur.hadRedCard !== true || cur.redCardCount !== redCount)) {
+              cur.hadRedCard = true
+              cur.redCardCount = redCount
               redCardsUpdated++
             }
+            totalReds += redCount
             continue
           }
 
-          // Try knockout (match by team names)
+          // Knockout (match by team names) — only for played matches
           const koEntry = Object.entries(updatedKnockout).find(([, km]: [string, any]) =>
             (km.teamA === homeHe && km.teamB === awayHe) || (km.teamA === awayHe && km.teamB === homeHe)
           )
           if (koEntry) {
             const km = koEntry[1] as any
-            if (km.isPlayed && km.hadRedCard === undefined) {
-              km.hadRedCard = true
-              redCardsUpdated++
+            if (km.isPlayed) {
+              if (km.hadRedCard !== true || km.redCardCount !== redCount) {
+                km.hadRedCard = true
+                km.redCardCount = redCount
+                redCardsUpdated++
+              }
               updatedKnockout[Number(koEntry[0])] = km
+              totalReds += redCount
             }
           }
         }
@@ -299,14 +312,14 @@ export default function Admin() {
         // Live stats — saved separately, NOT used for scoring yet
         const topScorers = buildTopScorers(zMatches)
         const topAssists = buildTopAssists(zMatches)
-        const totalReds = countRedCards(zMatches)
 
         if (topScorers.length > 0) {
           newLiveStats.topScorer = topScorers[0].name
           newLiveStats.topScorerGoals = String(topScorers[0].goals)
         }
         if (topAssists.length > 0) newLiveStats.topAssist = topAssists[0].name
-        if (totalReds > 0) newLiveStats.totalRedCards = String(totalReds)
+        // Keep both fields in sync (display reads totalRedCards_num first).
+        newLiveStats.totalRedCards = String(totalReds)
         // Also save full arrays for StatsCharts display
         ;(newLiveStats as any).topScorers = topScorers.slice(0, 10)
         ;(newLiveStats as any).topAssists = topAssists.slice(0, 10)
