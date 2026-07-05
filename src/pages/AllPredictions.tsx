@@ -1349,8 +1349,8 @@ ${userRows}
                         {col.ids.map(id => {
                           const km = knockoutAdminMatches[id]
                           const pred = current.knockout?.[id]
-                          const tA = km?.teamA
-                          const tB = km?.teamB
+                          const tA = getTeam(id, 'A') ?? km?.teamA
+                          const tB = getTeam(id, 'B') ?? km?.teamB
                           const userAdv = pred?.advance
                           const actualAdv = km?.advanceTeam
                           const roundDl = koDeadlines[col.round] ?? null
@@ -1390,8 +1390,8 @@ ${userRows}
                     const id = 103
                     const km = knockoutAdminMatches[id]
                     const pred = current.knockout?.[id]
-                    const tA = km?.teamA
-                    const tB = km?.teamB
+                    const tA = getTeam(id, 'A') ?? km?.teamA
+                    const tB = getTeam(id, 'B') ?? km?.teamB
                     const userAdv = pred?.advance
                     const actualAdv = km?.advanceTeam
                     const p3Dl = koDeadlines['3P'] ?? koDeadlines['F'] ?? null
