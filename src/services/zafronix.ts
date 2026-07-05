@@ -164,3 +164,30 @@ export function countRedCards(matches: ZafronixMatch[]): number {
   }
   return total
 }
+
+// Regulation (90-minute) score from goal minutes.
+// wc2026api reports the final post-extra-time score as "FT", so a knockout match that
+// went to ET is stored with its 120' score. Zafronix gives a minute for every goal, so
+// we count only goals scored in the first 90 minutes (stoppage-time goals are recorded
+// as <=90; genuine extra-time goals come back as 91+).
+// Returns null when we cannot trust the reconstruction, so the caller keeps the existing
+// value: no goal data, or the goals array does not reconcile with Zafronix's own final
+// score (e.g. a missing goal or an own-goal attributed to the wrong side).
+export function getRegulationScore(match: ZafronixMatch): { home: number; away: number } | null {
+  const goals = match.goals
+  if (!goals || goals.length === 0) {
+    if (match.homeScore === 0 && match.awayScore === 0) return { home: 0, away: 0 }
+    return null
+  }
+  let fullHome = 0, fullAway = 0, regHome = 0, regAway = 0
+  for (const g of goals) {
+    if (g.team === 'home') { fullHome++; if (g.minute <= 90) regHome++ }
+    else if (g.team === 'away') { fullAway++; if (g.minute <= 90) regAway++ }
+  }
+  // Integrity check: the goals list must add up to the API's final score.
+  if (match.homeScore != null && match.awayScore != null &&
+      (fullHome !== match.homeScore || fullAway !== match.awayScore)) {
+    return null
+  }
+  return { home: regHome, away: regAway }
+}

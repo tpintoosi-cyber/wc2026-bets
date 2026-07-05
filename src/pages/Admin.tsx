@@ -6,8 +6,8 @@ import { computeUserScore } from '../scoring'
 import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, KnockoutMatch } from '../types'
 import { fetchGroupStageMatches, fetchKnockoutMatches, fetchAllMatches, toIsraelTime } from '../services/wc2026api'
 import { fetchAllFixtures, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
-import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards, ZAFRONIX_TO_HE } from '../services/zafronix'
-import { populateR32Teams, applyApiFootballFixtures } from '../utils/syncLogic'
+import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards, getRegulationScore, ZAFRONIX_TO_HE } from '../services/zafronix'
+import { populateR32Teams } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
@@ -173,7 +173,7 @@ export default function Admin() {
       setSyncLog([...log])
 
       // ── Group stage ──────────────────────────────────────────────
-      let updatedMatches: Record<number, Match> = {}
+      const updatedMatches: Record<number, Match> = {}
       for (const m of MATCHES) {
         updatedMatches[m.id] = { ...m, ...(matches[m.id] ? {
           resultA: matches[m.id].resultA, resultB: matches[m.id].resultB,
@@ -309,6 +309,38 @@ export default function Admin() {
           }
         }
 
+        // ── Knockout 90-minute (regulation) scores from Zafronix ──────
+        // wc2026api reports the final post-ET score as "FT" (e.g. #86 Argentina–Cabo
+        // Verde shows 3-2 though the 90' result was 1-1), so ET matches were stored with
+        // their 120' score. The 1X2 and exact-score bets are judged on the 90' result;
+        // advanceTeam (the eventual winner) is left untouched. Zafronix has a minute per
+        // goal, so getRegulationScore counts goals scored in the first 90 minutes.
+        let ko90Fixed = 0
+        for (const zm of zMatches) {
+          if (zm.status !== 'finished') continue
+          const homeHe = ZAFRONIX_TO_HE[zm.homeTeam ?? ''] ?? zm.homeTeam ?? ''
+          const awayHe = ZAFRONIX_TO_HE[zm.awayTeam ?? ''] ?? zm.awayTeam ?? ''
+          const koEntry = Object.entries(updatedKnockout).find(([, km]: [string, any]) =>
+            (km.teamA === homeHe && km.teamB === awayHe) || (km.teamA === awayHe && km.teamB === homeHe)
+          )
+          if (!koEntry) continue
+          const km = koEntry[1] as any
+          if (!km.isPlayed || km.manualScore) continue
+          const reg = getRegulationScore(zm)
+          if (!reg) continue
+          const isRev = km.teamA === awayHe
+          const r90A = isRev ? reg.away : reg.home
+          const r90B = isRev ? reg.home : reg.away
+          if (km.resultA !== r90A || km.resultB !== r90B) {
+            km.resultA = r90A
+            km.resultB = r90B
+            updatedKnockout[Number(koEntry[0])] = km
+            ko90Fixed++
+            log.push(`⏱️ 90' תוקן: ${km.teamA} ${r90A}-${r90B} ${km.teamB} (עלתה: ${km.advanceTeam ?? '—'})`)
+          }
+        }
+        if (ko90Fixed > 0) log.push(`⏱️ סה"כ תוצאות 90 דקות תוקנו מ-Zafronix: ${ko90Fixed}`)
+
         // Tournament red-card TOTAL — summed from the accumulated per-match data
         // (redCardCount, falling back to hadRedCard=1 for matches marked before counts
         // existed). This union of everything ever recorded is stable and never drops just
@@ -365,20 +397,6 @@ export default function Admin() {
               }, { merge: true })
             }
           }
-
-          // ── Correct 90-minute (regulation) scores ──────────────────
-          // wc2026api's home_score/away_score include extra time, so a knockout match
-          // that went to ET (e.g. #86 Argentina–Cape Verde) was stored with its 120'
-          // score. The 1X2 and exact-score bets are judged on the 90' result; the
-          // eventual winner is captured separately in advanceTeam. API-Football's
-          // score.fulltime IS the 90' score (wc2026api has no such field), so we run the
-          // already-tested applyApiFootballFixtures to fix both group and knockout scores.
-          const fixtures = await fetchAllFixtures()
-          const fixResult = applyApiFootballFixtures(fixtures, updatedMatches, updatedKnockout, MATCHES, TEAM_EN)
-          updatedMatches = fixResult.updatedMatches
-          updatedKnockout = fixResult.updatedKnockout
-          fixResult.log.forEach(l => log.push(l))
-          log.push(`⏱️ תוצאות 90 דקות תוקנו: ${fixResult.scoresFixed} בתים + ${fixResult.advanceFixed} נוקאאוט`)
         } catch (e) { log.push(`⚠️ API-Football: ${(e as Error).message}`) }
       }
 
