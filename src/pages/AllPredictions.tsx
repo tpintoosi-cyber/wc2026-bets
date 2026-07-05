@@ -93,7 +93,7 @@ function HoverTooltip({ names, children }: { names: string[]; children: React.Re
 
 // Group predictions by score table (like the image)
 function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = "he" as Lang }: {
-  matchId: number; round?: string; users: UserData[]; teamA: string; teamB: string
+  matchId: number; users: UserData[]; teamA: string; teamB: string
   lang?: Lang; adminResult?: Match; rankMap?: Record<string, number>; currentUserId?: string
 }) {
   const t = T[lang]
@@ -163,7 +163,7 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
           const isTeamCol = col.x2 !== 'X'
 
           return (
-            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8', minWidth: 0 }}>
+            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
               {/* Column header */}
               <div style={{
                 background: isTeamCol ? '#1a1a2e' : '#f0f0f0',
@@ -241,8 +241,8 @@ function ScoreGroupTable({ matchId, users, teamA, teamB, adminResult, rankMap = 
 }
 
 // Knockout score distribution — identical design to ScoreGroupTable
-function ScoreKnockoutTable({ matchId, round, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = 'he' as Lang }: {
-  matchId: number; round?: string; users: UserData[]; teamA: string; teamB: string
+function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap = {}, currentUserId, lang = 'he' as Lang }: {
+  matchId: number; users: UserData[]; teamA: string; teamB: string
   lang?: Lang; adminResult?: any; rankMap?: Record<string, number>; currentUserId?: string
 }) {
   const t = T[lang]
@@ -301,7 +301,7 @@ function ScoreKnockoutTable({ matchId, round, users, teamA, teamB, adminResult, 
         })
       }
       const canvas = await (window as any).html2canvas(tableRef.current, {
-        backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 540, windowWidth: 540,
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 380, windowWidth: 380,
       })
       const link = document.createElement('a')
       link.download = `${teamA}-vs-${teamB}.png`
@@ -343,7 +343,7 @@ function ScoreKnockoutTable({ matchId, round, users, teamA, teamB, adminResult, 
           const isTeamCol = col.x2 !== 'X'
 
           return (
-            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8', minWidth: 0 }}>
+            <div key={col.x2} style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid #e8e8e8' }}>
               <div style={{
                 background: isTeamCol ? '#1a1a2e' : '#f0f0f0',
                 color: isTeamCol ? '#fff' : '#555',
@@ -409,10 +409,6 @@ function ScoreKnockoutTable({ matchId, round, users, teamA, teamB, adminResult, 
                                   <Flag emoji={FLAGS[adv] ?? ''} size={12}/>
                                 </span>
                               )}
-                              {round && ['R32','R16','QF'].includes(round) &&
-                                (u.knockoutRedCards?.[round as 'R32'|'R16'|'QF'] ?? []).includes(matchId) &&
-                                <span style={{ fontSize: 10 }}>🟥</span>
-                              }
                               {isMe && <span style={{ fontSize: 10, opacity: 0.7 }}> ✦</span>}
                             </span>
                           )
@@ -584,15 +580,15 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const t = T[lang]
   const { user, isAdmin, loading: authLoading } = useAuth()
   const [users, setUsers] = useState<UserData[]>([])
-  const [usersNameMap, setUsersNameMap] = useState<Record<string, string>>({})
   const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [selectedMatchId, setSelectedMatchId] = useState<number>(() => getNextMatchId())
   const [isOpen, setIsOpen] = useState(true)
   const [liveMode, setLiveMode] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [blindfoldUsers, setBlindfoldUsers] = useState<string[]>([])
-  const [koViewTab, setKoViewTab] = useState<'list' | 'tree'>('list')
   const [koDeadlines, setKoDeadlines] = useState<Record<string, number | null>>({})
+  const [koViewTab, setKoViewTab] = useState<'list' | 'tree'>('list')
+  const [blindfoldUsers, setBlindfoldUsers] = useState<string[]>([])
+  const [usersNameMap, setUsersNameMap] = useState<Record<string, string>>({})
   const now = Date.now()
   const [mainTab, setMainTab] = useState<MainTab>('match')
   const [userTab, setUserTab] = useState<UserTab>('matches')
@@ -652,6 +648,14 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
       setLiveMode(live)
       setBlindfoldUsers(settings.exists() ? (settings.data().blindfoldUsers ?? []) : [])
 
+      // טען שמות קצרים מ-users collection
+      let nameMap: Record<string, string> = {}
+      try {
+        const usersSnap = await getDocs(collection(db, 'users'))
+        usersSnap.docs.forEach(d => { if (d.data().name) nameMap[d.id] = d.data().name })
+        setUsersNameMap(nameMap)
+      } catch (e) { /* silent */ }
+
       // Load knockout round deadlines for visibility filtering
       if (settings.exists()) {
         const d = settings.data()
@@ -705,17 +709,8 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
       }
 
       if (predsSnap) {
-        // בנה מפת שמות מ-users collection (המקור האמין לשמות קצרים)
-        let nameMap: Record<string, string> = {}
-        try {
-          const usersSnap = await getDocs(collection(db, 'users'))
-          usersSnap.docs.forEach(d => { if (d.data().name) nameMap[d.id] = d.data().name })
-          setUsersNameMap(nameMap)
-        } catch (e) { /* silent */ }
-
         const data: UserData[] = predsSnap.docs.map(d => ({
-          userId: d.id,
-          userName: nameMap[d.id] || d.data().userName || 'משתמש',  // ← שם קצר מ-users collection
+          userId: d.id, userName: nameMap[d.id] || d.data().userName || 'משתמש',
           nickname: d.data().nickname ?? '',
           matches: d.data().matches ?? {}, groups: d.data().groups ?? {}, bonus: d.data().bonus ?? {},
           knockout: d.data().knockout ?? {},
@@ -1013,16 +1008,12 @@ ${userRows}
     { id: 'stats', label: '📊 סטטיסטיקות' },
   ]
 
-  // 🙈 בדוק אם המשתמש הנוכחי חסום מצפייה בהימורים
-  const isBlindfolded = !isAdmin && user && blindfoldUsers.includes(user.uid)
-
+  const isBlindfolded = !isAdmin && !!user && blindfoldUsers.includes(user.uid)
   if (isBlindfolded) return (
     <div className="page" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '60vh', gap: 16, textAlign: 'center' }}>
       <div style={{ fontSize: 64 }}>🙈</div>
       <h2 style={{ margin: 0, color: '#333' }}>הצפייה בהימורים חסומה זמנית</h2>
-      <p style={{ color: '#666', fontSize: 14, maxWidth: 320 }}>
-        כדי לשמור על הוגנות, אינך יכול לראות הימורי אחרים עד שתסיים למלא את ההימורים שלך.
-      </p>
+      <p style={{ color: '#666', fontSize: 14, maxWidth: 320 }}>כדי לשמור על הוגנות, אינך יכול לראות הימורי אחרים עד שתסיים למלא את ההימורים שלך.</p>
     </div>
   )
 
@@ -1344,95 +1335,48 @@ ${userRows}
                     <button onClick={() => setKoViewTab('tree')} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, border: '1px solid #ddd', background: koViewTab === 'tree' ? '#1a1a2e' : '#f5f5f5', color: koViewTab === 'tree' ? '#fff' : '#333', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>🌳 עץ</button>
                   </div>
                 </div>
-
-                {koViewTab === 'tree' && (() => {
-                  // ── Bracket Tree View ─────────────────────────────────
-                  const now = Date.now()
-                  const roundDeadlines: Record<string, number | null> = {
-                    R32: koDeadlines['R32'] ?? null, R16: koDeadlines['R16'] ?? null,
-                    QF: koDeadlines['QF'] ?? null, SF: koDeadlines['SF'] ?? null,
-                    '3P': koDeadlines['3P'] ?? koDeadlines['F'] ?? null, F: koDeadlines['F'] ?? null,
-                  }
-                  const isRoundClosed = (round: string) => {
-                    const dl = roundDeadlines[round]
-                    return dl != null && now > dl
-                  }
-                  const getTeam = (matchId: number, side: 'A' | 'B') => {
-                    const km = knockoutAdminMatches[matchId]
-                    return side === 'A' ? km?.teamA : km?.teamB
-                  }
-                  const BracketCard = ({ matchId }: { matchId: number }) => {
-                    const km = knockoutAdminMatches[matchId]
-                    const pred = current.knockout?.[matchId]
-                    const tA = getTeam(matchId, 'A')
-                    const tB = getTeam(matchId, 'B')
-                    const round = KNOCKOUT_MATCHES.find(m => m.id === matchId)?.round ?? 'R32'
-                    const closed = isRoundClosed(round)
-                    const userAdv = pred?.advance
-                    const actualAdv = km?.advanceTeam
-                    const advCorrect = userAdv && actualAdv && userAdv === actualAdv
-                    const advWrong = userAdv && actualAdv && userAdv !== actualAdv
-                    if (!tA && !tB) return (
-                      <div style={{ padding: '8px 10px', borderRadius: 8, border: '1px dashed #ddd', background: '#fafafa', fontSize: 12, color: '#bbb', textAlign: 'center', minWidth: 130 }}>
-                        #{matchId} — ממתין
-                      </div>
-                    )
-                    return (
-                      <div style={{ padding: '8px 10px', borderRadius: 8, border: `1px solid ${userAdv ? '#c8e6c9' : '#e8e8e8'}`, background: userAdv ? '#f8fff8' : '#fff', minWidth: 130, fontSize: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
-                          <Flag emoji={FLAGS[tA ?? ''] ?? ''} size={14} />
-                          <span style={{ fontWeight: userAdv === tA ? 700 : 400, color: actualAdv === tA ? '#1a7a44' : '#333' }}>{tA ?? '?'}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                          <Flag emoji={FLAGS[tB ?? ''] ?? ''} size={14} />
-                          <span style={{ fontWeight: userAdv === tB ? 700 : 400, color: actualAdv === tB ? '#1a7a44' : '#333' }}>{tB ?? '?'}</span>
-                        </div>
-                        {userAdv && (
-                          <div style={{ borderTop: '1px solid #eee', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
-                            <Flag emoji={FLAGS[userAdv] ?? ''} size={12} />
-                            <span style={{ fontWeight: 600, color: advCorrect ? '#1a7a44' : advWrong ? '#c0392b' : '#555' }}>
-                              {advCorrect ? '✓' : advWrong ? '✗' : '→'} {userAdv}
-                            </span>
-                          </div>
-                        )}
-                        {!userAdv && closed && <div style={{ fontSize: 10, color: '#e74c3c', marginTop: 3 }}>לא בחר</div>}
-                      </div>
-                    )
-                  }
-                  // Top half: 89,90,91,92 → 97,98 → 101 → 104
-                  // Bottom half: 93,94,95,96 → 99,100 → 102 → 104
-                  const colStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'space-around' }
-                  const colHeaderStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: '#888', textAlign: 'center', marginBottom: 4 }
-                  const rounds = [
-                    { label: 'שמינית', ids: [[89,90],[91,92],[93,94],[95,96]] },
-                    { label: 'רבע', ids: [[97,98],[99,100]] },
-                    { label: 'חצי', ids: [[101,102]] },
-                    { label: 'גמר', ids: [[104]] },
-                  ]
-                  return (
-                    <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
-                      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', minWidth: 580 }}>
-                        {rounds.map(r => (
-                          <div key={r.label} style={{ ...colStyle, flex: 1 }}>
-                            <div style={colHeaderStyle}>{r.label}</div>
-                            {r.ids.map((pair, pi) => (
-                              <div key={pi} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                {pair.map(id => <BracketCard key={id} matchId={id} />)}
+                {/* Tree view - always rendered, shown/hidden via CSS */}
+                <div style={{ display: koViewTab === 'tree' ? 'block' : 'none', overflowX: 'auto', paddingBottom: 8 }}>
+                  <div style={{ display: 'flex', gap: 12, minWidth: 560 }}>
+                    {[
+                      { label: 'שמינית', ids: [89,90,91,92,93,94,95,96] },
+                      { label: 'רבע', ids: [97,98,99,100] },
+                      { label: 'חצי', ids: [101,102] },
+                      { label: 'גמר', ids: [104] },
+                    ].map(col => (
+                      <div key={col.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#888', textAlign: 'center', marginBottom: 2 }}>{col.label}</div>
+                        {col.ids.map(id => {
+                          const km = knockoutAdminMatches[id]
+                          const pred = current.knockout?.[id]
+                          const tA = km?.teamA
+                          const tB = km?.teamB
+                          const userAdv = pred?.advance
+                          const actualAdv = km?.advanceTeam
+                          return (
+                            <div key={id} style={{ padding: '6px 8px', borderRadius: 7, border: `1px solid ${userAdv ? '#c8e6c9' : '#e8e8e8'}`, background: userAdv ? '#f8fff8' : '#fafafa', fontSize: 11 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: userAdv === tA ? 700 : 400, color: actualAdv === tA ? '#1a7a44' : '#333' }}>
+                                <Flag emoji={FLAGS[tA ?? ''] ?? ''} size={12} />{tA ?? '—'}
                               </div>
-                            ))}
-                          </div>
-                        ))}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: userAdv === tB ? 700 : 400, color: actualAdv === tB ? '#1a7a44' : '#333' }}>
+                                <Flag emoji={FLAGS[tB ?? ''] ?? ''} size={12} />{tB ?? '—'}
+                              </div>
+                              {userAdv && (
+                                <div style={{ borderTop: '1px solid #eee', marginTop: 3, paddingTop: 3, display: 'flex', alignItems: 'center', gap: 2, color: actualAdv && userAdv === actualAdv ? '#1a7a44' : actualAdv ? '#c0392b' : '#555', fontSize: 10, fontWeight: 600 }}>
+                                  <Flag emoji={FLAGS[userAdv] ?? ''} size={11} />
+                                  {actualAdv ? (userAdv === actualAdv ? '✓' : '✗') : '→'} {userAdv}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
                       </div>
-                      {/* גמר שלישי */}
-                      <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 8, border: '1px solid #eee', background: '#fafafa' }}>
-                        <div style={{ fontSize: 11, color: '#888', fontWeight: 700, marginBottom: 4 }}>גמר שלישי</div>
-                        <BracketCard matchId={103} />
-                      </div>
-                    </div>
-                  )
-                })()}
-                {koViewTab === 'list' && (
-                <>
+                    ))}
+                  </div>
+                </div>
+                {/* List view - shown/hidden via CSS */}
+                <div style={{ display: koViewTab === 'list' ? 'block' : 'none' }}>
+                </div>
                 {/* Sticky jump to current knockout match */}
                 {(() => {
                   const fullSched = { ...MATCH_SCHEDULE, ...adminSchedule }
@@ -1531,7 +1475,6 @@ ${userRows}
                                     {pred1x2Flag && <Flag emoji={pred1x2Flag} size={14} />} {pred1x2Label}
                                   </span>
                                   {adminSchedule[km.id] && <span style={{ fontSize: 10, color: '#aaa' }}>📅 {adminSchedule[km.id]}</span>}
-                                  {pickedRedCard && <span style={{ fontSize: 13 }}>🟥</span>}
                                   {isPlayed && <span style={{ fontSize: 12, fontWeight: 700, color: total > 0 ? '#1a7a44' : '#999', background: total > 0 ? '#EAF3DE' : '#f5f5f5', padding: '1px 6px', borderRadius: 8 }}>{total > 0 ? `+${total}` : '0'} נק׳</span>}
                                 </div>
                                 {isPlayed && rA != null && (
@@ -1568,8 +1511,8 @@ ${userRows}
                                       </>
                                     })()}
                                     {pred.advance && <><span style={{ color: '#ddd' }}>|</span><span style={{ display:'flex', alignItems:'center', gap:2, color: pAdv>0?'#1a7a44':'#cc3333', fontWeight:600 }}>{pAdv>0?'✓':'✗'} עולה:<Flag emoji={FLAGS[pred.advance]??''} size={13}/>{pAdv>0?` +${pAdv}`:''}{!correctAdvance && adminKm?.advanceTeam && <span style={{color:'#aaa',fontWeight:400}}> (עלה: {adminKm.advanceTeam})</span>}</span></>}
-                                    {pickedRedCard && <><span style={{ color: '#ddd' }}>|</span>
-                                      <span style={{ color: pRed>0?'#A32D2D':'#cc3333', fontWeight:600 }}>{isPlayed ? (pRed>0?'✓':'✗') : ''} 🟥{pRed>0?` +${pRed}`:''}</span></>}
+                                    {pickedRedCard && isPlayed && <><span style={{ color: '#ddd' }}>|</span>
+                                      <span style={{ color: pRed>0?'#A32D2D':'#cc3333', fontWeight:600 }}>{pRed>0?'✓':'✗'} 🟥{pRed>0?` +${pRed}`:''}</span></>}
                                   </div>
                                 )}
                               </div>
@@ -1580,11 +1523,11 @@ ${userRows}
                     </div>
                   )
                 })}
-              </>
-                )}
+              </div>{/* end list view */}
               </div>
             )
           })()}
+        </>
       )}
 
       {/* ══════════════════════════════════════════
@@ -1654,7 +1597,7 @@ ${userRows}
 
               return (
                 <>
-                  <ScoreKnockoutTable matchId={selectedMatchId} round={km?.round} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} rankMap={koRankMap} currentUserId={user?.uid} />
+                  <ScoreKnockoutTable matchId={selectedMatchId} users={users} teamA={tA} teamB={tB} adminResult={actual} lang={lang} rankMap={koRankMap} currentUserId={user?.uid} />
                   <div className="match-row-view">
                     {/* Header — same style as group stage */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
