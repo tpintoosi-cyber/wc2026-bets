@@ -262,12 +262,10 @@ export default function Admin() {
         const zMatches = await fetchZafronixMatches()
 
         // Red cards — match by team names (not matchNo, which differs between APIs).
-        // Store the COUNT per match (a single match can have several reds, e.g. 3), not
-        // just a boolean. The tournament-wide total is summed from these per-match counts
-        // so the total and the per-match data can never disagree. Only finished matches
-        // that map to OUR tournament are counted (the raw Zafronix feed also contains
-        // friendlies/qualifiers under year=2026).
-        let totalReds = 0
+        // The loop UPDATES the per-match count from the feed (a match can have several
+        // reds, e.g. 3). The tournament total is computed AFTER the loop from the
+        // accumulated per-match data (see below) — NOT from this snapshot — so a red that
+        // was recorded in an earlier sync is never lost if the feed later drops it.
         for (const zm of zMatches) {
           if (zm.status !== 'finished' || !zm.cards) continue
           const redCount = zm.cards.filter(c => c.color === 'red').length
@@ -282,12 +280,14 @@ export default function Admin() {
           )
           if (groupMatch) {
             const cur = updatedMatches[groupMatch.id]
-            if (cur && (cur.hadRedCard !== true || cur.redCardCount !== redCount)) {
+            // Never lower a count that's already stored (guards against a flaky feed
+            // that temporarily reports fewer/zero reds for a match).
+            const newCount = Math.max(redCount, cur?.redCardCount ?? 0)
+            if (cur && (cur.hadRedCard !== true || cur.redCardCount !== newCount)) {
               cur.hadRedCard = true
-              cur.redCardCount = redCount
+              cur.redCardCount = newCount
               redCardsUpdated++
             }
-            totalReds += redCount
             continue
           }
 
@@ -298,16 +298,24 @@ export default function Admin() {
           if (koEntry) {
             const km = koEntry[1] as any
             if (km.isPlayed) {
-              if (km.hadRedCard !== true || km.redCardCount !== redCount) {
+              const newCount = Math.max(redCount, km.redCardCount ?? 0)
+              if (km.hadRedCard !== true || km.redCardCount !== newCount) {
                 km.hadRedCard = true
-                km.redCardCount = redCount
+                km.redCardCount = newCount
                 redCardsUpdated++
               }
               updatedKnockout[Number(koEntry[0])] = km
-              totalReds += redCount
             }
           }
         }
+
+        // Tournament red-card TOTAL — summed from the accumulated per-match data
+        // (redCardCount, falling back to hadRedCard=1 for matches marked before counts
+        // existed). This union of everything ever recorded is stable and never drops just
+        // because the current Zafronix snapshot is missing a match's reds.
+        const sumReds = (obj: Record<number, any>) =>
+          Object.values(obj).reduce((s, m: any) => s + (m?.redCardCount ?? (m?.hadRedCard ? 1 : 0)), 0)
+        const totalReds = sumReds(updatedMatches) + sumReds(updatedKnockout)
 
         // Live stats — saved separately, NOT used for scoring yet
         const topScorers = buildTopScorers(zMatches)
