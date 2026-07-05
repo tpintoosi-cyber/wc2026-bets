@@ -1376,7 +1376,6 @@ ${userRows}
                 </div>
                 {/* List view - shown/hidden via CSS */}
                 <div style={{ display: koViewTab === 'list' ? 'block' : 'none' }}>
-                </div>
                 {/* Sticky jump to current knockout match */}
                 {(() => {
                   const fullSched = { ...MATCH_SCHEDULE, ...adminSchedule }
