@@ -1431,8 +1431,8 @@ ${userRows}
                     </div>
                   )
                 })()}
-                </div>
-                {koViewTab === 'list' && <>
+                {koViewTab === 'list' && (
+                <>
                 {/* Sticky jump to current knockout match */}
                 {(() => {
                   const fullSched = { ...MATCH_SCHEDULE, ...adminSchedule }
@@ -1580,7 +1580,8 @@ ${userRows}
                     </div>
                   )
                 })}
-              </>}
+              </>
+                )}
               </div>
             )
           })()}
