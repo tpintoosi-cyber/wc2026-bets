@@ -7,7 +7,7 @@ import { Match, Group, GroupPrediction, BonusPredictions, MatchPrediction, Knock
 import { fetchGroupStageMatches, fetchKnockoutMatches, fetchAllMatches, toIsraelTime } from '../services/wc2026api'
 import { fetchAllFixtures, fetchStandings, getKnockoutResult, parseStandings, isConfigured as isApiFootballConfigured, type ApiFootballFixture } from '../services/apifootball'
 import { fetchZafronixMatches, buildTopScorers, buildTopAssists, countRedCards, ZAFRONIX_TO_HE } from '../services/zafronix'
-import { populateR32Teams } from '../utils/syncLogic'
+import { populateR32Teams, applyApiFootballFixtures } from '../utils/syncLogic'
 import AdminTestPanel from './AdminTestPanel'
 
 const GROUPS = 'ABCDEFGHIJKL'.split('') as Group[]
@@ -173,7 +173,7 @@ export default function Admin() {
       setSyncLog([...log])
 
       // ── Group stage ──────────────────────────────────────────────
-      const updatedMatches: Record<number, Match> = {}
+      let updatedMatches: Record<number, Match> = {}
       for (const m of MATCHES) {
         updatedMatches[m.id] = { ...m, ...(matches[m.id] ? {
           resultA: matches[m.id].resultA, resultB: matches[m.id].resultB,
@@ -365,6 +365,20 @@ export default function Admin() {
               }, { merge: true })
             }
           }
+
+          // ── Correct 90-minute (regulation) scores ──────────────────
+          // wc2026api's home_score/away_score include extra time, so a knockout match
+          // that went to ET (e.g. #86 Argentina–Cape Verde) was stored with its 120'
+          // score. The 1X2 and exact-score bets are judged on the 90' result; the
+          // eventual winner is captured separately in advanceTeam. API-Football's
+          // score.fulltime IS the 90' score (wc2026api has no such field), so we run the
+          // already-tested applyApiFootballFixtures to fix both group and knockout scores.
+          const fixtures = await fetchAllFixtures()
+          const fixResult = applyApiFootballFixtures(fixtures, updatedMatches, updatedKnockout, MATCHES, TEAM_EN)
+          updatedMatches = fixResult.updatedMatches
+          updatedKnockout = fixResult.updatedKnockout
+          fixResult.log.forEach(l => log.push(l))
+          log.push(`⏱️ תוצאות 90 דקות תוקנו: ${fixResult.scoresFixed} בתים + ${fixResult.advanceFixed} נוקאאוט`)
         } catch (e) { log.push(`⚠️ API-Football: ${(e as Error).message}`) }
       }
 
