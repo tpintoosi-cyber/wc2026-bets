@@ -1337,12 +1337,12 @@ ${userRows}
                 </div>
                 {/* Tree view - always rendered, shown/hidden via CSS */}
                 <div style={{ display: koViewTab === 'tree' ? 'block' : 'none', overflowX: 'auto', paddingBottom: 8 }}>
-                  <div style={{ display: 'flex', gap: 12, minWidth: 560 }}>
+                  <div style={{ display: 'flex', gap: 10, minWidth: 560 }}>
                     {[
-                      { label: 'שמינית', ids: [89,90,91,92,93,94,95,96] },
-                      { label: 'רבע', ids: [97,98,99,100] },
-                      { label: 'חצי', ids: [101,102] },
-                      { label: 'גמר', ids: [104] },
+                      { label: 'שמינית', round: 'R16', ids: [89,90,91,92,93,94,95,96] },
+                      { label: 'רבע', round: 'QF', ids: [97,98,99,100] },
+                      { label: 'חצי', round: 'SF', ids: [101,102] },
+                      { label: 'גמר', round: 'F', ids: [104] },
                     ].map(col => (
                       <div key={col.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: '#888', textAlign: 'center', marginBottom: 2 }}>{col.label}</div>
@@ -1353,26 +1353,63 @@ ${userRows}
                           const tB = km?.teamB
                           const userAdv = pred?.advance
                           const actualAdv = km?.advanceTeam
+                          const roundDl = koDeadlines[col.round] ?? null
+                          const roundClosed = roundDl != null && Date.now() > roundDl
+                          const hasScore = pred?.scoreA != null && pred?.scoreB != null
+                          const advCorrect = userAdv && actualAdv && userAdv === actualAdv
+                          const advWrong = userAdv && actualAdv && userAdv !== actualAdv
                           return (
                             <div key={id} style={{ padding: '6px 8px', borderRadius: 7, border: `1px solid ${userAdv ? '#c8e6c9' : '#e8e8e8'}`, background: userAdv ? '#f8fff8' : '#fafafa', fontSize: 11 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: userAdv === tA ? 700 : 400, color: actualAdv === tA ? '#1a7a44' : '#333' }}>
-                                <Flag emoji={FLAGS[tA ?? ''] ?? ''} size={12} />{tA ?? '—'}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 3 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: userAdv === tA ? 700 : 400, color: actualAdv === tA ? '#1a7a44' : '#333' }}>
+                                  <Flag emoji={FLAGS[tA ?? ''] ?? ''} size={12} />{tA ?? '—'}
+                                </div>
+                                {roundClosed && hasScore && <span style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>{pred!.scoreA}</span>}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: userAdv === tB ? 700 : 400, color: actualAdv === tB ? '#1a7a44' : '#333' }}>
-                                <Flag emoji={FLAGS[tB ?? ''] ?? ''} size={12} />{tB ?? '—'}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 3 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 3, fontWeight: userAdv === tB ? 700 : 400, color: actualAdv === tB ? '#1a7a44' : '#333' }}>
+                                  <Flag emoji={FLAGS[tB ?? ''] ?? ''} size={12} />{tB ?? '—'}
+                                </div>
+                                {roundClosed && hasScore && <span style={{ fontSize: 10, color: '#888', fontWeight: 700 }}>{pred!.scoreB}</span>}
                               </div>
                               {userAdv && (
-                                <div style={{ borderTop: '1px solid #eee', marginTop: 3, paddingTop: 3, display: 'flex', alignItems: 'center', gap: 2, color: actualAdv && userAdv === actualAdv ? '#1a7a44' : actualAdv ? '#c0392b' : '#555', fontSize: 10, fontWeight: 600 }}>
+                                <div style={{ borderTop: '1px solid #eee', marginTop: 3, paddingTop: 3, display: 'flex', alignItems: 'center', gap: 2, color: advCorrect ? '#1a7a44' : advWrong ? '#c0392b' : '#555', fontSize: 10, fontWeight: 600 }}>
                                   <Flag emoji={FLAGS[userAdv] ?? ''} size={11} />
-                                  {actualAdv ? (userAdv === actualAdv ? '✓' : '✗') : '→'} {userAdv}
+                                  {actualAdv ? (advCorrect ? '✓' : '✗') : '→'} {userAdv}
                                 </div>
                               )}
+                              {!userAdv && tA && tB && <div style={{ fontSize: 9, color: '#e74c3c', marginTop: 2 }}>לא בחר</div>}
                             </div>
                           )
                         })}
                       </div>
                     ))}
                   </div>
+                  {/* גמר שלישי */}
+                  {(() => {
+                    const id = 103
+                    const km = knockoutAdminMatches[id]
+                    const pred = current.knockout?.[id]
+                    const tA = km?.teamA
+                    const tB = km?.teamB
+                    const userAdv = pred?.advance
+                    const actualAdv = km?.advanceTeam
+                    const p3Dl = koDeadlines['3P'] ?? koDeadlines['F'] ?? null
+                    const closed = p3Dl != null && Date.now() > p3Dl
+                    const hasScore = pred?.scoreA != null && pred?.scoreB != null
+                    if (!tA && !tB) return null
+                    return (
+                      <div style={{ marginTop: 10, padding: '6px 10px', borderRadius: 7, border: '1px solid #f0e68c', background: '#fffef0', display: 'flex', alignItems: 'center', gap: 10, fontSize: 11 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: '#888' }}>🥉 גמר שלישי:</span>
+                        <Flag emoji={FLAGS[tA ?? ''] ?? ''} size={12} />
+                        <span style={{ fontWeight: userAdv === tA ? 700 : 400 }}>{tA ?? '—'}</span>
+                        {closed && hasScore && <span style={{ color: '#888', fontWeight: 700 }}>{pred!.scoreA}:{pred!.scoreB}</span>}
+                        <Flag emoji={FLAGS[tB ?? ''] ?? ''} size={12} />
+                        <span style={{ fontWeight: userAdv === tB ? 700 : 400 }}>{tB ?? '—'}</span>
+                        {userAdv && <span style={{ color: actualAdv ? (userAdv === actualAdv ? '#1a7a44' : '#c0392b') : '#555', fontWeight: 600 }}>→ {userAdv}</span>}
+                      </div>
+                    )
+                  })()}
                 </div>
                 {/* List view - shown/hidden via CSS */}
                 <div style={{ display: koViewTab === 'list' ? 'block' : 'none' }}>
