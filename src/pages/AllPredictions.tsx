@@ -1349,8 +1349,9 @@ ${userRows}
                         {col.ids.map(id => {
                           const km = knockoutAdminMatches[id]
                           const pred = current.knockout?.[id]
-                          const tA = getTeam(id, 'A') ?? km?.teamA
-                          const tB = getTeam(id, 'B') ?? km?.teamB
+                          // R16 (base): actual teams that reached this round. QF+ : user's predicted bracket.
+                          const tA = col.round === 'R16' ? km?.teamA : (getTeam(id, 'A') ?? km?.teamA)
+                          const tB = col.round === 'R16' ? km?.teamB : (getTeam(id, 'B') ?? km?.teamB)
                           const userAdv = pred?.advance
                           const actualAdv = km?.advanceTeam
                           const roundDl = koDeadlines[col.round] ?? null
