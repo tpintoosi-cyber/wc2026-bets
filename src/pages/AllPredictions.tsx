@@ -591,6 +591,7 @@ export default function AllPredictions({ lang = 'he' as Lang }) {
   const [liveMode, setLiveMode] = useState(false)
   const [loading, setLoading] = useState(true)
   const [blindfoldUsers, setBlindfoldUsers] = useState<string[]>([])
+  const [koViewTab, setKoViewTab] = useState<'list' | 'tree'>('list')
   const [koDeadlines, setKoDeadlines] = useState<Record<string, number | null>>({})
   const now = Date.now()
   const [mainTab, setMainTab] = useState<MainTab>('match')
@@ -1338,7 +1339,100 @@ ${userRows}
                       {knockoutScores[current.userId]} נק׳
                     </span>
                   )}
+                  <div style={{ marginRight: 'auto', display: 'flex', gap: 4 }}>
+                    <button onClick={() => setKoViewTab('list')} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, border: '1px solid #ddd', background: koViewTab === 'list' ? '#1a1a2e' : '#f5f5f5', color: koViewTab === 'list' ? '#fff' : '#333', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>📋 פירוט</button>
+                    <button onClick={() => setKoViewTab('tree')} style={{ fontSize: 12, padding: '3px 10px', borderRadius: 8, border: '1px solid #ddd', background: koViewTab === 'tree' ? '#1a1a2e' : '#f5f5f5', color: koViewTab === 'tree' ? '#fff' : '#333', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>🌳 עץ</button>
+                  </div>
                 </div>
+
+                {koViewTab === 'tree' && (() => {
+                  // ── Bracket Tree View ─────────────────────────────────
+                  const now = Date.now()
+                  const roundDeadlines: Record<string, number | null> = {
+                    R32: koDeadlines['R32'] ?? null, R16: koDeadlines['R16'] ?? null,
+                    QF: koDeadlines['QF'] ?? null, SF: koDeadlines['SF'] ?? null,
+                    '3P': koDeadlines['3P'] ?? koDeadlines['F'] ?? null, F: koDeadlines['F'] ?? null,
+                  }
+                  const isRoundClosed = (round: string) => {
+                    const dl = roundDeadlines[round]
+                    return dl != null && now > dl
+                  }
+                  const getTeam = (matchId: number, side: 'A' | 'B') => {
+                    const km = knockoutAdminMatches[matchId]
+                    return side === 'A' ? km?.teamA : km?.teamB
+                  }
+                  const BracketCard = ({ matchId }: { matchId: number }) => {
+                    const km = knockoutAdminMatches[matchId]
+                    const pred = current.knockout?.[matchId]
+                    const tA = getTeam(matchId, 'A')
+                    const tB = getTeam(matchId, 'B')
+                    const round = KNOCKOUT_MATCHES.find(m => m.id === matchId)?.round ?? 'R32'
+                    const closed = isRoundClosed(round)
+                    const userAdv = pred?.advance
+                    const actualAdv = km?.advanceTeam
+                    const advCorrect = userAdv && actualAdv && userAdv === actualAdv
+                    const advWrong = userAdv && actualAdv && userAdv !== actualAdv
+                    if (!tA && !tB) return (
+                      <div style={{ padding: '8px 10px', borderRadius: 8, border: '1px dashed #ddd', background: '#fafafa', fontSize: 12, color: '#bbb', textAlign: 'center', minWidth: 130 }}>
+                        #{matchId} — ממתין
+                      </div>
+                    )
+                    return (
+                      <div style={{ padding: '8px 10px', borderRadius: 8, border: `1px solid ${userAdv ? '#c8e6c9' : '#e8e8e8'}`, background: userAdv ? '#f8fff8' : '#fff', minWidth: 130, fontSize: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
+                          <Flag emoji={FLAGS[tA ?? ''] ?? ''} size={14} />
+                          <span style={{ fontWeight: userAdv === tA ? 700 : 400, color: actualAdv === tA ? '#1a7a44' : '#333' }}>{tA ?? '?'}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                          <Flag emoji={FLAGS[tB ?? ''] ?? ''} size={14} />
+                          <span style={{ fontWeight: userAdv === tB ? 700 : 400, color: actualAdv === tB ? '#1a7a44' : '#333' }}>{tB ?? '?'}</span>
+                        </div>
+                        {userAdv && (
+                          <div style={{ borderTop: '1px solid #eee', paddingTop: 4, display: 'flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
+                            <Flag emoji={FLAGS[userAdv] ?? ''} size={12} />
+                            <span style={{ fontWeight: 600, color: advCorrect ? '#1a7a44' : advWrong ? '#c0392b' : '#555' }}>
+                              {advCorrect ? '✓' : advWrong ? '✗' : '→'} {userAdv}
+                            </span>
+                          </div>
+                        )}
+                        {!userAdv && closed && <div style={{ fontSize: 10, color: '#e74c3c', marginTop: 3 }}>לא בחר</div>}
+                      </div>
+                    )
+                  }
+                  // Top half: 89,90,91,92 → 97,98 → 101 → 104
+                  // Bottom half: 93,94,95,96 → 99,100 → 102 → 104
+                  const colStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'space-around' }
+                  const colHeaderStyle: React.CSSProperties = { fontSize: 11, fontWeight: 700, color: '#888', textAlign: 'center', marginBottom: 4 }
+                  const rounds = [
+                    { label: 'שמינית', ids: [[89,90],[91,92],[93,94],[95,96]] },
+                    { label: 'רבע', ids: [[97,98],[99,100]] },
+                    { label: 'חצי', ids: [[101,102]] },
+                    { label: 'גמר', ids: [[104]] },
+                  ]
+                  return (
+                    <div style={{ overflowX: 'auto', paddingBottom: 8 }}>
+                      <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', minWidth: 580 }}>
+                        {rounds.map(r => (
+                          <div key={r.label} style={{ ...colStyle, flex: 1 }}>
+                            <div style={colHeaderStyle}>{r.label}</div>
+                            {r.ids.map((pair, pi) => (
+                              <div key={pi} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                {pair.map(id => <BracketCard key={id} matchId={id} />)}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                      {/* גמר שלישי */}
+                      <div style={{ marginTop: 12, padding: '8px 10px', borderRadius: 8, border: '1px solid #eee', background: '#fafafa' }}>
+                        <div style={{ fontSize: 11, color: '#888', fontWeight: 700, marginBottom: 4 }}>גמר שלישי</div>
+                        <BracketCard matchId={103} />
+                      </div>
+                    </div>
+                  )
+                })()}
+                </div>
+                {koViewTab === 'list' && <>
                 {/* Sticky jump to current knockout match */}
                 {(() => {
                   const fullSched = { ...MATCH_SCHEDULE, ...adminSchedule }
@@ -1489,6 +1583,7 @@ ${userRows}
               </div>
             )
           })()}
+          </>}
         </>
       )}
 
