@@ -1073,13 +1073,17 @@ export default function Predict({ lang }: { lang: Lang }) {
               } catch { return undefined }
             }
 
-            // Form view: show actual teams from API when available, fallback to user predictions
+            // Form view: show ACTUAL teams only. Prefer the admin-set teamA/teamB, then
+            // trace the real advanceTeam through the bracket. Never fall back to the user's
+            // own prediction — a QF+ box whose feeders haven't been played yet must stay
+            // "pending" (teamsReady=false) instead of showing the user's guess as if it
+            // were the real matchup (e.g. #100 before its R16 feeders are decided).
             const getFormTeam = (matchId: number, side: 'A' | 'B'): string | undefined => {
               const actual = knockoutMatches[matchId] as any
               if (actual?.teamA && actual?.teamB) {
                 return side === 'A' ? actual.teamA : actual.teamB
               }
-              return getTeamSafe(matchId, side)
+              return getActualTeam(matchId, side)
             }
 
             // ── BRACKET VIEW ────────────────────────────────────────────────
