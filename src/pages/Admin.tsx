@@ -20,6 +20,28 @@ for (const [en, he] of Object.entries(ZAFRONIX_TO_HE)) {
   EN_TO_HE_MAP[en.toLowerCase()] = he
 }
 
+// Propagate advanceTeam winners into the next round's team slots via KNOCKOUT_BRACKET.
+// Used both by the manual "save knockout" action and automatically at the end of a sync,
+// so QF/SF/F teams fill in as soon as the feeding round has an advanceTeam.
+function propagateKnockout(input: Record<number, any>): Record<number, any> {
+  const propagated: Record<number, any> = { ...input }
+  for (const [id] of Object.entries(propagated)) {
+    const m = propagated[Number(id)] as any
+    if (!m?.advanceTeam) continue
+    const b = KNOCKOUT_BRACKET[Number(id)]
+    if (!b) continue
+    for (const [nextId] of Object.entries(propagated)) {
+      const nb = KNOCKOUT_BRACKET[Number(nextId)]
+      if (!nb) continue
+      if (nb.feederA === Number(id)) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamA: m.advanceTeam, fifaPointsA: TEAM_FIFA_POINTS[m.advanceTeam] ?? 1500 }
+      if (nb.feederB === Number(id)) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: m.advanceTeam, fifaPointsB: TEAM_FIFA_POINTS[m.advanceTeam] ?? 1500 }
+      if (nb.feederA === -Number(id)) { const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA; if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamA: loser, fifaPointsA: TEAM_FIFA_POINTS[loser] ?? 1500 } }
+      if (nb.feederB === -Number(id)) { const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA; if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: loser, fifaPointsB: TEAM_FIFA_POINTS[loser] ?? 1500 } }
+    }
+  }
+  return propagated
+}
+
 const API_ALIASES: Record<string, string> = {
   'korea republic': 'south korea',
   'bosnia-herzegovina': 'bosnia',
@@ -401,6 +423,13 @@ export default function Admin() {
       }
 
       // ── Save all ─────────────────────────────────────────────────
+      // Propagate R16/QF/SF winners into the next round's team slots. Previously this
+      // only happened on the manual "save knockout" action, so QF teams stayed empty if
+      // a round finished between manual saves (e.g. #98/#99 showed nothing / wrong teams).
+      const beforeProp = JSON.stringify(updatedKnockout)
+      updatedKnockout = propagateKnockout(updatedKnockout)
+      if (JSON.stringify(updatedKnockout) !== beforeProp) log.push('🌳 נבחרות הועברו לשלב הבא (propagation)')
+
       setMatches({ ...updatedMatches })
       setKnockoutMatches({ ...updatedKnockout })
       setLiveStats(newLiveStats)
@@ -590,21 +619,7 @@ export default function Admin() {
   }
 
   const saveKnockout = async () => {
-    const propagated: Record<number, any> = { ...knockoutMatches }
-    for (const [id] of Object.entries(propagated)) {
-      const m = propagated[Number(id)] as any
-      if (!m?.advanceTeam) continue
-      const b = KNOCKOUT_BRACKET[Number(id)]
-      if (!b) continue
-      for (const [nextId] of Object.entries(propagated)) {
-        const nb = KNOCKOUT_BRACKET[Number(nextId)]
-        if (!nb) continue
-        if (nb.feederA === Number(id)) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamA: m.advanceTeam, fifaPointsA: TEAM_FIFA_POINTS[m.advanceTeam] ?? 1500 }
-        if (nb.feederB === Number(id)) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: m.advanceTeam, fifaPointsB: TEAM_FIFA_POINTS[m.advanceTeam] ?? 1500 }
-        if (nb.feederA === -Number(id)) { const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA; if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamA: loser, fifaPointsA: TEAM_FIFA_POINTS[loser] ?? 1500 } }
-        if (nb.feederB === -Number(id)) { const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA; if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: loser, fifaPointsB: TEAM_FIFA_POINTS[loser] ?? 1500 } }
-      }
-    }
+    const propagated = propagateKnockout(knockoutMatches)
     await setDoc(doc(db, 'admin', 'knockout'), { matches: propagated })
     setKnockoutMatches(propagated)
     setMsg('✓ נוקאאוט נשמר')

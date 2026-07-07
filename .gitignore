@@ -9,3 +9,9 @@ service-account.json
 service-account.json
 .env
 .env
+
+serviceAccount.json
+diagnose-*.mjs
+fix-*.mjs
+probe-*.mjs
+verify-*.mjs
