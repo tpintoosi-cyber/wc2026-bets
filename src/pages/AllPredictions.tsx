@@ -250,6 +250,11 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
   const rA = played ? Number(adminResult.resultA ?? 0) : null
   const rB = played ? Number(adminResult.resultB ?? 0) : null
 
+  // Red-card bet (R32/R16/QF): show a 🟥 badge on users who picked this match for a red.
+  const koMatch = KNOCKOUT_MATCHES.find(m => m.id === matchId)
+  const redKey = koMatch?.round as 'R32' | 'R16' | 'QF' | undefined
+  const redEnabled = !!redKey && ['R32', 'R16', 'QF'].includes(redKey)
+
   const groups: Record<string, UserData[]> = {}
   users.forEach(u => {
     const p = u.knockout?.[matchId]
@@ -390,6 +395,7 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
                           const isMe = u.userId === currentUserId
                           const adv = u.knockout?.[matchId]?.advance
                           const advCorrect = played && adminResult?.advanceTeam && adv === adminResult.advanceTeam
+                          const pickedRed = redEnabled && (u.knockoutRedCards?.[redKey!] ?? []).includes(matchId)
                           return (
                             <span key={u.userId} style={{
                               display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -407,6 +413,15 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
                                   background: advCorrect ? '#EAF3DE' : 'rgba(0,0,0,0.06)',
                                 }}>
                                   <Flag emoji={FLAGS[adv] ?? ''} size={12}/>
+                                </span>
+                              )}
+                              {pickedRed && (
+                                <span title="הימר על כרטיס אדום" style={{ fontSize: 10, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 1,
+                                  padding: '0 3px', borderRadius: 4,
+                                  color: !played ? (isMe ? '#fff' : '#555') : adminResult?.hadRedCard ? '#1a7a44' : '#A32D2D',
+                                  background: !played ? 'rgba(0,0,0,0.06)' : adminResult?.hadRedCard ? '#EAF3DE' : 'rgba(163,45,45,0.12)',
+                                }}>
+                                  {played ? (adminResult?.hadRedCard ? '✓' : '✗') : ''}🟥
                                 </span>
                               )}
                               {isMe && <span style={{ fontSize: 10, opacity: 0.7 }}> ✦</span>}

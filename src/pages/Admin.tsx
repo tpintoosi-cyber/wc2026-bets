@@ -927,7 +927,7 @@ export default function Admin() {
                     <option value="">— מי עלה? —</option>
                     {[r.teamA, r.teamB].filter(Boolean).map(t => <option key={t} value={t!}>{t}</option>)}
                   </select>
-                  {(round === 'R32' || round === 'R16') && (
+                  {(round === 'R32' || round === 'R16' || round === 'QF') && (
                     <label title="כרטיס אדום"><input type="checkbox" checked={r.hadRedCard ?? false} onChange={e => updateKnockoutMatch(km.id, 'hadRedCard', e.target.checked)} />&nbsp;🟥</label>
                   )}
                   <label title="הושלם"><input type="checkbox" checked={r.isPlayed ?? false} onChange={e => updateKnockoutMatch(km.id, 'isPlayed', e.target.checked)} />&nbsp;✓</label>
