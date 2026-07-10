@@ -297,6 +297,8 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
   const downloadImage = async () => {
     if (!tableRef.current) return
     setExporting(true)
+    const el = tableRef.current
+    const prevWidth = el.style.width
     try {
       if (!(window as any).html2canvas) {
         await new Promise<void>((res, rej) => {
@@ -305,14 +307,21 @@ function ScoreKnockoutTable({ matchId, users, teamA, teamB, adminResult, rankMap
           s.onload = () => res(); s.onerror = () => rej(); document.head.appendChild(s)
         })
       }
-      const canvas = await (window as any).html2canvas(tableRef.current, {
-        backgroundColor: '#ffffff', scale: 2, useCORS: true, width: 380, windowWidth: 380,
+      // Widen the layout for export so long names, medals, advance flags and red-card
+      // badges have room (the on-screen mobile view is ~380px and clips them). The shared
+      // image can be wider than the phone screen.
+      const EXPORT_W = 720
+      el.style.width = `${EXPORT_W}px`
+      await new Promise(r => setTimeout(r, 60)) // let the reflow settle
+      const canvas = await (window as any).html2canvas(el, {
+        backgroundColor: '#ffffff', scale: 2, useCORS: true, width: EXPORT_W, windowWidth: EXPORT_W,
       })
       const link = document.createElement('a')
       link.download = `${teamA}-vs-${teamB}.png`
       link.href = canvas.toDataURL('image/png')
       link.click()
     } catch { alert('שגיאה בייצוא תמונה') }
+    finally { el.style.width = prevWidth }
     setExporting(false)
   }
 
@@ -572,18 +581,18 @@ function BonusPredTable({ qId, users, actualVal, lang = "he" as Lang }: {
         const actualVals = actualVal ? actualVal.split(',').map((v: string) => v.trim().toLowerCase()) : []
         const isCorrect = actualVal && val !== 'לא מולא' && actualVals.includes(val.trim().toLowerCase())
         return (
-          <div key={val} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+          <div key={val} style={{ padding: '7px 10px',
             borderBottom: idx < arr.length - 1 ? '1px solid #f0f0f0' : 'none',
             background: isCorrect ? '#EAF3DE' : idx % 2 === 0 ? '#fafafa' : '#fff' }}>
-            <span style={{ fontSize: 13, fontWeight: 600, minWidth: 100, color: isCorrect ? '#3B6D11' : '#1a1a2e' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: isCorrect ? '#3B6D11' : '#1a1a2e' }}>
               {isCorrect && '✓ '}{val}
               <span style={{ fontSize: 11, color: '#aaa', fontWeight: 400, marginRight: 4 }}>({valUsers.length})</span>
-            </span>
-            <span style={{ fontSize: 12, color: '#555', flex: 1 }}>
-              {valUsers.map((u, i) => (
-                <span key={u.userId}>{getDisplayName(u)}{i < valUsers.length - 1 ? <span style={{ color: '#ddd', margin: '0 4px' }}>|</span> : ''}</span>
+            </div>
+            <div style={{ fontSize: 12, color: '#555', display: 'flex', flexWrap: 'wrap', gap: '2px 6px' }}>
+              {valUsers.map(u => (
+                <span key={u.userId} style={{ whiteSpace: 'nowrap' }}>{getDisplayName(u)}</span>
               ))}
-            </span>
+            </div>
           </div>
         )
       })}
