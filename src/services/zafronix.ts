@@ -170,13 +170,22 @@ export function countRedCards(matches: ZafronixMatch[]): number {
 // went to ET is stored with its 120' score. Zafronix gives a minute for every goal, so
 // we count only goals scored in the first 90 minutes (stoppage-time goals are recorded
 // as <=90; genuine extra-time goals come back as 91+).
-// Returns null when we cannot trust the reconstruction, so the caller keeps the existing
-// value: no goal data, or the goals array does not reconcile with Zafronix's own final
-// score (e.g. a missing goal or an own-goal attributed to the wrong side).
-export function getRegulationScore(match: ZafronixMatch): { home: number; away: number } | null {
+//
+// The goals list is only trusted when it reconciles with a known FINAL score. Prefer the
+// caller-supplied expectedFinal (the authoritative wc2026api final the app already stores)
+// over Zafronix's own homeScore/awayScore, because that field is sometimes wrong — e.g.
+// Argentina–Switzerland came back as "0-0" while the goals (10', 67', 112', 120') clearly
+// describe a 3-1 ET result with a 1-1 score at 90'. Returns null when it can't be trusted,
+// so the caller keeps the existing value.
+export function getRegulationScore(
+  match: ZafronixMatch,
+  expectedFinal?: { home: number; away: number }
+): { home: number; away: number } | null {
   const goals = match.goals
+  const finalHome = expectedFinal ? expectedFinal.home : match.homeScore
+  const finalAway = expectedFinal ? expectedFinal.away : match.awayScore
   if (!goals || goals.length === 0) {
-    if (match.homeScore === 0 && match.awayScore === 0) return { home: 0, away: 0 }
+    if (finalHome === 0 && finalAway === 0) return { home: 0, away: 0 }
     return null
   }
   let fullHome = 0, fullAway = 0, regHome = 0, regAway = 0
@@ -184,9 +193,9 @@ export function getRegulationScore(match: ZafronixMatch): { home: number; away: 
     if (g.team === 'home') { fullHome++; if (g.minute <= 90) regHome++ }
     else if (g.team === 'away') { fullAway++; if (g.minute <= 90) regAway++ }
   }
-  // Integrity check: the goals list must add up to the API's final score.
-  if (match.homeScore != null && match.awayScore != null &&
-      (fullHome !== match.homeScore || fullAway !== match.awayScore)) {
+  // Integrity check: the goals list must add up to the known final score.
+  if (finalHome != null && finalAway != null &&
+      (fullHome !== finalHome || fullAway !== finalAway)) {
     return null
   }
   return { home: regHome, away: regAway }

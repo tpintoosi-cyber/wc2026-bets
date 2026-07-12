@@ -51,4 +51,18 @@ describe('getRegulationScore', () => {
     ])
     expect(getRegulationScore(m)).toBeNull()
   })
+
+  it('uses expectedFinal when Zafronix score field is wrong — #100 Argentina vs Switzerland', () => {
+    // Zafronix reported homeScore/awayScore as 0-0 but the goals describe a 3-1 ET result
+    // (1-1 at 90'). Against Zafronix's own 0-0 the goals look inconsistent → null; against
+    // the true final (3-1 from wc2026api) they reconcile → 1-1 at 90'.
+    const m = mk(0, 0, [
+      { minute: 10, team: 'home' },
+      { minute: 67, team: 'away' },
+      { minute: 112, team: 'home' },
+      { minute: 120, team: 'home' },
+    ])
+    expect(getRegulationScore(m)).toBeNull()
+    expect(getRegulationScore(m, { home: 3, away: 1 })).toEqual({ home: 1, away: 1 })
+  })
 })

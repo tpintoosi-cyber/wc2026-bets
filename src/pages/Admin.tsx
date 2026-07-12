@@ -348,9 +348,15 @@ export default function Admin() {
           if (!koEntry) continue
           const km = koEntry[1] as any
           if (!km.isPlayed || km.manualScore) continue
-          const reg = getRegulationScore(zm)
-          if (!reg) continue
           const isRev = km.teamA === awayHe
+          // Validate Zafronix's goal list against wc2026api's final (already stored in
+          // km.resultA/resultB at this point), not against Zafronix's own homeScore/awayScore
+          // which is sometimes wrong. Convert the stored final into Zafronix home/away order.
+          const expectedFinal = (km.resultA != null && km.resultB != null)
+            ? { home: Number(isRev ? km.resultB : km.resultA), away: Number(isRev ? km.resultA : km.resultB) }
+            : undefined
+          const reg = getRegulationScore(zm, expectedFinal)
+          if (!reg) continue
           const r90A = isRev ? reg.away : reg.home
           const r90B = isRev ? reg.home : reg.away
           if (km.resultA !== r90A || km.resultB !== r90B) {
