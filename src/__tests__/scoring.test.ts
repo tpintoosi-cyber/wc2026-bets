@@ -280,6 +280,41 @@ describe('computeUserScore', () => {
     expect(score.knockoutPoints).toBeGreaterThan(0)
   })
 
+  it('3rd-place advance: bracket-valid loser pick is counted (regression: negative feeders)', async () => {
+    const { KNOCKOUT_MATCHES } = await import('../data/matches')
+    const base = KNOCKOUT_MATCHES.find(m => m.id === 103)!
+    const km103 = { ...base, teamA: 'England', teamB: 'Brazil', category: 'A' as Category,
+      fifaPointsA: 1800, fifaPointsB: 1700, isPlayed: true, resultA: 1, resultB: 0, advanceTeam: 'England' }
+    // Bracket: user routed England to LOSE SF #101 and Brazil to LOSE SF #102,
+    // then picked England to win the 3rd-place match.
+    const kp = {
+      97: { matchId: 97, advance: 'Spain' }, 98: { matchId: 98, advance: 'England' },
+      99: { matchId: 99, advance: 'Brazil' }, 100: { matchId: 100, advance: 'Argentina' },
+      101: { matchId: 101, advance: 'Spain' },     // → predicted loser of SF1 = England
+      102: { matchId: 102, advance: 'Argentina' }, // → predicted loser of SF2 = Brazil
+      103: { matchId: 103, advance: 'England' },
+    } as any
+    const score = computeUserScore('u1', 'Test', {}, {}, {}, [], {}, {}, kp, [km103 as any])
+    expect(score.ko3P).toBe(2) // 3P base = 2, Cat A bonus = 0
+  })
+
+  it('3rd-place advance: pick NOT routed via bracket is rejected', async () => {
+    const { KNOCKOUT_MATCHES } = await import('../data/matches')
+    const base = KNOCKOUT_MATCHES.find(m => m.id === 103)!
+    const km103 = { ...base, teamA: 'England', teamB: 'Brazil', category: 'A' as Category,
+      fifaPointsA: 1800, fifaPointsB: 1700, isPlayed: true, resultA: 1, resultB: 0, advanceTeam: 'England' }
+    // User predicted England to WIN SF #101 (so England is not a predicted SF loser → not in their 3P)
+    const kp = {
+      97: { matchId: 97, advance: 'Spain' }, 98: { matchId: 98, advance: 'England' },
+      99: { matchId: 99, advance: 'Brazil' }, 100: { matchId: 100, advance: 'Argentina' },
+      101: { matchId: 101, advance: 'England' },
+      102: { matchId: 102, advance: 'Argentina' },
+      103: { matchId: 103, advance: 'England' },
+    } as any
+    const score = computeUserScore('u1', 'Test', {}, {}, {}, [], {}, {}, kp, [km103 as any])
+    expect(score.ko3P).toBe(0)
+  })
+
   it('group points are counted', () => {
     const score = computeUserScore(
       'u1', 'Test',

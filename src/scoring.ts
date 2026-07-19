@@ -242,6 +242,29 @@ export function calcAdvancePoints(
   return base + (pickedUnderdog ? catBonus : 0)
 }
 
+// Resolves which team a user routed into a given side of a knockout match, per their bracket.
+// Positive feeder = the team the user predicted to WIN that feeder match.
+// Negative feeder = the team the user predicted to LOSE match |feeder| (the 3rd-place feeders).
+function resolveBracketTeam(
+  matchId: number,
+  side: 'A' | 'B',
+  kp: Record<number, KnockoutMatchPrediction>
+): string | undefined {
+  const b = KNOCKOUT_BRACKET[matchId]
+  if (!b) return undefined
+  const feederId = side === 'A' ? b.feederA : b.feederB
+  if (feederId === null) return undefined
+  if (feederId < 0) {
+    const sfId = Math.abs(feederId)
+    const winner = kp[sfId]?.advance
+    const sfA = resolveBracketTeam(sfId, 'A', kp)
+    const sfB = resolveBracketTeam(sfId, 'B', kp)
+    if (!winner || !sfA || !sfB) return undefined
+    return winner === sfA ? sfB : sfA
+  }
+  return kp[feederId]?.advance
+}
+
 // ── FULL USER SCORE ───────────────────────────────────────────────────────────
 export function computeUserScore(
   userId: string,
@@ -320,8 +343,8 @@ export function computeUserScore(
         if (km.round !== 'R32' && km.round !== 'R16') {
           const b = KNOCKOUT_BRACKET[km.id]
           if (b) {
-            const bracketA = b.feederA !== null && b.feederA > 0 ? knockoutPredictions[b.feederA]?.advance : undefined
-            const bracketB = b.feederB !== null && b.feederB > 0 ? knockoutPredictions[b.feederB]?.advance : undefined
+            const bracketA = resolveBracketTeam(km.id, 'A', knockoutPredictions)
+            const bracketB = resolveBracketTeam(km.id, 'B', knockoutPredictions)
             advanceValid = pred.advance === bracketA || pred.advance === bracketB
           }
         }
