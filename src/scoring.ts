@@ -1,5 +1,5 @@
 import { Category, Match, MatchPrediction, GroupPrediction, BonusPredictions, UserScore, MatchScore, KnockoutMatch, KnockoutMatchPrediction, KnockoutRound, KnockoutRedCardPicks } from './types'
-import { KNOCKOUT_BRACKET } from './data/matches'
+import { KNOCKOUT_BRACKET, calcCategoryByRound } from './data/matches'
 
 // ── GROUP STAGE 1X2 ───────────────────────────────────────────────────────────
 // Favorite wins → 1pt always
@@ -323,17 +323,23 @@ export function computeUserScore(
       if (!pred) continue
       let matchPts = 0
 
+      // Category is computed from FIFA + round at scoring time rather than trusting the
+      // stored km.category. Propagated late-round matches (QF/SF/3P/F) get their teams and
+      // FIFA points updated on propagation but NOT their category, so a stored category can
+      // be stale, wrong, or missing. FIFA points are always current, so this is authoritative.
+      const kmCat = calcCategoryByRound(km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.round) as Category
+
       if (pred.prediction1X2) {
         matchPts += calc1X2KnockoutPoints(
           pred.prediction1X2, km.resultA, km.resultB,
-          km.fifaPointsA, km.fifaPointsB, km.category, km.round
+          km.fifaPointsA, km.fifaPointsB, kmCat, km.round
         )
       }
       if (pred.scoreA !== null && pred.scoreA !== undefined &&
           pred.scoreB !== null && pred.scoreB !== undefined) {
         matchPts += calcScoreKnockoutPoints(
           Number(pred.scoreA), Number(pred.scoreB),
-          km.resultA, km.resultB, km.category, km.round
+          km.resultA, km.resultB, kmCat, km.round
         )
       }
       if (km.advanceTeam && pred.advance) {
@@ -349,7 +355,7 @@ export function computeUserScore(
           }
         }
         if (advanceValid) {
-          matchPts += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, km.category, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
+          matchPts += calcAdvancePoints(pred.advance, km.advanceTeam, km.round, kmCat, km.fifaPointsA ?? 1500, km.fifaPointsB ?? 1500, km.teamA ?? '', km.teamB ?? '')
         }
       }
       koByRound[km.round] = (koByRound[km.round] ?? 0) + matchPts

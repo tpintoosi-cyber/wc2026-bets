@@ -315,6 +315,46 @@ describe('computeUserScore', () => {
     expect(score.ko3P).toBe(0)
   })
 
+  it('final: category is computed from FIFA at scoring time, ignoring a stale stored category', () => {
+    // Spain vs Argentina FIFA are nearly equal ⇒ true category A. A draw 1X2 in F, cat A = 3.
+    // The stored category is deliberately WRONG ('C') to prove scoring recomputes it.
+    const km = {
+      id: 104, round: 'F', teamA: 'ספרד', teamB: 'ארגנטינה',
+      isPlayed: true, resultA: 0, resultB: 0, advanceTeam: 'ספרד',
+      category: 'C', fifaPointsA: 1876.4, fifaPointsB: 1874.81, // 'C' is stale/wrong
+    } as any
+    const kp = { 104: { matchId: 104, prediction1X2: 'X' } } as any
+    const score = computeUserScore('u1', 'T', {}, {}, {}, [], {}, {}, kp, [km])
+    expect(score.koF).toBe(3) // cat A draw = 3 (would be 4 if the stale 'C' were used)
+  })
+
+  it('final: draw 1X2 scores without NaN even when stored category is missing', () => {
+    const km = {
+      id: 104, round: 'F', teamA: 'ספרד', teamB: 'ארגנטינה',
+      isPlayed: true, resultA: 0, resultB: 0, advanceTeam: 'ספרד',
+      fifaPointsA: 1876.4, fifaPointsB: 1874.81, // no category field at all
+    } as any
+    const kp = { 104: { matchId: 104, prediction1X2: 'X' } } as any
+    const score = computeUserScore('u1', 'T', {}, {}, {}, [], {}, {}, kp, [km])
+    expect(score.koF).toBe(3)
+    expect(Number.isNaN(score.koF)).toBe(false)
+  })
+
+  it('final: exact 0-0 draw + Spain advance = 3 (1X2) + 4 (exact+OU) + 5 (advance) = 12', () => {
+    const km = {
+      id: 104, round: 'F', teamA: 'ספרד', teamB: 'ארגנטינה',
+      isPlayed: true, resultA: 0, resultB: 0, advanceTeam: 'ספרד',
+      fifaPointsA: 1876.4, fifaPointsB: 1874.81,
+    } as any
+    const kp = {
+      101: { matchId: 101, advance: 'ספרד' },
+      102: { matchId: 102, advance: 'ארגנטינה' },
+      104: { matchId: 104, prediction1X2: 'X', scoreA: 0, scoreB: 0, advance: 'ספרד' },
+    } as any
+    const score = computeUserScore('u1', 'T', {}, {}, {}, [], {}, {}, kp, [km])
+    expect(score.koF).toBe(12)
+  })
+
   it('group points are counted', () => {
     const score = computeUserScore(
       'u1', 'Test',

@@ -889,7 +889,7 @@ export function populateR32Teams(
         const ptB = TEAM_FIFA_POINTS[km.teamB] ?? 1500
         km.fifaPointsA = ptA
         km.fifaPointsB = ptB
-        km.category = calcCategoryByRound(ptA, ptB, 'R32')
+        km.category = calcCategoryByRound(ptA, ptB, km.round ?? 'R32')
         log.push(`✅ משחק ${m.id}: ${km.teamA} vs ${km.teamB} (${km.category})`)
       } else {
         const known = km.teamA ?? km.teamB

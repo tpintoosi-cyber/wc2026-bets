@@ -39,6 +39,18 @@ function propagateKnockout(input: Record<number, any>): Record<number, any> {
       if (nb.feederB === -Number(id)) { const loser = m.teamA === m.advanceTeam ? m.teamB : m.teamA; if (loser) propagated[Number(nextId)] = { ...propagated[Number(nextId)], teamB: loser, fifaPointsB: TEAM_FIFA_POINTS[loser] ?? 1500 } }
     }
   }
+  // Recompute category for every match with both teams known — propagation updates teams and
+  // FIFA points but must also refresh the category (by the match's own round), or a stale/missing
+  // category can leak into scoring for QF/SF/3P/F.
+  for (const [id] of Object.entries(propagated)) {
+    const m = propagated[Number(id)] as any
+    if (m?.teamA && m?.teamB) {
+      const ptA = TEAM_FIFA_POINTS[m.teamA] ?? 1500
+      const ptB = TEAM_FIFA_POINTS[m.teamB] ?? 1500
+      m.fifaPointsA = ptA; m.fifaPointsB = ptB
+      m.category = calcCategoryByRound(ptA, ptB, m.round ?? 'R32')
+    }
+  }
   return propagated
 }
 
